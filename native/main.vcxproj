@@ -16,7 +16,7 @@
 
     <!-- 🔻 自定内容 -->
 
-    <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PropertyGroup Label="Configuration">
         <!-- VS2015 ToolsVersion="14.0" PlatformToolset v140-->
         <!-- VS2017 ToolsVersion="15.0" PlatformToolset v141-->
         <!-- VS2019 ToolsVersion="16.0" PlatformToolset v142-->
@@ -51,12 +51,14 @@
             -->
             <!-- <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 /experimental:preprocessor- %(AdditionalOptions)</AdditionalOptions> -->
             <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 /Zc:preprocessor- %(AdditionalOptions)</AdditionalOptions>
-            <PreprocessorDefinitions>UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DEBUG;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <ObjectFileName>$(IntDir)</ObjectFileName>
         </ClCompile>
         <ResourceCompile>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/rc-task -->
-            <PreprocessorDefinitions>UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DEBUG;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
         </ResourceCompile>
         <Link>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/link-task -->

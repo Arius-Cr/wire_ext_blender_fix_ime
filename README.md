@@ -88,6 +88,7 @@ Blender 中这个不合理的输入法状态管理实际上是一个 BUG，原�
 但是从以下页面的信息来看，这个问题好像已经修复了：
 
 https://projects.blender.org/blender/blender/issues/93421
+
 https://archive.blender.org/developer/D13551
 
 只是该补丁（2021-12-12）到现在（2023-05-29）似乎依然处于“需要审查”（Needs Review）的阶段，也就是还没有合并到 Blender 的源码中，所以现在该问题依然存在。

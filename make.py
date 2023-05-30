@@ -1,0 +1,310 @@
+import sys
+import os
+import subprocess
+import traceback
+from pathlib import Path
+import shutil
+import argparse
+import re
+
+_dir = os.path.dirname(__file__)
+_dir_dir = os.path.dirname(_dir)
+sys.path.append(_dir_dir)
+__package__ = os.path.basename(_dir)
+del _dir
+del _dir_dir
+
+try:
+    from .make_settings import path_vsdevcmd, path_blender_dir
+except:
+    raise Exception("请复制 make_settings_template.py 为 make_settings.py 并填写相关参数")
+
+addon_name = 'wire_fix_ime'
+
+def make():
+    parser_parent = argparse.ArgumentParser(add_help=False)
+
+    parser = argparse.ArgumentParser(
+        prog="make.py",
+        description="生成工具")
+    subparsers = parser.add_subparsers(help="", dest="verbo")
+
+    subparser = subparsers.add_parser('dev', parents=[parser_parent],
+        help="调用 VsDevCmd.bat，以便使用 dumpbin 之类的工具")
+
+    subparser = subparsers.add_parser('build', help="生成",
+        parents=[parser_parent])
+    subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
+        help="配置")
+
+    subparser = subparsers.add_parser('link', parents=[parser_parent],
+        help="链接到 Blender 的 addons 目录")
+    subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
+        help="配置")
+    subparser.add_argument('-b', '--blender-dir', type=str, required=False,
+        help="Blender 目录")
+
+    subparser = subparsers.add_parser('run', parents=[parser_parent],
+        help="运行 Blender")
+    subparser.add_argument('-b', '--blender-dir', type=str, required=False,
+        help="Blender 目录")
+
+    subparser = subparsers.add_parser('clean', parents=[parser_parent],
+        help="清理")
+
+    subparser = subparsers.add_parser('pack', parents=[parser_parent],
+        help="打包")
+    subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='release', required=False,
+        help="配置")
+
+    args, unknow_args = parser.parse_known_args()
+
+    try:
+
+        if args.verbo == 'dev':
+            dev(args)
+
+        elif args.verbo == 'build':
+            build(args)
+
+        elif args.verbo == 'link':
+            link(args)
+
+        elif args.verbo == 'run':
+            run(args)
+
+        elif args.verbo == 'clean':
+            clean(args)
+
+        elif args.verbo == 'pack':
+            pack(args)
+
+        else:
+            print("请指定一个操作")
+            print("----------")
+            parser.print_help()
+
+        print("\n执行结束")
+        print("----------")
+
+    except:
+        traceback.print_exc()
+
+    pass
+
+def dev(args):
+    if not path_vsdevcmd.exists():
+        print("找不到：%s" % path_vsdevcmd)
+        print("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
+    cmd = ['call', path_vsdevcmd]
+    p = subprocess.Popen(cmd, shell=True)
+    (output, err) = p.communicate()
+    p_status = p.wait()
+
+def build(args):
+
+    src_dir = Path(__file__).parent
+
+    if args.config == 'debug':
+        int_dir = src_dir.joinpath('xbuild', 'debug')
+        out_dir = src_dir.joinpath('xdebug')
+    elif args.config == 'release':
+        int_dir = src_dir.joinpath('xbuild', 'release')
+        out_dir = src_dir.joinpath('xrelease')
+
+    os.makedirs(int_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # 生成 DLL
+
+    if not path_vsdevcmd.exists():
+        print("找不到：%s" % path_vsdevcmd)
+        print("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
+
+    else:
+        path_vsxproj = src_dir.joinpath("native", "main.vcxproj")
+        path_src_dir = src_dir.joinpath("native")
+        path_int_dir = int_dir.joinpath("int")
+        path_out_dir = int_dir.joinpath("out")
+
+        need_to_rebuild = True
+        if path_out_dir.exists():
+
+            mtime_src = 0
+            for _name in os.listdir(path_src_dir):
+                mtime_src = max(mtime_src, os.path.getmtime(path_src_dir.joinpath(_name)))
+
+            mtime_out = 0
+            for _name in os.listdir(path_out_dir):
+                mtime_out = max(mtime_out, os.path.getmtime(path_out_dir.joinpath(_name)))
+
+            if mtime_out > mtime_src:
+                need_to_rebuild = False
+
+        if need_to_rebuild:
+
+            if args.config == 'debug':
+                _configuration = 'Debug'
+            elif args.config == 'release':
+                _configuration = 'Release'
+
+            cmd = [
+                'call', path_vsdevcmd, '&&',
+                'msbuild.exe', path_vsxproj,
+                f'-property:Configuration={_configuration};Platform=x64;'
+                f'IntDir={path_int_dir}\\;OutDir={path_out_dir}\\',  # 必须以斜杠结尾
+            ]
+            print("生成命令: %s\n" % cmd)
+
+            p = subprocess.Popen(cmd, shell=True)
+            (output, err) = p.communicate()
+            p_status = p.wait()
+
+            print("\n")
+
+        else:
+            print("无需重新编译")
+            print("\n")
+
+    # 复制文件
+
+    if args.config == 'debug':
+        _mark = (['mark.py'], [])
+        _dll = (['xbuild', 'debug', 'out', 'native.dll'], ['native', 'native.dll'])
+    elif args.config == 'release':
+        _mark = (['mark.release.py'], ['mark.py'])
+        _dll = (['xbuild', 'release', 'out', 'native.dll'], ['native', 'native.dll'])
+
+    files = [
+        (['__init__.py'], []),
+        (['main.py'], []),
+        _mark,
+        (['native', '__init__.py'], []),
+        _dll,
+    ]
+
+    for _src, _dst in files:
+        if not _dst:
+            _dst = _src
+
+        _src_path = src_dir.joinpath(*_src)
+        _dst_path = out_dir.joinpath(*_dst)
+        os.makedirs(_dst_path.parent, exist_ok=True)
+
+        print("复制文件：%s" % str(_src))
+
+        shutil.copyfile(_src_path, _dst_path)
+
+    print("\n")
+    print("生成完成")
+
+    return 0
+
+def link(args):
+    if args.blender_dir is not None:
+        blender_dir = Path(args.blender_dir)
+    else:
+        blender_dir = path_blender_dir
+
+    exe_path = blender_dir.joinpath("Blender.exe")
+
+    if not exe_path.exists():
+        print("找不到：", exe_path)
+        return
+
+    version: tuple[int, int, int] = None
+
+    _rs = os.popen(f'"{exe_path}" -v')
+    if _match := re.match(r'Blender (\d+).(\d+).(\d+)', _rs.readline()):
+        version = (_match[1], _match[2], _match[3])
+    else:
+        print(_err := "无法获取版本信息")
+        raise Exception(_err)
+
+    dst = blender_dir.joinpath('%s.%s' % version[0:2], 'scripts', 'addons', addon_name)
+
+    if os.path.lexists(dst):
+        print("删除旧链接")
+        os.unlink(dst)
+
+    src_dir = Path(__file__).parent
+
+    src = src_dir.joinpath('xdebug' if args.config == 'debug' else 'xrelease')
+
+    p = subprocess.Popen([
+        'mklink', '/d', '/h', '/j', dst, src,
+    ], shell=True)
+    p.communicate()
+    p.wait()
+
+    pass
+
+def run(args):
+    if args.blender_dir is not None:
+        blender_dir = Path(args.blender_dir)
+    else:
+        blender_dir = path_blender_dir
+
+    exe_path = blender_dir.joinpath("Blender.exe")
+
+    if not exe_path.exists():
+        print("找不到：", exe_path)
+        return
+
+    cmd = [exe_path]
+    p = subprocess.Popen(cmd, shell=True)
+    (output, err) = p.communicate()
+    p_status = p.wait()
+
+def clean(args):
+    src_dir = Path(__file__).parent
+    int_dir = src_dir.joinpath('xbuild')
+    out_dir = src_dir.joinpath('xdebug')
+    if int_dir.exists():
+        print("删除：%s" % int_dir)
+        shutil.rmtree(int_dir)
+    if out_dir.exists():
+        print("删除：%s" % out_dir)
+        shutil.rmtree(out_dir)
+    pass
+
+def pack(args):
+    src_dir = Path(__file__).parent
+
+    dir = src_dir.joinpath('xdebug' if args.config == 'debug' else 'xrelease')
+
+    try:
+
+        import zipfile
+        from . import bl_info  # 不要在 __init__.py 中引用 bpy
+
+        version = '%s.%s.%s' % bl_info['version']
+        file_name = f'wire_fix_ime_v{version}.zip'
+
+        if (file_path := src_dir.joinpath(file_name)).exists():
+            os.remove(file_path)
+
+        with zipfile.ZipFile(file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(dir, arcname=addon_name)
+            for root, dirs, files in os.walk(dir):
+                for fn in files:
+                    zipf.write(
+                        fp := os.path.join(root, fn),
+                        arcname=addon_name + '/' + os.path.relpath(fp, dir)
+                    )
+            # zipf.write(dir_to, arcname=(dn := os.path.basename(dir_to)))
+            # for root, dirs, files in os.walk(dir_to):
+            #     for fn in files:
+            #         zipf.write(
+            #             fp := os.path.join(root, fn),
+            #             arcname=dn + '/' + os.path.relpath(fp, dir_to)
+            #         )
+
+        print("打包完成：%s" % file_path)
+
+    except:
+        traceback.print_exc()
+        print("打包失败")
+
+
+make()

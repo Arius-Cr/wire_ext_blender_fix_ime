@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <ItemGroup Label="ProjectConfigurations">
+        <ProjectConfiguration Include="Debug|x64">
+            <Configuration>Debug</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Release|x64">
+            <Configuration>Release</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+    </ItemGroup>
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+    <!-- 🔻 自定内容 -->
+
+    <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <!-- VS2015 ToolsVersion="14.0" PlatformToolset v140-->
+        <!-- VS2017 ToolsVersion="15.0" PlatformToolset v141-->
+        <!-- VS2019 ToolsVersion="16.0" PlatformToolset v142-->
+        <!-- VS2022 ToolsVersion="17.0" PlatformToolset v143-->
+        <PlatformToolset>v143</PlatformToolset>
+        <!-- Windows SDK 版本，安装哪个就设为哪个版本 -->
+        <WindowsTargetPlatformVersion>10.0.20348.0</WindowsTargetPlatformVersion>
+        <!-- 输出文件的类型 -->
+        <ConfigurationType>DynamicLibrary</ConfigurationType>
+        <!-- 输出文件的名称 -->
+        <TargetName>native</TargetName>
+        <!-- 输出文件的扩展名 -->
+        <TargetExt>.dll</TargetExt>
+        <!-- 中间文件目录 -->
+        <IntDir>.\build\objs\$(Platform)\$(Configuration)\</IntDir>
+        <!-- 输出文件目录 -->
+        <OutDir>.\build\$(Platform)\$(Configuration)\</OutDir>
+    </PropertyGroup>
+
+    <!-- 🔺 自定内容 -->
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+    <!-- 🔻 自定内容 -->
+
+    <ItemDefinitionGroup>
+        <ClCompile>
+            <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/cl-task -->
+            <!--
+                 关于 /experimental:preprocessor- 和 /Zc:preprocessor-，参考：
+                 https://learn.microsoft.com/zh-cn/cpp/build/reference/experimental-preprocessor?view=msvc-170
+            -->
+            <!-- <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 /experimental:preprocessor- %(AdditionalOptions)</AdditionalOptions> -->
+            <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 /Zc:preprocessor- %(AdditionalOptions)</AdditionalOptions>
+            <PreprocessorDefinitions>UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ObjectFileName>$(IntDir)</ObjectFileName>
+        </ClCompile>
+        <ResourceCompile>
+            <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/rc-task -->
+            <PreprocessorDefinitions>UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+        </ResourceCompile>
+        <Link>
+            <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/link-task -->
+            <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+            <LinkIncremental>True</LinkIncremental>
+        </Link>
+
+    </ItemDefinitionGroup>
+
+    <ItemGroup>
+        <ClCompile Include="fix_ime_state.c" />
+        <ClCompile Include="hook.c" />
+        <ClCompile Include="main.c" />
+        <ClCompile Include="utils.c" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ClInclude Include="fix_ime_state.h" />
+        <ClInclude Include="hook.h" />
+        <ClInclude Include="main.h" />
+        <ClInclude Include="utils.h" />
+    </ItemGroup>
+
+    <Target Name="Message" BeforeTargets="Build">
+        <Message Text="Project File Name = $(TargetName)" />
+    </Target>
+
+    <!-- 🔺 自定内容 -->
+
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

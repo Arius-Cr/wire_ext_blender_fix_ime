@@ -2,6 +2,8 @@ import sys
 
 from . mark import *
 
+# 不要在 __init__.py 中引用 bpy，参考：make.by: pack()
+
 bl_info = {
     'name': "wire_fix_ime",
     'author': "阿弩斯(Arius)",

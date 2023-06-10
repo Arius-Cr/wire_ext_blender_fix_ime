@@ -20,18 +20,17 @@ except:
     raise Exception("请复制 make_settings_template.py 为 make_settings.py 并填写相关参数")
 
 addon_name = 'wire_fix_ime'
+addon_full_name = 'wire_ext_blender_fix_ime'
+
+prj_dir = Path(__file__).parent
 
 def make():
     parser_parent = argparse.ArgumentParser(add_help=False)
 
     parser = argparse.ArgumentParser(
-        prog="make.py",
-        description="生成工具")
+        prog="make", description="生成工具")
     subparsers = parser.add_subparsers(help="", dest="verbo")
-
-    subparser = subparsers.add_parser('dev', parents=[parser_parent],
-        help="调用 VsDevCmd.bat，以便使用 dumpbin 之类的工具")
-
+    
     subparser = subparsers.add_parser('build', help="生成",
         parents=[parser_parent])
     subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
@@ -54,8 +53,6 @@ def make():
 
     subparser = subparsers.add_parser('pack', parents=[parser_parent],
         help="打包")
-    subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='release', required=False,
-        help="配置")
 
     args, unknow_args = parser.parse_known_args()
 
@@ -92,25 +89,14 @@ def make():
 
     pass
 
-def dev(args):
-    if not path_vsdevcmd.exists():
-        print("找不到：%s" % path_vsdevcmd)
-        print("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
-    cmd = ['call', path_vsdevcmd]
-    p = subprocess.Popen(cmd, shell=True)
-    (output, err) = p.communicate()
-    p_status = p.wait()
-
 def build(args):
 
-    src_dir = Path(__file__).parent
-
     if args.config == 'debug':
-        int_dir = src_dir.joinpath('xbuild', 'debug')
-        out_dir = src_dir.joinpath('xdebug')
+        int_dir = prj_dir.joinpath('xbuild', 'debug')
+        out_dir = prj_dir.joinpath('xdebug')
     elif args.config == 'release':
-        int_dir = src_dir.joinpath('xbuild', 'release')
-        out_dir = src_dir.joinpath('xrelease')
+        int_dir = prj_dir.joinpath('xbuild', 'release')
+        out_dir = prj_dir.joinpath('xrelease')
 
     os.makedirs(int_dir, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
@@ -122,8 +108,8 @@ def build(args):
         print("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
 
     else:
-        path_vsxproj = src_dir.joinpath("native", "main.vcxproj")
-        path_src_dir = src_dir.joinpath("native")
+        path_vsxproj = prj_dir.joinpath("native", "main.vcxproj")
+        path_src_dir = prj_dir.joinpath("native")
         path_int_dir = int_dir.joinpath("int")
         path_out_dir = int_dir.joinpath("out")
 
@@ -143,16 +129,15 @@ def build(args):
 
         if need_to_rebuild:
 
-            if args.config == 'debug':
-                _configuration = 'Debug'
-            elif args.config == 'release':
-                _configuration = 'Release'
+            props: list[str] = []
+            props.append('Configuration={}'.format(args.config.capitalize()))
+            props.append('Platform=x64')
+            props.append('IntDir={}\\'.format(path_int_dir))  # 必须以斜杠结尾
+            props.append('OutDir={}\\'.format(path_out_dir))
 
             cmd = [
                 'call', path_vsdevcmd, '&&',
-                'msbuild.exe', path_vsxproj,
-                f'-property:Configuration={_configuration};Platform=x64;'
-                f'IntDir={path_int_dir}\\;OutDir={path_out_dir}\\',  # 必须以斜杠结尾
+                'msbuild.exe', path_vsxproj, '-property:' + ";".join(props)
             ]
             print("生成命令: %s\n" % cmd)
 
@@ -187,7 +172,7 @@ def build(args):
         if not _dst:
             _dst = _src
 
-        _src_path = src_dir.joinpath(*_src)
+        _src_path = prj_dir.joinpath(*_src)
         _dst_path = out_dir.joinpath(*_dst)
         os.makedirs(_dst_path.parent, exist_ok=True)
 
@@ -227,9 +212,7 @@ def link(args):
         print("删除旧链接")
         os.unlink(dst)
 
-    src_dir = Path(__file__).parent
-
-    src = src_dir.joinpath('xdebug' if args.config == 'debug' else 'xrelease')
+    src = prj_dir.joinpath('xdebug' if args.config == 'debug' else 'xrelease')
 
     p = subprocess.Popen([
         'mklink', '/d', '/h', '/j', dst, src,
@@ -257,21 +240,26 @@ def run(args):
     p_status = p.wait()
 
 def clean(args):
-    src_dir = Path(__file__).parent
-    int_dir = src_dir.joinpath('xbuild')
-    out_dir = src_dir.joinpath('xdebug')
-    if int_dir.exists():
-        print("删除：%s" % int_dir)
-        shutil.rmtree(int_dir)
-    if out_dir.exists():
-        print("删除：%s" % out_dir)
-        shutil.rmtree(out_dir)
+    if (_dir := prj_dir.joinpath('xbuild')).exists():
+        print("删除：%s" % _dir)
+        shutil.rmtree(_dir)
+
+    if (_dir := prj_dir.joinpath('xdebug')).exists():
+        print("删除：%s" % _dir)
+        shutil.rmtree(_dir)
+
+    if (_dir := prj_dir.joinpath('xrelease')).exists():
+        print("删除：%s" % _dir)
+        shutil.rmtree(_dir)
+
     pass
 
 def pack(args):
-    src_dir = Path(__file__).parent
+    dir = prj_dir.joinpath('xrelease')
 
-    dir = src_dir.joinpath('xdebug' if args.config == 'debug' else 'xrelease')
+    if not dir.exists():
+        print("目录不存在：", dir)
+        return
 
     try:
 
@@ -279,9 +267,9 @@ def pack(args):
         from . import bl_info  # 不要在 __init__.py 中引用 bpy
 
         version = '%s.%s.%s' % bl_info['version']
-        file_name = f'wire_fix_ime_v{version}.zip'
+        file_name = f'{addon_full_name}_v{version}.zip'
 
-        if (file_path := src_dir.joinpath(file_name)).exists():
+        if (file_path := prj_dir.joinpath(file_name)).exists():
             os.remove(file_path)
 
         with zipfile.ZipFile(file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -292,13 +280,6 @@ def pack(args):
                         fp := os.path.join(root, fn),
                         arcname=addon_name + '/' + os.path.relpath(fp, dir)
                     )
-            # zipf.write(dir_to, arcname=(dn := os.path.basename(dir_to)))
-            # for root, dirs, files in os.walk(dir_to):
-            #     for fn in files:
-            #         zipf.write(
-            #             fp := os.path.join(root, fn),
-            #             arcname=dn + '/' + os.path.relpath(fp, dir_to)
-            #         )
 
         print("打包完成：%s" % file_path)
 

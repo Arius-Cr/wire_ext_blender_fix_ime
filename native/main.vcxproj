@@ -65,7 +65,6 @@
             <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
             <LinkIncremental>True</LinkIncremental>
         </Link>
-
     </ItemDefinitionGroup>
 
     <ItemGroup>

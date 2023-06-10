@@ -5,4 +5,5 @@ xdebug/
 xrelease/
 
 make_settings.py
+vsdev.cmd
 *.zip

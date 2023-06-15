@@ -1,9 +1,15 @@
-.vscode/
 __pycache__/
-xbuild/
-xdebug/
-xrelease/
 
-make_settings.py
-vsdev.cmd
+/.vscode/
+/xbuild/
+/xdebug/
+/xrelease/
+
+# 开发者自己用于调用 make.py 的脚本文件需要以 make-xxx.xxx 的方式命名，不纳入代码管理
+/make-*.*
+# 下面两个文件也由开发者自己创建
+/make.bat
+/make.cmd
+
+# 打包时生成的文件
 *.zip

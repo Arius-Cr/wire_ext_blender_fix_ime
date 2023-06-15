@@ -14,11 +14,6 @@ __package__ = os.path.basename(_dir)
 del _dir
 del _dir_dir
 
-try:
-    from .make_settings import path_vsdevcmd, path_blender_dir
-except:
-    raise Exception("请复制 make_settings_template.py 为 make_settings.py 并填写相关参数")
-
 addon_name = 'wire_fix_ime'
 addon_full_name = 'wire_ext_blender_fix_ime'
 
@@ -29,24 +24,25 @@ def make():
 
     parser = argparse.ArgumentParser(
         prog="make", description="生成工具")
+    parser.add_argument('-v', '--vsdev', type=str, required=True,
+        help="VsDevCmd.bat 文件的路径，"
+        "如：C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/Tools/VsDevCmd.bat")
+    parser.add_argument('-b', '--blender-dir', type=str, required=True,
+        help="Blender 目录，用于 link、run 命令")
+
     subparsers = parser.add_subparsers(help="", dest="verbo")
-    
+
     subparser = subparsers.add_parser('build', help="生成",
         parents=[parser_parent])
     subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
         help="配置")
-
     subparser = subparsers.add_parser('link', parents=[parser_parent],
         help="链接到 Blender 的 addons 目录")
     subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
         help="配置")
-    subparser.add_argument('-b', '--blender-dir', type=str, required=False,
-        help="Blender 目录")
 
     subparser = subparsers.add_parser('run', parents=[parser_parent],
         help="运行 Blender")
-    subparser.add_argument('-b', '--blender-dir', type=str, required=False,
-        help="Blender 目录")
 
     subparser = subparsers.add_parser('clean', parents=[parser_parent],
         help="清理")
@@ -57,7 +53,7 @@ def make():
     args, unknow_args = parser.parse_known_args()
 
     try:
-        
+
         if args.verbo == 'build':
             build(args)
 
@@ -87,6 +83,8 @@ def make():
     pass
 
 def build(args):
+
+    path_vsdevcmd = Path(args.vsdev)
 
     if args.config == 'debug':
         int_dir = prj_dir.joinpath('xbuild', 'debug')
@@ -183,10 +181,8 @@ def build(args):
     return 0
 
 def link(args):
-    if args.blender_dir is not None:
-        blender_dir = Path(args.blender_dir)
-    else:
-        blender_dir = path_blender_dir
+
+    blender_dir = Path(args.blender_dir)
 
     exe_path = blender_dir.joinpath("Blender.exe")
 
@@ -220,10 +216,8 @@ def link(args):
     pass
 
 def run(args):
-    if args.blender_dir is not None:
-        blender_dir = Path(args.blender_dir)
-    else:
-        blender_dir = path_blender_dir
+
+    blender_dir = Path(args.blender_dir)
 
     exe_path = blender_dir.joinpath("Blender.exe")
 

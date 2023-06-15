@@ -57,11 +57,8 @@ def make():
     args, unknow_args = parser.parse_known_args()
 
     try:
-
-        if args.verbo == 'dev':
-            dev(args)
-
-        elif args.verbo == 'build':
+        
+        if args.verbo == 'build':
             build(args)
 
         elif args.verbo == 'link':

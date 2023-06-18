@@ -1,8 +1,9 @@
 import sys
+import importlib
 
 from . mark import *
 
-# 不要在 __init__.py 中引用 bpy，参考：make.by: pack()
+# 不要在 __init__.py 中引用直接或间接引用 bpy，参考：make.by: pack()
 
 bl_info = {
     'name': "wire_fix_ime",
@@ -16,11 +17,25 @@ bl_info = {
 }
 
 def register():
-    if (modu_main := __name__ + '.main') in sys.modules:
-        del sys.modules[modu_main]
-    from . import main
+    main = importlib.import_module('.main', __package__)
     main.register()
+    pass
 
 def unregister():
-    from . import main
+    main = importlib.import_module('.main', __package__)
     main.unregister()
+    module_clean() # 以便重新加载时可以载入最新的文件（Blender 会自动重新加载最新的 __init__.py 文件）
+    pass
+
+def module_clean():
+    addon_name = __package__
+    addon_prefix = "%s." % addon_name
+    module_keys: list[str] = []
+    for k in sys.modules.keys():
+        if k.startswith(addon_prefix):
+            module_keys.append(k)
+    for k in module_keys:
+        if DEBUG:
+            print("del: %s" % k)
+        del sys.modules[k]
+    pass

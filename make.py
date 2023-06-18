@@ -255,7 +255,7 @@ def pack(args):
     try:
 
         import zipfile
-        from . import bl_info  # 不要在 __init__.py 中引用 bpy
+        from . xrelease import bl_info  # 不要在 __init__.py 中引用 bpy
 
         version = '%s.%s.%s' % bl_info['version']
         file_name = f'{addon_full_name}_v{version}.zip'

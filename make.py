@@ -266,6 +266,8 @@ def pack(args):
         with zipfile.ZipFile(file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(dir, arcname=addon_name)
             for root, dirs, files in os.walk(dir):
+                if os.path.basename(root) == '__pycache__':
+                    continue
                 for fn in files:
                     zipf.write(
                         fp := os.path.join(root, fn),

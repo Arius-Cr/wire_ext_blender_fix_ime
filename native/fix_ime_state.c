@@ -29,6 +29,37 @@ extern __declspec(dllexport) bool use_fix_ime_state(bool enable)
     return true; // 返回的是否执行成功
 }
 
+extern __declspec(dllexport) bool change_ime_state(bool enable)
+{
+    DEBUGI(D_IME, "change_ime_state: %s", enable ? "True" : "False");
+
+    // 由于无法准确获取哪个窗口，只能默认来自于活动窗口
+    HWND hWnd = GetActiveWindow();
+
+    HIMC himc = ImmGetContext(hWnd);
+
+    if (enable)
+    {
+        // 这部分代码，实际上不会使用到
+        if (himc == NULL)
+        {
+            ImmAssociateContextEx(hWnd, NULL, IACE_DEFAULT);
+            ImmReleaseContext(hWnd, himc);
+        }
+    }
+    else
+    {
+        if (himc != NULL)
+        {
+            DEBUGI(D_IME, "disable IME in change_ime_state：%p", hWnd);
+            ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
+            ImmReleaseContext(hWnd, himc);
+        }
+    }
+
+    return true; // 返回的是否执行成功
+}
+
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  全局功能
 

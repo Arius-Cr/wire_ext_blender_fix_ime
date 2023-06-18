@@ -58,6 +58,9 @@ class _fix_ime_state:
 
     def use_fix_ime_state(self, enable: bool) -> bool:
         return self.dll.use_fix_ime_state(enable)
+    
+    def change_ime_state(self, enable: bool) -> bool:
+        return self.dll.change_ime_state(enable)
 
 class Native(_main, _hook, _fix_ime_state):
     def __init__(self):

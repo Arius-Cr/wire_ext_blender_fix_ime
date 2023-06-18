@@ -18,6 +18,8 @@ extern __declspec(dllexport) bool use_fix_ime_state_debug(bool enable);
 
 extern __declspec(dllexport) bool use_fix_ime_state(bool enable);
 
+extern __declspec(dllexport) bool change_ime_state(bool enable);
+
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  全局功能
 

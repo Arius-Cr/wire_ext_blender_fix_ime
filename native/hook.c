@@ -256,8 +256,8 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam_, LPARAM lParam_)
     {
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
-    case WM_MBUTTONDOWN:
-    case WM_XBUTTONDOWN:
+    // case WM_MBUTTONDOWN: // 中间和X键似乎不会触发输入框退出
+    // case WM_XBUTTONDOWN:
     {
         DEBUGI(D_IME, "WM_#BUTTONDOWN: %p", hWnd);
         if (data_use_fix_ime_state && is_blender_window(hWnd))

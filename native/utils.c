@@ -7,7 +7,6 @@
 // Self
 #include "utils.h"
 
-
 void setup_console_encoding()
 {
     // 要在 Blender 的控制台输出中文似乎非常困难？其行为和常规的控制台似乎不同

@@ -12,7 +12,7 @@
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  全局功能
 
-extern bool data_is_debug;
+extern bool data_use_debug;
 
 extern HANDLE process_handle;
 extern DWORD process_id;

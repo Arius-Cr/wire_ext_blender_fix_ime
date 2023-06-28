@@ -10,10 +10,11 @@ bl_info = {
     'author': "阿弩斯(Arius)",
     'description': "修复输入文字后输入法状态不正确的问题",
     'blender': (3, 0, 0),
-    'version': (1, 0, 0),
+    'version': (2, 0, 0),
+    '_pre_release': 'beta.1',
     'location': "",
-    'warning': "",
-    'category': 'Generic',
+    'warning': "beta.1（测试版）",
+    'category': 'User Interface',
 }
 
 def register():
@@ -24,7 +25,7 @@ def register():
 def unregister():
     main = importlib.import_module('.main', __package__)
     main.unregister()
-    module_clean() # 以便重新加载时可以载入最新的文件（Blender 会自动重新加载最新的 __init__.py 文件）
+    module_clean()  # 以便重新加载时可以载入最新的文件（Blender 会自动重新加载最新的 __init__.py 文件）
     pass
 
 def module_clean():

@@ -157,6 +157,7 @@ def build(args):
 
     files = [
         (['__init__.py'], []),
+        (['debug.py'], []),
         (['main.py'], []),
         _mark,
         (['native', '__init__.py'], []),
@@ -258,7 +259,12 @@ def pack(args):
         from . xrelease import bl_info  # 不要在 __init__.py 中引用 bpy
 
         version = '%s.%s.%s' % bl_info['version']
-        file_name = f'{addon_full_name}_v{version}.zip'
+        
+        pre_release = ""
+        if '_pre_release' in bl_info:
+            pre_release = "_" + bl_info['_pre_release']
+
+        file_name = f'{addon_full_name}_v{version}{pre_release}.zip'
 
         if (file_path := prj_dir.joinpath(file_name)).exists():
             os.remove(file_path)

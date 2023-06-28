@@ -14,16 +14,10 @@
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  对外功能
 
-extern __declspec(dllexport) bool use_fix_ime_state_debug(bool enable);
-
 extern __declspec(dllexport) bool use_fix_ime_state(bool enable);
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  全局功能
-
-#define D_IME data_use_fix_ime_state_debug
-
-extern bool data_use_fix_ime_state_debug;
 
 extern bool data_use_fix_ime_state;
 

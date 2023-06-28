@@ -66,7 +66,7 @@ def use_header_extned(self: dict, context: bpy.types.Context):
         if TEXT_HT_header_extend_appended:
             bpy.types.TEXT_HT_header.remove(TEXT_HT_header_extend)
             TEXT_HT_header_extend_appended = False
-    
+
     if use_header_extned_console:
         if not CONSOLE_HT_header_extend_appended:
             bpy.types.CONSOLE_HT_header.append(CONSOLE_HT_header_extend)
@@ -937,10 +937,7 @@ def register():
 
     WIRE_OT_fix_ime_input_watcher.add_key_map_item()
 
-    bpy.types.TEXT_HT_header.remove(TEXT_HT_header_extend)
-    TEXT_HT_header_extend_appended = True
-    bpy.types.CONSOLE_HT_header.remove(CONSOLE_HT_header_extend)
-    CONSOLE_HT_header_extend_appended = True
+
 
     native.dll_load()
 
@@ -957,6 +954,11 @@ def register():
     use_fix_ime_update({
         'use_fix_ime_state': int(prefs.use_fix_ime_state),
         'use_fix_ime_input': int(prefs.use_fix_ime_input),
+    }, bpy.context)
+
+    use_header_extned({
+        'use_header_extned_text_editor': int(prefs.use_header_extned_text_editor),
+        'use_header_extned_console': int(prefs.use_header_extned_console),
     }, bpy.context)
 
     pass

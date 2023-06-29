@@ -91,14 +91,14 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
     )
 
     use_fix_ime_state: bpy.props.BoolProperty(
-        name="自动切换输入法状态",
-        description="启用后，当用户处于需要输入文字的状态时，自动启用输入法，否则自动停用输入法",
+        name="自动管理输入法状态",
+        description="启用后，当用户激活输入框时，插件会自动启用输入法，退出输入框时，插件会自动停用输入法",
         default=True,
         update=use_fix_ime_update,
     )
 
     use_fix_ime_input: bpy.props.BoolProperty(
-        name="直接使用输入法输入文字",
+        name="使用输入法输入文字",
         description="启用后，可以在某些情况下直接使用输入法输入文字",
         default=True,
         update=use_fix_ime_update,
@@ -124,23 +124,23 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
 
     candidate_window_percent: bpy.props.FloatProperty(
         name="候选窗口水平位置",
-        description="候选窗口左侧在屏幕底部的位置，最终位置会受系统调整（仅适用于“文本物体编辑模式”时的候选窗口）",
+        description="候选窗口的左侧在屏幕工作区底部的水平位置，最终位置会受系统调整",
         default=0.4,
         min=0,
         max=1,
         subtype='FACTOR',
     )
 
-    use_header_extned_text_editor: bpy.props.BoolProperty(
+    use_header_extend_text_editor: bpy.props.BoolProperty(
         name="文本编辑器状态提示",
-        description="启用后，在【文本编辑器】的标题栏中显示当前工作状态",
+        description="启用后，在【文本编辑器】的标题栏中显示“使用输入法输入文字”功能相关的状态提示",
         default=True,
         update=use_header_extned,
     )
 
-    use_header_extned_console: bpy.props.BoolProperty(
+    use_header_extend_console: bpy.props.BoolProperty(
         name="控制台状态提示",
-        description="启用后，在【控制台】的标题栏中显示当前工作状态",
+        description="启用后，在【控制台】的标题栏中显示“使用输入法输入文字”功能相关的状态提示",
         default=True,
         update=use_header_extned,
     )
@@ -730,7 +730,9 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             self._space = None
             self._region = None
 
-        elif key == 'MOUSEMOVE':  # 仅在鼠标发生了移动时才检查，否则可能会误判
+        # 仅在鼠标发生了移动时才检查，否则可能会误判
+        # 虽然只是监听 MOUSEMOVE，但实际在鼠标不移动的时候也会触发，譬如按 TAB 切换编辑模式时。
+        elif key == 'MOUSEMOVE':
 
             editor_type: Literal['font', 'text', 'console'] = None
             _space: bpy.types.Space = False
@@ -937,8 +939,6 @@ def register():
     bpy.utils.register_class(WIRE_OT_fix_ime_input_watcher)
 
     WIRE_OT_fix_ime_input_watcher.add_key_map_item()
-
-
 
     native.dll_load()
 

@@ -14,6 +14,8 @@ __package__ = os.path.basename(_dir)
 del _dir
 del _dir_dir
 
+# ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
 addon_name = 'wire_fix_ime'
 addon_full_name = 'wire_ext_blender_fix_ime'
 
@@ -155,13 +157,23 @@ def build(args):
         _mark = (['mark.release.py'], ['mark.py'])
         _dll = (['xbuild', 'release', 'out', 'native.dll'], ['native', 'native.dll'])
 
-    files = [
+    files = [  # (src, dst)
         (['__init__.py'], []),
         (['debug.py'], []),
         (['main.py'], []),
         _mark,
         (['native', '__init__.py'], []),
         _dll,
+        #
+        (['doc', 'images', 'state_icon_1.jpg'], []),
+        (['doc', 'images', 'state_icon_2.jpg'], []),
+        (['doc', 'images', 'state_icon_3.jpg'], []),
+        (['doc', 'zh-Hans', 'Development.md'], []),
+        (['doc', 'zh-Hans', 'Index.md'], []),
+        (['doc', 'zh-Hans', 'Usage.md'], []),
+        #
+        (['LICENSE'], []),
+        (['README.md'], []),
     ]
 
     for _src, _dst in files:
@@ -170,11 +182,19 @@ def build(args):
 
         _src_path = prj_dir.joinpath(*_src)
         _dst_path = out_dir.joinpath(*_dst)
-        os.makedirs(_dst_path.parent, exist_ok=True)
+        _src_exists = _src_path.exists()
+        _dst_exists = _dst_path.exists()
 
-        print("复制文件：%s" % str(_src))
-
-        shutil.copyfile(_src_path, _dst_path)
+        if _src_exists:
+            if _src_path.is_file():
+                if not _dst_exists or _dst_path.stat().st_mtime < _src_path.stat().st_mtime:
+                    print("复制文件：%s" % str(_src))
+                    os.makedirs(_dst_path.parent, exist_ok=True)
+                    shutil.copyfile(_src_path, _dst_path)
+                else:
+                    print("无改动：%s" % str(_src))
+        else:
+            print("源不存在：%s" % _src_path)
 
     print("\n")
     print("生成完成")
@@ -259,7 +279,7 @@ def pack(args):
         from . xrelease import bl_info  # 不要在 __init__.py 中引用 bpy
 
         version = '%s.%s.%s' % bl_info['version']
-        
+
         pre_release = ""
         if '_pre_release' in bl_info:
             pre_release = "_" + bl_info['_pre_release']

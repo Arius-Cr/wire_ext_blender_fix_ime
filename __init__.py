@@ -8,7 +8,7 @@ from . mark import *
 bl_info = {
     'name': "wire_fix_ime",
     'author': "阿弩斯(Arius)",
-    'description': "修复输入文字后输入法状态不正确的问题",
+    'description': "修复 Blender 中和 IME 相关的一些问题",
     'blender': (3, 0, 0),
     'version': (2, 0, 0),
     '_pre_release': 'beta.1',

@@ -1,28 +1,26 @@
-#ifndef MAIN_H_
-#define MAIN_H_
-
+#ifndef FIX_IME_H_
+#define FIX_IME_H_
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 // Windows
-#include <Windows.h>
+#include <windows.h>
+#include <imm.h>
+#pragma comment(lib, "Imm32.lib")
 // Self
+#include "main.h"
 #include "utils.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序内功能
 
-extern bool data_use_debug;
+#define D_IME data_use_fix_ime_debug
 
-extern HANDLE process_handle;
-extern DWORD process_id;
-extern DWORD thread_id;
+extern bool data_use_fix_ime_debug;
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序外功能
 
-extern __declspec(dllexport) bool use_debug(bool enable);
-
-extern __declspec(dllexport) bool init();
+extern __declspec(dllexport) bool use_fix_ime_debug(bool enable);
 
 #endif

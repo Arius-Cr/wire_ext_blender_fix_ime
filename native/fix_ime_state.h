@@ -12,18 +12,7 @@
 #include "utils.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  对外功能
-
-extern __declspec(dllexport) bool use_fix_ime_state_debug(bool enable);
-
-extern __declspec(dllexport) bool use_fix_ime_state(bool enable);
-
-// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  全局功能
-
-#define D_IME data_use_fix_ime_state_debug
-
-extern bool data_use_fix_ime_state_debug;
+//  标记  程序内功能
 
 extern bool data_use_fix_ime_state;
 
@@ -32,5 +21,10 @@ extern void fix_ime_state_with_mouse_event(HWND hWnd, UINT uMsg, WPARAM wParam, 
 
 // 处理键盘相关的事件，在窗口处理过程中调用
 extern void fix_ime_state_with_key_event(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+//  标记  程序外功能
+
+extern __declspec(dllexport) bool use_fix_ime_state(bool enable);
 
 #endif

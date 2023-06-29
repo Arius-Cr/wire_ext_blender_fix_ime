@@ -5,11 +5,13 @@ __pycache__/
 /xdebug/
 /xrelease/
 
-# 开发者自己用于调用 make.py 的脚本文件需要以 make-xxx.xxx 的方式命名，不纳入代码管理
-/make-*.*
-# 下面两个文件也由开发者自己创建
-/make.bat
-/make.cmd
+# 除了 make.py 和 make_*.py 文件，其它 make 开头的文件均为私用文件，不纳入代码管理
+/make*.*
+!/make.py
+!/make_*.py
+
+# 暂记待办事项的文件，为私用文件
+/TODO.markdown
 
 # 打包时生成的文件
 *.zip

@@ -12,15 +12,15 @@
 #include "utils.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  对外功能
-
-extern __declspec(dllexport) bool use_fix_ime_debug(bool enable);
-
-// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  全局功能
+//  标记  程序内功能
 
 #define D_IME data_use_fix_ime_debug
 
 extern bool data_use_fix_ime_debug;
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+//  标记  程序外功能
+
+extern __declspec(dllexport) bool use_fix_ime_debug(bool enable);
 
 #endif

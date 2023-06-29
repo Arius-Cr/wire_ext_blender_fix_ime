@@ -10,7 +10,7 @@
 #include "utils.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  全局功能
+//  标记  程序内功能
 
 extern bool data_use_debug;
 
@@ -19,7 +19,7 @@ extern DWORD process_id;
 extern DWORD thread_id;
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  对外功能
+//  标记  程序外功能
 
 extern __declspec(dllexport) bool use_debug(bool enable);
 

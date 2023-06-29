@@ -20,19 +20,13 @@
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  文件内功能
 
-HHOOK hook_cbt = NULL;
-HHOOK hook_message = NULL;
-HHOOK hHook_window = NULL;
-
-void window_wrap(HWND hWnd);
-void window_unwrap(HWND hWnd);
-BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam);
-LRESULT CALLBACK CBTProc(int nCode, WPARAM wParam_, LPARAM lParam_);
+bool window_wrap(HWND hWnd);
+bool window_unwrap(HWND hWnd);
+BOOL CALLBACK EnumWindowsProc_first(HWND hWnd, LPARAM lParam);
+BOOL CALLBACK EnumWindowsProc_new(HWND hWnd, LPARAM lParam);
 LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
-LRESULT CALLBACK GetMsgProc(int nCode, WPARAM wParam_, LPARAM lParam_);
-LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam_, LPARAM lParam_);
 
-void window_wrap(HWND hWnd)
+bool window_wrap(HWND hWnd)
 {
     // 安装子类化窗口过程（仅针对 Blender 窗口）
 
@@ -77,11 +71,13 @@ void window_wrap(HWND hWnd)
         else
         {
             window_datas_add(window);
+            return true;
         }
     }
+    return false;
 }
 
-void window_unwrap(HWND hWnd)
+bool window_unwrap(HWND hWnd)
 {
     // 卸载子类化窗口过程
 
@@ -113,10 +109,12 @@ void window_unwrap(HWND hWnd)
         }
 
         window_datas_remove(window); // 无论怎样都移除窗口数据
+        return true;
     }
+    return false;
 }
 
-BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK EnumWindowsProc_first(HWND hWnd, LPARAM lParam)
 {
     DWORD window_processid = 0;
     GetWindowThreadProcessId(hWnd, &window_processid);
@@ -127,47 +125,23 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
     return TRUE;
 }
 
-LRESULT CALLBACK CBTProc(int nCode, WPARAM wParam_, LPARAM lParam_)
+BOOL CALLBACK EnumWindowsProc_new(HWND hWnd, LPARAM lParam)
 {
-    if (nCode < 0)
+    DWORD window_processid = 0;
+    GetWindowThreadProcessId(hWnd, &window_processid);
+    if (window_processid == process_id)
     {
-        return CallNextHookEx(NULL, nCode, wParam_, lParam_);
+        void *gw_pointer = (void *)lParam;
+        void *user_data = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+        if (user_data == gw_pointer)
+        {
+            if (window_wrap(hWnd))
+            {
+                return false; // 已找到窗口，停止枚举
+            }
+        }
     }
-
-    /**
-     * 经过测试，在窗口创建的时候替换窗口过程不一定能够替换成功，
-     * 部分窗口会由 Blender 重新替换窗口过程，
-     * 每次新建窗口都会有一个窗口伴随，其中第二个窗口在创建后，
-     * 很快就会被销毁，而只有这个窗口的窗口过程会被重新替换，
-     * 因此虽然存在上述的问题，但该问题实际上没有产生问题。
-     *
-     * 通过 WH_GETMESSAGE 监听创建和销毁时，
-     * 无法监听到创建和销毁消息。
-     *
-     * 通过 WH_CALLWNDPROC 监听创建和销毁时，
-     * 可以监听到创建的消息，但销毁时，窗口句柄为 0。
-     */
-
-    switch (nCode)
-    {
-    case HCBT_CREATEWND:
-    {
-        HWND hWnd = (HWND)wParam_;
-        CBT_CREATEWND *data = (CBT_CREATEWND *)lParam_;
-
-        window_wrap(hWnd);
-        break;
-    }
-    case HCBT_DESTROYWND:
-    {
-        HWND hWnd = (HWND)wParam_;
-
-        window_unwrap(hWnd);
-        break;
-    }
-    }
-
-    return CallNextHookEx(NULL, nCode, wParam_, lParam_);
+    return true;
 }
 
 LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
@@ -183,6 +157,11 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
             window->gw_pointer = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
             DEBUGH(D_HOK, "GW 指针：%p [hwnd: %p]", window->gw_pointer, hWnd);
         }
+        break;
+    }
+    case WM_DESTROY:
+    {
+        window_unwrap(hWnd);
         break;
     }
     // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
@@ -348,326 +327,6 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
-LRESULT CALLBACK GetMsgProc(int nCode, WPARAM wParam_, LPARAM lParam_)
-{
-    if (nCode < 0)
-    {
-        return CallNextHookEx(NULL, nCode, wParam_, lParam_);
-    }
-
-    // MSG *data = (MSG *)lParam_;
-    // HWND hWnd = data->hwnd;
-    // UINT uMsg = data->message;
-    // WPARAM wParam = data->wParam;
-    // LPARAM lParam = data->lParam;
-
-    // switch (uMsg)
-    // {
-    // case WM_DESTROY:
-    // {
-    //     WindowData *window = NULL;
-    //     bool found = false;
-    //     while (window_datas_for_each(&window) != NULL)
-    //     {
-    //         if (window->handle == hWnd)
-    //         {
-    //             found = true;
-    //             break;
-    //         }
-    //     }
-    //     if (found)
-    //     {
-    //         window_datas_remove(window);
-    //     }
-    //     break;
-    // }
-
-    // // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-    // //  标记  输入法相关
-    // case WM_LBUTTONDOWN:
-    // case WM_RBUTTONDOWN:
-    // case WM_MBUTTONDOWN:
-    // case WM_XBUTTONDOWN:
-    // case WM_KILLFOCUS:
-    // {
-    //     if (D_IME)
-    //     {
-    //         if (uMsg == WM_KILLFOCUS)
-    //         {
-    //             DEBUGI(D_IME, "WM_KILLFOCUS : %p", hWnd);
-    //         }
-    //         else
-    //         {
-    //             DEBUGI(D_IME, "WM_#BUTTONDOWN : %p", hWnd);
-    //         }
-    //     }
-    //     if (is_blender_window(hWnd, NULL))
-    //     {
-    //         if (data_use_fix_ime_input) // 已经启用【修复输入法输入】特性
-    //         {
-    //             if (himc_enabled) // 已经启用自定义输入流程
-    //             {
-    //                 if (himc_composition)
-    //                 {
-    //                     // 取消所有未完成的合成
-    //                     HIMC himc = ImmGetContext(hWnd);
-    //                     if (himc != NULL)
-    //                     {
-    //                         ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
-    //                         ImmReleaseContext(hWnd, himc);
-    //                     }
-    //                 }
-    //             }
-    //             else if (data_use_fix_ime_state)
-    //             {
-    //                 fix_ime_state_with_mouse_event(hWnd, uMsg, wParam, lParam);
-    //             }
-    //         }
-    //         else if (data_use_fix_ime_state)
-    //         {
-    //             fix_ime_state_with_mouse_event(hWnd, uMsg, wParam, lParam);
-    //         }
-    //     }
-    //     break;
-    // }
-    // case WM_INPUT:
-    // {
-    //     DEBUGI(D_IME, "WM_INPUT: %p", hWnd);
-    //     if (is_blender_window(hWnd, NULL))
-    //     {
-    //         if (data_use_fix_ime_input)
-    //         {
-    //             if (himc_enabled)
-    //             {
-    //                 if (fix_ime_input_WM_INPUT(hWnd, uMsg, wParam, lParam))
-    //                 {
-    //                     // 必须调用该函数处理 WM_INPUT，否则会异常
-    //                     DefWindowProc(hWnd, uMsg, wParam, lParam);
-
-    //                     // 屏蔽该消息，不让 Blender 处理
-    //                     data->message = WM_NULL;
-    //                     data->hwnd = NULL;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     break;
-    // }
-    // case WM_KEYDOWN:
-    // {
-    //     DEBUGI(D_IME, "WM_KEYDOWN: %p, %x", hWnd, (unsigned int)wParam);
-    //     if (is_blender_window(hWnd, NULL))
-    //     {
-    //         if (data_use_fix_ime_input)
-    //         {
-    //             if (himc_enabled)
-    //             {
-    //                 fix_ime_input_WM_KEYDOWN(hWnd, uMsg, wParam, lParam);
-    //             }
-    //             else if (data_use_fix_ime_state)
-    //             {
-    //                 fix_ime_state_with_key_event(hWnd, uMsg, wParam, lParam);
-    //             }
-    //         }
-    //         else if (data_use_fix_ime_state)
-    //         {
-    //             fix_ime_state_with_key_event(hWnd, uMsg, wParam, lParam);
-    //         }
-    //     }
-    //     break;
-    // }
-    // case WM_KEYUP:
-    // {
-    //     DEBUGI(D_IME, "WM_KEYUP: %p, %x", hWnd, (unsigned int)wParam);
-    //     if (is_blender_window(hWnd, NULL))
-    //     {
-    //         if (data_use_fix_ime_input)
-    //         {
-    //             if (himc_enabled)
-    //             {
-    //                 fix_ime_input_WM_KEYUP(hWnd, uMsg, wParam, lParam);
-    //             }
-    //         }
-    //     }
-    //     break;
-    // }
-    //     // case WM_IME_NOTIFY:
-    //     // {
-    //     //     // 目前没用
-    //     //     // DWORD command = (DWORD)wParam;
-    //     //     // DEBUGI(D_IME, "WM_IME_NOTIFY：%x", command);
-    //     //     break;
-    //     // }
-    //     // case WM_IME_SETCONTEXT:
-    //     // {
-    //     //     // 目前没用
-    //     //     // BOOL fSet = (BOOL)wParam;
-    //     //     // DWORD iShow = (DWORD)lParam;
-    //     //     // DEBUGI(D_IME, "WM_IME_SETCONTEXT: %s, %x", fSet ? "True" : "False", iShow);
-    //     //     break;
-    //     // }
-    //     // case WM_IME_STARTCOMPOSITION:
-    //     // {
-    //     //     DEBUGI(D_IME, "GetMsgProc WM_IME_STARTCOMPOSITION");
-    //     //     HIMC himc = ImmGetContext(hWnd);
-    //     //     if (himc != NULL && himc == himc_custom)
-    //     //     {
-    //     //         DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION himc_custom");
-    //     //         fix_ime_input_WM_IME_STARTCOMPOSITION(hWnd, uMsg, wParam, lParam);
-
-    //     //         // 屏蔽该消息，不让 Blender 处理
-    //     //         data->message = WM_NULL;
-    //     //         data->hwnd = NULL;
-    //     //     }
-    //     //     ImmReleaseContext(hWnd, himc);
-    //     //     break;
-    //     // }
-    //     // case WM_IME_COMPOSITION:
-    //     // {
-    //     //     DEBUGI(D_IME, "GetMsgProc WM_IME_COMPOSITION");
-    //     //     HIMC himc = ImmGetContext(hWnd);
-    //     //     if (himc != NULL && himc == himc_custom)
-    //     //     {
-    //     //         DEBUGI(D_IME, "WM_IME_COMPOSITION himc_custom");
-    //     //         fix_ime_input_WM_IME_COMPOSITION(hWnd, uMsg, wParam, lParam);
-
-    //     //         // 屏蔽该消息，不让 Blender 处理
-    //     //         data->message = WM_NULL;
-    //     //         data->hwnd = NULL;
-    //     //     }
-    //     //     ImmReleaseContext(hWnd, himc);
-    //     //     break;
-    //     // }
-    //     // case WM_IME_ENDCOMPOSITION:
-    //     // {
-    //     //     DEBUGI(D_IME, "GetMsgProc WM_IME_ENDCOMPOSITION");
-    //     //     HIMC himc = ImmGetContext(hWnd);
-    //     //     if (himc != NULL && himc == himc_custom)
-    //     //     {
-    //     //         DEBUGI(D_IME, "WM_IME_ENDCOMPOSITION himc_custom");
-    //     //         fix_ime_input_WM_IME_ENDCOMPOSITION(hWnd, uMsg, wParam, lParam);
-
-    //     //         // 屏蔽该消息，不让 Blender 处理
-    //     //         data->message = WM_NULL;
-    //     //         data->hwnd = NULL;
-    //     //     }
-    //     //     ImmReleaseContext(hWnd, himc);
-    //     //     break;
-    //     // }
-    // }
-
-    return CallNextHookEx(NULL, nCode, wParam_, lParam_);
-}
-
-LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam_, LPARAM lParam_)
-{
-    if (nCode < 0)
-    {
-        return CallNextHookEx(NULL, nCode, wParam_, lParam_);
-    }
-
-    // CWPSTRUCT *data = (CWPSTRUCT *)lParam_;
-    // HWND hWnd = data->hwnd;
-    // UINT uMsg = data->message;
-    // WPARAM wParam = data->wParam;
-    // LPARAM lParam = data->lParam;
-
-    // switch (uMsg)
-    // {
-    // case WM_IME_NOTIFY:
-    // {
-    //     // 目前没用
-    //     // DWORD command = (DWORD)wParam;
-    //     // DEBUGI(D_IME, "WM_IME_NOTIFY：%x", command);
-    //     break;
-    // }
-    // case WM_IME_SETCONTEXT:
-    // {
-    //     // 目前没用
-    //     // BOOL fSet = (BOOL)wParam;
-    //     // DWORD iShow = (DWORD)lParam;
-    //     // DEBUGI(D_IME, "WM_IME_SETCONTEXT: %s, %x", fSet ? "True" : "False", iShow);
-    //     break;
-    // }
-    // case WM_IME_STARTCOMPOSITION:
-    // {
-    //     DEBUGI(D_IME, "CallWndProc WM_IME_STARTCOMPOSITION");
-    //     HIMC himc = ImmGetContext(hWnd);
-    //     if (himc == NULL)
-    //     {
-    //         DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION himc == NULL");
-    //     }
-    //     // if (himc != NULL && himc == himc_custom)
-    //     if (himc != NULL && himc_enabled)
-    //     {
-    //         if (himc_enabled)
-    //         {
-    //             DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION himc_custom");
-    //             fix_ime_input_WM_IME_STARTCOMPOSITION(hWnd, uMsg, wParam, lParam);
-
-    //             // // 屏蔽该消息，不让 Blender 处理
-    //             // data->message = WM_NULL;
-    //             // data->hwnd = NULL;
-    //             ImmReleaseContext(hWnd, himc);
-    //             return 0;
-    //         }
-    //         ImmReleaseContext(hWnd, himc);
-    //     }
-    //     break;
-    // }
-    // case WM_IME_COMPOSITION:
-    // {
-    //     DEBUGI(D_IME, "CallWndProc WM_IME_COMPOSITION");
-    //     HIMC himc = ImmGetContext(hWnd);
-    //     // DEBUGI(D_IME, "WM_IME_COMPOSITION himc: %p", himc);
-    //     // DEBUGI(D_IME, "WM_IME_COMPOSITION himc_custom: %p", himc_custom);
-    //     // if (himc != NULL && himc == himc_custom)
-    //     if (himc != NULL && himc_enabled)
-    //     {
-    //         if (himc_enabled)
-    //         {
-    //             DEBUGI(D_IME, "WM_IME_COMPOSITION himc_custom");
-    //             fix_ime_input_WM_IME_COMPOSITION(hWnd, uMsg, wParam, lParam);
-
-    //             // // 屏蔽该消息，不让 Blender 处理
-    //             // data->message = WM_NULL;
-    //             // data->hwnd = NULL;
-    //             ImmReleaseContext(hWnd, himc);
-    //             return 0;
-    //         }
-    //         ImmReleaseContext(hWnd, himc);
-    //     }
-
-    //     break;
-    // }
-    // case WM_IME_ENDCOMPOSITION:
-    // {
-    //     DEBUGI(D_IME, "CallWndProc WM_IME_ENDCOMPOSITION");
-    //     HIMC himc = ImmGetContext(hWnd);
-    //     // if (himc != NULL && himc == himc_custom)
-    //     if (himc != NULL && himc_enabled)
-    //     {
-    //         if (himc_enabled)
-    //         {
-    //             DEBUGI(D_IME, "WM_IME_ENDCOMPOSITION himc_custom");
-    //             fix_ime_input_WM_IME_ENDCOMPOSITION(hWnd, uMsg, wParam, lParam);
-
-    //             // // 屏蔽该消息，不让 Blender 处理
-    //             // data->message = WM_NULL;
-    //             // data->hwnd = NULL;
-    //             ImmReleaseContext(hWnd, himc);
-    //             return 0;
-    //         }
-    //         ImmReleaseContext(hWnd, himc);
-    //     }
-
-    //     break;
-    // }
-    // }
-
-    return CallNextHookEx(NULL, nCode, wParam_, lParam_);
-}
-
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序内功能
 
@@ -794,7 +453,7 @@ extern __declspec(dllexport) bool use_hook(bool enable)
 
         // 初始化窗口数据
         DEBUGI(D_HOK, "初始化数据...");
-        result_b = EnumWindows(EnumWindowsProc, (LPARAM)NULL);
+        result_b = EnumWindows(EnumWindowsProc_first, (LPARAM)NULL);
         if (!result_b)
         {
             DEBUGI(D_HOK, "初始化数据...失败：EnumWindows");
@@ -804,41 +463,6 @@ extern __declspec(dllexport) bool use_hook(bool enable)
             return false;
         }
         DEBUGI(D_HOK, "初始化数据...完成");
-
-        // 设置钩子监听窗口新建和销毁的消息
-        DEBUGI(D_HOK, "设置钩子（WH_CBT）...");
-        hook_cbt = SetWindowsHookEx(WH_CBT, CBTProc, NULL, thread_id);
-        if (hook_cbt == NULL)
-        {
-            DEBUGI(D_HOK, "设置钩子（WH_CBT）...失败");
-
-            DEBUGI(D_HOK, "hook startup...failed");
-
-            return false;
-        }
-        DEBUGI(D_HOK, "设置钩子（WH_CBT）...成功");
-
-        // hook_message = SetWindowsHookEx(WH_GETMESSAGE, GetMsgProc, NULL, thread_id);
-        // if (hook_message == NULL)
-        // {
-        //     DEBUGI(D_HOK, "SetWindowsHookEx WH_GETMESSAGE failed");
-
-        //     DEBUGI(D_HOK, "startup...failed");
-
-        //     return false;
-        // }
-
-        // // 必须使用 WH_MOUSE 和 WH_KEYBOARD 监听鼠标和键盘消息，用 WH_CALLWNDPROC 无法获取这些消息，原因未知
-
-        // hHook_window = SetWindowsHookEx(WH_CALLWNDPROC, CallWndProc, NULL, thread_id);
-        // if (hHook_window == NULL)
-        // {
-        //     DEBUGI(D_HOK, "SetWindowsHookEx WH_CALLWNDPROC failed");
-
-        //     DEBUGI(D_HOK, "startup...failed");
-
-        //     return false;
-        // }
 
         data_use_hook = true;
 
@@ -852,50 +476,10 @@ extern __declspec(dllexport) bool use_hook(bool enable)
 
         DEBUGI(D_HOK, "hook shutdown...");
 
-        if (hook_cbt != NULL)
-        {
-            DEBUGI(D_HOK, "卸载钩子（WH_CBT）...");
-            BOOL bResult = UnhookWindowsHookEx(hook_cbt);
-            if (bResult == FALSE)
-            {
-                failed = true;
-                DEBUGI(D_HOK, "卸载钩子（WH_CBT）...失败");
-            }
-            else
-            {
-                hook_cbt = NULL;
-                DEBUGI(D_HOK, "卸载钩子（WH_CBT）...完成");
-            }
-        }
-
-        if (hook_message != NULL)
-        {
-            BOOL bResult = UnhookWindowsHookEx(hook_message);
-            if (bResult == FALSE)
-            {
-                DEBUGI(D_HOK, "UnhookWindowsHookEx hook_message failed");
-
-                DEBUGI(D_HOK, "hook shutdown...failed");
-            }
-            hook_message = NULL;
-        }
-
-        if (hHook_window != NULL)
-        {
-            BOOL bResult = UnhookWindowsHookEx(hHook_window);
-            if (bResult == FALSE)
-            {
-                DEBUGI(D_HOK, "UnhookWindowsHookEx hHook_window failed");
-
-                DEBUGI(D_HOK, "hook shutdown...failed");
-            }
-            hHook_window = NULL;
-        }
-
         DEBUGI(D_HOK, "清理数据...[窗口个数：%d]", window_datas_head.count);
 
         WindowData *window = NULL;
-        while (window_datas_head.count != 0) 
+        while (window_datas_head.count != 0)
         {
             // window_unwrap() 会删除窗口数据，所以不能用遍历
             window = window_datas_head.first;
@@ -916,6 +500,8 @@ extern __declspec(dllexport) bool use_hook(bool enable)
 
 extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
 {
+    static bool invoke_after_enum = false;
+
     if (wm_pointer == NULL)
     {
         return false;
@@ -939,11 +525,17 @@ extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
         }
     }
 
-    // 原则上建立关联的时候，该窗口的窗口数据必然已经存在
     if (found)
     {
         DEBUGI(D_HOK, CCBA "窗口关联 [%p]: %p (gw), %p (wm)" CCZ0, window->handle, gw_pointer, wm_pointer);
         window->wm_pointer = wm_pointer;
+    }
+    else
+    {
+        EnumWindows(EnumWindowsProc_new, (LPARAM)gw_pointer);
+        invoke_after_enum = true;
+        window_associate_pointer(wm_pointer);
+        invoke_after_enum = false;
     }
 
     return true;

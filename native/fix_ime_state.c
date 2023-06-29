@@ -12,19 +12,7 @@
 #include "fix_ime_state.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  对外功能
-
-extern __declspec(dllexport) bool use_fix_ime_state(bool enable)
-{
-    DEBUGH(D_IME, "use_fix_ime_state: %s", enable ? "True" : "False");
-
-    data_use_fix_ime_state = enable;
-
-    return true; // 返回的是否执行成功
-}
-
-// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  全局功能
+//  标记  程序内功能
 
 extern bool data_use_fix_ime_state = false;
 
@@ -52,4 +40,16 @@ extern void fix_ime_state_with_key_event(HWND hWnd, UINT uMsg, WPARAM wParam, LP
             ImmReleaseContext(hWnd, himc);
         }
     }
+}
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+//  标记  程序外功能
+
+extern __declspec(dllexport) bool use_fix_ime_state(bool enable)
+{
+    DEBUGH(D_IME, "use_fix_ime_state: %s", enable ? "True" : "False");
+
+    data_use_fix_ime_state = enable;
+
+    return true; // 返回的是否执行成功
 }

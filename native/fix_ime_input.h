@@ -14,9 +14,8 @@
 #include "main.h"
 #include "utils.h"
 
-
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  全局功能
+//  标记  程序内功能
 
 extern bool data_use_fix_ime_input; // 用户是否启用【修复输入法输入】特性
 
@@ -43,9 +42,9 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
 extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  对外功能
+//  标记  程序外功能
 
-// 由脚本调用，启停【修复输入法输入】
+// 由脚本调用，启停【使用输入法输入文字】功能
 extern __declspec(dllexport) bool use_fix_ime_input(bool enable);
 
 // 由脚本调用，在进入特定状态后主动启用输入法
@@ -54,11 +53,13 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer);
 // 由脚本调用，在退出特定状态后主动关闭输入法
 extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer);
 
-// 由脚本调用，获取合成字符
+// 由脚本调用，获取合成文本
 extern __declspec(dllexport) wchar_t *ime_text_get();
 
+// 由脚本调用，获取合成文本中光标的位置
 extern __declspec(dllexport) int ime_text_caret_pos_get();
 
+// 由脚本调用，更新候选窗口的位置
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p);
 
 extern __declspec(dllexport) bool candidate_window_position_update_text_editor(void *wm_pointer, int x, int y);

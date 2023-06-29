@@ -72,7 +72,7 @@
  */
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  内部功能
+//  标记  文件内功能
 
 bool himc_composition_start = false; // 是否已经处于合成流程开始阶段，用于判断是否触发 himc_input_start
 
@@ -163,7 +163,7 @@ bool window_ime_message_check(USHORT key, bool down, short *check_list, USHORT k
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  全局功能
+//  标记  程序内功能
 
 extern bool data_use_fix_ime_input = false;
 
@@ -496,7 +496,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  公开功能
+//  标记  程序外功能
 
 extern __declspec(dllexport) bool use_fix_ime_input(bool enable)
 {

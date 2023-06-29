@@ -59,6 +59,9 @@ extern __declspec(dllexport) wchar_t *ime_text_get();
 // 由脚本调用，获取合成文本中光标的位置
 extern __declspec(dllexport) int ime_text_caret_pos_get();
 
+// 由脚本调用，获取当前是否处于合成状态
+extern __declspec(dllexport) bool is_in_composition();
+
 // 由脚本调用，更新候选窗口的位置
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p);
 

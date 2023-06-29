@@ -167,7 +167,7 @@ bool window_ime_message_check(USHORT key, bool down, short *check_list, USHORT k
 
 extern bool data_use_fix_ime_input = false;
 
-extern HIMC himc_custom = NULL;
+extern HIMC himc_custom = NULL; // 现在没有用，似乎用默认的上下文就可以了
 
 extern bool himc_enabled = false;
 
@@ -290,7 +290,6 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 {
                     DEBUGI(D_HOK, CCBG "发送 “确认合成” 消息：%x" CCZ0, himc_input_finish);
                     himc_input_finish = 0;
-                    himc_composition = false;
                 }
             }
         }
@@ -303,7 +302,6 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 {
                     DEBUGI(D_HOK, CCBR "发送 “取消合成” 消息：%x" CCZ0, himc_input_cancel);
                     himc_input_cancel = 0;
-                    himc_composition = false;
                 }
             }
         }
@@ -454,6 +452,15 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 {
     DEBUGI(D_IME, "WM_IME_ENDCOMPOSITION");
 
+    /**
+     * 注意：因为外部原因导致窗口失去焦点时（截图的时候可能会发生这种情况），
+     * 在 WM_KILLFOCUS 中会强制取消合成，但此时 window_ime_message_send 很可能无法将按键发送到目标窗口，
+     * 因此 himc_composition = false 不能在 fix_ime_input_WM_INPUT 中进行设置。
+     * 如果无法发送按键也有备用手段。在 BPY 的 WIRE_OT_fix_ime_input_BASE 会在鼠标移动时检查是否依然处于合成状态，
+     * 如果不是，则会自动取消合成，通过这两种手段可以基本确保意外情况下，一切按原设计进行。
+     */
+    himc_composition = false;
+
     if (himc_composition_start)
     {
         himc_composition_start = false;
@@ -507,14 +514,11 @@ extern __declspec(dllexport) bool use_fix_ime_input(bool enable)
 
     if (enable)
     {
-        if (himc_custom == NULL)
-        {
-            himc_custom = ImmCreateContext();
-            ImmSetConversionStatus(himc_custom, IME_CMODE_ALPHANUMERIC, IME_SMODE_NONE);
-        }
-    }
-    else
-    {
+        // if (himc_custom == NULL)
+        // {
+        //     himc_custom = ImmCreateContext();
+        //     ImmSetConversionStatus(himc_custom, IME_CMODE_ALPHANUMERIC, IME_SMODE_NONE);
+        // }
     }
 
     data_use_fix_ime_input = enable;
@@ -546,6 +550,7 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
         himc_enabled = true;
 
         ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
+        // ImmAssociateContext(hwnd, himc_custom);
     }
     if (himc != NULL)
         ImmReleaseContext(hwnd, himc);
@@ -613,6 +618,11 @@ extern __declspec(dllexport) int ime_text_caret_pos_get()
      * 该函数由 BPY 侧的代码调用。
      **/
     return himc_text_caret_pos;
+}
+
+extern __declspec(dllexport) bool is_in_composition()
+{
+    return himc_composition;
 }
 
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p)

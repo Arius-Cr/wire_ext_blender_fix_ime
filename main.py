@@ -55,10 +55,10 @@ def use_header_extned(self: dict, context: bpy.types.Context):
     global TEXT_HT_header_extend_appended
     global CONSOLE_HT_header_extend_appended
 
-    use_header_extned_text_editor = bool(self.get('use_header_extned_text_editor'))
-    use_header_extned_console = bool(self.get('use_header_extned_console'))
+    use_header_extend_text_editor = bool(self.get('use_header_extend_text_editor'))
+    use_header_extend_console = bool(self.get('use_header_extend_console'))
 
-    if use_header_extned_text_editor:
+    if use_header_extend_text_editor:
         if not TEXT_HT_header_extend_appended:
             bpy.types.TEXT_HT_header.append(TEXT_HT_header_extend)
             TEXT_HT_header_extend_appended = True
@@ -67,7 +67,7 @@ def use_header_extned(self: dict, context: bpy.types.Context):
             bpy.types.TEXT_HT_header.remove(TEXT_HT_header_extend)
             TEXT_HT_header_extend_appended = False
 
-    if use_header_extned_console:
+    if use_header_extend_console:
         if not CONSOLE_HT_header_extend_appended:
             bpy.types.CONSOLE_HT_header.append(CONSOLE_HT_header_extend)
             CONSOLE_HT_header_extend_appended = True
@@ -212,7 +212,7 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
         rowr.active = self.use_fix_ime_state and self.use_fix_ime_input
         rowr.separator(factor=1.5)
         rowr.separator(factor=1.5)
-        rowr.prop(self, 'use_header_extned_text_editor', text="文本编辑器")
+        rowr.prop(self, 'use_header_extend_text_editor', text="文本编辑器")
 
         split = column.split(factor=split_factor)
         rowl = split.row()
@@ -220,7 +220,7 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
         rowr.active = self.use_fix_ime_state and self.use_fix_ime_input
         rowr.separator(factor=1.5)
         rowr.separator(factor=1.5)
-        rowr.prop(self, 'use_header_extned_console', text="控制台")
+        rowr.prop(self, 'use_header_extend_console', text="控制台")
 
         # 调试
 
@@ -871,6 +871,7 @@ class WIRE_PT_text_editor_info(bpy.types.Panel):
 
         pass
 
+
 TEXT_HT_header_extend_appended = False
 CONSOLE_HT_header_extend_appended = False
 
@@ -957,8 +958,8 @@ def register():
     }, bpy.context)
 
     use_header_extned({
-        'use_header_extned_text_editor': int(prefs.use_header_extned_text_editor),
-        'use_header_extned_console': int(prefs.use_header_extned_console),
+        'use_header_extend_text_editor': int(prefs.use_header_extend_text_editor),
+        'use_header_extend_console': int(prefs.use_header_extend_console),
     }, bpy.context)
 
     pass

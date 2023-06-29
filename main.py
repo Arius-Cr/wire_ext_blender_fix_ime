@@ -271,7 +271,8 @@ def register_fix_ime_input():
     if _registered:
         return
 
-    print("注册快捷键")
+    if DEBUG:
+        print("注册快捷键")
 
     context = bpy.context
     wm = context.window_manager
@@ -322,7 +323,8 @@ def unregister_fix_ime_input():
     if not _registered:
         return
 
-    print("卸载快捷键")
+    if DEBUG:
+        print("卸载快捷键")
 
     if _object_font_edit_key_map and _object_font_edit_key_map_item:
         _object_font_edit_key_map.keymap_items.remove(_object_font_edit_key_map_item)
@@ -463,7 +465,8 @@ class WIRE_OT_fix_ime_input_BASE():
 
         _state['inputing'] = True
 
-        print(CFHIT1, "开始合成文本")
+        if DEBUG:
+            print(CFHIT1, "开始合成文本")
 
         text = native.ime_text_get()
         self.length = len(text) + 2
@@ -492,7 +495,8 @@ class WIRE_OT_fix_ime_input_BASE():
 
         # 合成文字 UPDATE
         if key == 'F17' and value == 'PRESS':
-            print(CFHIT1, "更新合成文本")
+            if DEBUG:
+                print(CFHIT1, "更新合成文本")
 
             if self.move_times != 0:  # 移动到最后的位置
                 for _ in range(self.move_times):
@@ -521,7 +525,8 @@ class WIRE_OT_fix_ime_input_BASE():
 
         # 输出文字 FINISH
         elif key == 'F18' and value == 'PRESS':
-            print(CFHIT1, "确认合成文本")
+            if DEBUG:
+                print(CFHIT1, "确认合成文本")
 
             if self.move_times != 0:  # 移动到最后的位置
                 for _ in range(self.move_times):
@@ -549,7 +554,8 @@ class WIRE_OT_fix_ime_input_BASE():
 
         # 取消合成 CNACEL
         elif key == 'F19' and value == 'PRESS':
-            print(CFHIT1, "取消合成文本")
+            if DEBUG:
+                print(CFHIT1, "取消合成文本")
 
             if self.move_times != 0:  # 移动到最后的位置
                 for _ in range(self.move_times):
@@ -695,8 +701,9 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             prefs.use_fix_ime_input_console)):
             if (_index := self._windows.index(window)) >= 0:
                 self._windows.remove(window)
-            print(CFWARN, "鼠标位置监视器停用 (%d, %d)：%X" % (
-                _index, len(self._windows), window.as_pointer()))
+            if DEBUG:
+                print(CFWARN, "鼠标位置监视器停用 (%d, %d)：%X" % (
+                    _index, len(self._windows), window.as_pointer()))
             return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
 
         if not _state['inputing'] and native.window_is_active(window.as_pointer()):
@@ -711,8 +718,9 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             self._windows.remove(window)
         if window in watchers:
             watchers.pop(window)
-        print(CFWARN, "鼠标位置监视器停用 (%d, %d)：%X" % (
-            _index, len(self._windows), context.window.as_pointer()))
+        if DEBUG:
+            print(CFWARN, "鼠标位置监视器停用 (%d, %d)：%X" % (
+                _index, len(self._windows), context.window.as_pointer()))
         pass
 
     def update_ime_state(self, context: bpy.types.Context, event: bpy.types.Event):

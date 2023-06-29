@@ -1,13 +1,13 @@
-# Blender IME Repair 文档
+# wire_fix_ime 帮助文档
 
 目录：
 
-- [项目简介](../../README.md)
+- [项目简介（README）](../../README.md)
 
 - [使用指南](Usage.md)
 
-    面向使用者的文档。
+    面向使用者的帮助文档。
 
 - [开发指南](Development.md)
 
-    面向开发者的文档。
+    面向开发者的帮助文档。

@@ -115,10 +115,14 @@ def build(args):
 
             mtime_src = 0
             for _name in os.listdir(path_src_dir):
+                if _name.endswith(".py"):
+                    continue
                 mtime_src = max(mtime_src, os.path.getmtime(path_src_dir.joinpath(_name)))
 
             mtime_out = 0
             for _name in os.listdir(path_out_dir):
+                if _name.endswith(".py"):
+                    continue
                 mtime_out = max(mtime_out, os.path.getmtime(path_out_dir.joinpath(_name)))
 
             if mtime_out > mtime_src:
@@ -152,9 +156,11 @@ def build(args):
 
     if args.config == 'debug':
         _mark = (['mark.py'], [])
+        _test = (['test.py'], [])
         _dll = (['xbuild', 'debug', 'out', 'native.dll'], ['native', 'native.dll'])
     elif args.config == 'release':
         _mark = (['mark.release.py'], ['mark.py'])
+        _test = ([None, None])
         _dll = (['xbuild', 'release', 'out', 'native.dll'], ['native', 'native.dll'])
 
     files = [  # (src, dst)
@@ -162,6 +168,7 @@ def build(args):
         (['debug.py'], []),
         (['main.py'], []),
         _mark,
+        _test,
         (['native', '__init__.py'], []),
         _dll,
         #
@@ -177,6 +184,9 @@ def build(args):
     ]
 
     for _src, _dst in files:
+        if _src is None:
+            continue
+
         if not _dst:
             _dst = _src
 

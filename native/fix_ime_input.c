@@ -173,6 +173,61 @@ extern bool himc_enabled = false;
 
 extern bool himc_composition = false;
 
+extern bool himc_composition_core = false;
+
+extern bool himc_block_shift_mouse_button = false;
+
+extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    // 虽然函数的名称为 WM_KILLFOCUS，但在鼠标按键按下时，依然由该函数处理，因此该函数实际上在准备或已经丢失焦点时运行
+
+    if (himc_composition)
+    {
+        // 取消所有未完成的合成
+        DEBUGI(D_IME, "强制取消文字合成：%p", hWnd);
+        HIMC himc = ImmGetContext(hWnd);
+        if (himc != NULL)
+        {
+            ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+            ImmReleaseContext(hWnd, himc);
+        }
+    }
+    else
+    {
+        /**
+         * 当按下 Shift + 鼠标按键 时暂时停用输入法，
+         * 当 Shift 键释放时（WM_KEYUP 只会检测到 Shift 键释放，fix_ime_input_WM_KEYUP）时，
+         * 如果检测到输入法被暂时停用，
+         * 则重新启用输入法。该行为主要用于修复：
+         * 文字物体编辑时用 Shfit + 鼠标中键 移动视图后，输入法的输入模式(英文/中文）会改变的问题。
+         */
+        if (uMsg != WM_KILLFOCUS && GetKeyState(VK_SHIFT))
+        {
+            HIMC himc = ImmGetContext(hWnd);
+            if (himc != NULL)
+            {
+                DEBUGH(D_IME, "临时暂停输入法");
+                himc_block_shift_mouse_button = true;
+                ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
+                ImmReleaseContext(hWnd, himc);
+            }
+        }
+    }
+}
+
+extern void fix_ime_input_WM_SETFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    if (himc_composition)
+    {
+        if (!himc_composition_core)
+        {
+            DEBUGI(D_IME, "强制取消文字合成(焦点丢失时)：%p", hWnd);
+            himc_input_cancel = myHIMC_INPUT_ENABLE;
+            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_CANCEL_KEY);
+        }
+    }
+}
+
 extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     RAWINPUT raw;
@@ -290,6 +345,8 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 {
                     DEBUGI(D_HOK, CCBG "发送 “确认合成” 消息：%x" CCZ0, himc_input_finish);
                     himc_input_finish = 0;
+                    himc_composition = false;
+                    himc_composition_core = false;
                 }
             }
         }
@@ -302,6 +359,8 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 {
                     DEBUGI(D_HOK, CCBR "发送 “取消合成” 消息：%x" CCZ0, himc_input_cancel);
                     himc_input_cancel = 0;
+                    himc_composition = false;
+                    himc_composition_core = false;
                 }
             }
         }
@@ -355,27 +414,37 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
 extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    USHORT key = wParam;
     if (!himc_composition && wParam != VK_PROCESSKEY)
     {
-        USHORT key = wParam;
-        if ((key >= '0' && key <= '9') ||
-            (key >= 'A' && key <= 'Z') ||
-            (key == VK_SPACE) ||
-            (key >= VK_OEM_1 && key <= VK_OEM_3) ||
-            (key >= VK_OEM_4 && key <= VK_OEM_7) ||
-            (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
+        if (wParam != VK_PROCESSKEY)
         {
-            LPARAM extra_info = GetMessageExtraInfo();
-            if (extra_info != myHIMC_INPUT_PASS)
+            if ((key >= '0' && key <= '9') ||
+                (key >= 'A' && key <= 'Z') ||
+                (key == VK_SPACE) ||
+                (key >= VK_OEM_1 && key <= VK_OEM_3) ||
+                (key >= VK_OEM_4 && key <= VK_OEM_7) ||
+                (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
             {
-                DEBUGI(D_IME, "WM_KEYUP 回放：%x", key);
-                // 和 KEY_DOWN 的唯一不同在于第三个参数为 KEYEVENTF_KEYUP
-                keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), KEYEVENTF_KEYUP, myHIMC_INPUT_PASS);
+                LPARAM extra_info = GetMessageExtraInfo();
+                if (extra_info != myHIMC_INPUT_PASS)
+                {
+                    DEBUGI(D_IME, "WM_KEYUP 回放：%x", key);
+                    // 和 KEY_DOWN 的唯一不同在于第三个参数为 KEYEVENTF_KEYUP
+                    keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), KEYEVENTF_KEYUP, myHIMC_INPUT_PASS);
+                }
+                else
+                {
+                    DEBUGI(D_IME, "WM_KEYUP 回放...完成");
+                }
             }
-            else
-            {
-                DEBUGI(D_IME, "WM_KEYUP 回放...完成");
-            }
+        }
+
+        if (himc_block_shift_mouse_button && key == VK_SHIFT)
+        {
+            DEBUGH(D_IME, "恢复输入法");
+            himc_block_shift_mouse_button = false;
+            ImmAssociateContextEx(hWnd, NULL, IACE_DEFAULT);
         }
     }
 }
@@ -393,6 +462,7 @@ extern void fix_ime_input_WM_IME_STARTCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM w
     DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION");
 
     himc_composition = true;
+    himc_composition_core = true;
 
     himc_composition_start = true;
 }
@@ -459,7 +529,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
      * 如果无法发送按键也有备用手段。在 BPY 的 WIRE_OT_fix_ime_input_BASE 会在鼠标移动时检查是否依然处于合成状态，
      * 如果不是，则会自动取消合成，通过这两种手段可以基本确保意外情况下，一切按原设计进行。
      */
-    himc_composition = false;
+    himc_composition_core = false;
 
     if (himc_composition_start)
     {
@@ -548,6 +618,9 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
         DEBUGI(D_IME, "ime_input_enable");
 
         himc_enabled = true;
+        himc_composition = false;
+        himc_composition_core = false;
+        himc_block_shift_mouse_button = false;
 
         ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
         // ImmAssociateContext(hwnd, himc_custom);
@@ -620,11 +693,6 @@ extern __declspec(dllexport) int ime_text_caret_pos_get()
     return himc_text_caret_pos;
 }
 
-extern __declspec(dllexport) bool is_in_composition()
-{
-    return himc_composition;
-}
-
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p)
 {
     if (!himc_enabled)
@@ -680,7 +748,7 @@ extern __declspec(dllexport) bool candidate_window_position_update_font_edit(voi
     DestroyCaret();
     CreateCaret(hwnd, NULL, 10, 20);
     SetCaretPos(xy.x, xy.y);
-    ShowCaret(hwnd);
+    // ShowCaret(hwnd);
 
     return true;
 }

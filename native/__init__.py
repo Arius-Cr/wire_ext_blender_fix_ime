@@ -98,9 +98,6 @@ class _fix_ime_input:
         self.dll.ime_text_caret_pos_get.argtypes = []
         self.dll.ime_text_caret_pos_get.restype = ctypes.c_int
 
-        self.dll.is_in_composition.argtypes = []
-        self.dll.is_in_composition.restype = ctypes.c_bool
-
         self.dll.candidate_window_position_update_font_edit.argtypes = [ctypes.c_void_p, ctypes.c_float]
         self.dll.candidate_window_position_update_font_edit.restype = ctypes.c_bool
 
@@ -125,9 +122,6 @@ class _fix_ime_input:
 
     def ime_text_caret_pos_get(self) -> int:
         return self.dll.ime_text_caret_pos_get()
-    
-    def is_in_composition(self) -> bool:
-        return self.dll.is_in_composition()
 
     def candidate_window_position_update_font_edit(self, wm_pinter: int, p: float) -> bool:
         return self.dll.candidate_window_position_update_font_edit(wm_pinter, p)

@@ -25,6 +25,14 @@ extern bool himc_enabled; // 是否已经启用【自定义输入流程】，调
 
 extern bool himc_composition; // 是否已经处于合成流程
 
+extern bool himc_composition_core; // 表示合成实际上已经结束，但需要等待按键消息发送完成才真正结束
+
+extern bool himc_block_shift_mouse_button; // 表示 Shift + 鼠标按键时临时停用输入法
+
+extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+extern void fix_ime_input_WM_SETFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
 extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -58,9 +66,6 @@ extern __declspec(dllexport) wchar_t *ime_text_get();
 
 // 由脚本调用，获取合成文本中光标的位置
 extern __declspec(dllexport) int ime_text_caret_pos_get();
-
-// 由脚本调用，获取当前是否处于合成状态
-extern __declspec(dllexport) bool is_in_composition();
 
 // 由脚本调用，更新候选窗口的位置
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p);

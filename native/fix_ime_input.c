@@ -201,7 +201,7 @@ extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
          * 则重新启用输入法。该行为主要用于修复：
          * 文字物体编辑时用 Shfit + 鼠标中键 移动视图后，输入法的输入模式(英文/中文）会改变的问题。
          */
-        if (uMsg != WM_KILLFOCUS && GetKeyState(VK_SHIFT))
+        if (uMsg != WM_KILLFOCUS && (0x8000 & GetKeyState(VK_SHIFT)) > 0)
         {
             HIMC himc = ImmGetContext(hWnd);
             if (himc != NULL)

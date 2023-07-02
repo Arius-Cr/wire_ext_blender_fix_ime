@@ -115,10 +115,14 @@ def build(args):
 
             mtime_src = 0
             for _name in os.listdir(path_src_dir):
+                if _name.endswith(".py"):
+                    continue
                 mtime_src = max(mtime_src, os.path.getmtime(path_src_dir.joinpath(_name)))
 
             mtime_out = 0
             for _name in os.listdir(path_out_dir):
+                if _name.endswith(".py"):
+                    continue
                 mtime_out = max(mtime_out, os.path.getmtime(path_out_dir.joinpath(_name)))
 
             if mtime_out > mtime_src:

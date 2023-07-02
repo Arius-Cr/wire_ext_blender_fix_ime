@@ -187,17 +187,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled) // 已经启用自定义输入流程
             {
-                if (himc_composition)
-                {
-                    // 取消所有未完成的合成
-                    DEBUGI(D_IME, "强制取消文字合成：%p", hWnd);
-                    HIMC himc = ImmGetContext(hWnd);
-                    if (himc != NULL)
-                    {
-                        ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
-                        ImmReleaseContext(hWnd, himc);
-                    }
-                }
+                fix_ime_input_WM_KILLFOCUS(hWnd, uMsg, wParam, lParam);
             }
             else if (data_use_fix_ime_state)
             {
@@ -207,6 +197,16 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         else if (data_use_fix_ime_state)
         {
             fix_ime_state_with_mouse_event(hWnd, uMsg, wParam, lParam);
+        }
+        break;
+    }
+    case WM_SETFOCUS:{
+        if (data_use_fix_ime_input)
+        {
+            if (himc_enabled)
+            {
+                fix_ime_input_WM_SETFOCUS(hWnd, uMsg, wParam, lParam);
+            }
         }
         break;
     }

@@ -553,8 +553,7 @@ class WIRE_OT_fix_ime_input_BASE():
             return {'FINISHED'}
 
         # 取消合成 CNACEL
-        elif ((key == 'F19' and value == 'PRESS') or
-              (key == 'MOUSEMOVE' and not native.is_in_composition())):
+        elif (key == 'F19' and value == 'PRESS'):
             if DEBUG:
                 print(CFHIT1, "取消合成文本")
 

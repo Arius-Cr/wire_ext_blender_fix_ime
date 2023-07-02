@@ -173,6 +173,8 @@ extern bool himc_enabled = false;
 
 extern bool himc_composition = false;
 
+extern bool himc_composition_core = false; // 表示合成实际上已经结束，但需要等待按键消息发送完成才真正结束
+
 extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     RAWINPUT raw;
@@ -290,6 +292,8 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 {
                     DEBUGI(D_HOK, CCBG "发送 “确认合成” 消息：%x" CCZ0, himc_input_finish);
                     himc_input_finish = 0;
+                    himc_composition = false;
+                    himc_composition_core = false;
                 }
             }
         }
@@ -302,6 +306,8 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 {
                     DEBUGI(D_HOK, CCBR "发送 “取消合成” 消息：%x" CCZ0, himc_input_cancel);
                     himc_input_cancel = 0;
+                    himc_composition = false;
+                    himc_composition_core = false;
                 }
             }
         }
@@ -316,6 +322,36 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
         DEBUGH(D_IME, "WM_INPUT 放行（%s）：%hx", key_down ? "DOWN" : "UP", key);
     }
     return false;
+}
+
+extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    // 虽然函数的名称为 WM_KILLFOCUS，但在鼠标按键按下时，依然由该函数处理，因此该函数实际上在准备或已经丢失焦点时运行
+
+    if (himc_composition)
+    {
+        // 取消所有未完成的合成
+        DEBUGI(D_IME, "强制取消文字合成：%p", hWnd);
+        HIMC himc = ImmGetContext(hWnd);
+        if (himc != NULL)
+        {
+            ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+            ImmReleaseContext(hWnd, himc);
+        }
+    }
+}
+
+extern void fix_ime_input_WM_SETFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    if (himc_composition)
+    {
+        if (!himc_composition_core)
+        {
+            DEBUGI(D_IME, "强制取消文字合成(焦点丢失时)：%p", hWnd);
+            himc_input_cancel = myHIMC_INPUT_ENABLE;
+            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_CANCEL_KEY);
+        }
+    }
 }
 
 extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -393,6 +429,7 @@ extern void fix_ime_input_WM_IME_STARTCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM w
     DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION");
 
     himc_composition = true;
+    himc_composition_core = true;
 
     himc_composition_start = true;
 }
@@ -459,7 +496,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
      * 如果无法发送按键也有备用手段。在 BPY 的 WIRE_OT_fix_ime_input_BASE 会在鼠标移动时检查是否依然处于合成状态，
      * 如果不是，则会自动取消合成，通过这两种手段可以基本确保意外情况下，一切按原设计进行。
      */
-    himc_composition = false;
+    himc_composition_core = false;
 
     if (himc_composition_start)
     {
@@ -618,11 +655,6 @@ extern __declspec(dllexport) int ime_text_caret_pos_get()
      * 该函数由 BPY 侧的代码调用。
      **/
     return himc_text_caret_pos;
-}
-
-extern __declspec(dllexport) bool is_in_composition()
-{
-    return himc_composition;
 }
 
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p)

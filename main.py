@@ -13,6 +13,9 @@ from .debug import *
 
 from .native import native
 
+if DEBUG_BUILD:
+    from .test import register as test_register, unregister as test_unregister
+
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 def use_debug_update(self: dict, context: bpy.types.Context):
@@ -424,18 +427,21 @@ _state = {
         'insert': bpy.ops.font.text_insert,
         'delete': bpy.ops.font.delete,
         'move': bpy.ops.font.move,
+        'select': bpy.ops.font.move_select,
         'instance': None,  # 似乎多余
     },
     'text': {
         'insert': bpy.ops.text.insert,
         'delete': bpy.ops.text.delete,
         'move': bpy.ops.text.move,
+        'select': None,  # 虽然有该操作，但 selection 无法用于 delete，等于没用
         'instance': None,
     },
     'console': {
         'insert': bpy.ops.console.insert,
         'delete': bpy.ops.console.delete,
         'move': bpy.ops.console.move,
+        'select': None,  # 没有该操作
         'instance': None,
     },
 }
@@ -447,10 +453,11 @@ class WIRE_OT_fix_ime_input_BASE():
     '''
 
     def __init__(self, target: Literal['font', 'text', 'console']):
-        self.target = target
+        self.target: Literal['font', 'text', 'console'] = target
         self.insert = _state[self.target]['insert']
         self.delete = _state[self.target]['delete']
         self.move = _state[self.target]['move']
+        self.select = _state[self.target]['select']
         self.length = 0
         self.caret_pos = 0
 
@@ -498,55 +505,14 @@ class WIRE_OT_fix_ime_input_BASE():
             if DEBUG:
                 print(CFHIT1, "更新合成文本")
 
-            if self.move_times != 0:  # 移动到最后的位置
-                for _ in range(self.move_times):
-                    self.move(type='NEXT_CHARACTER')
-
-            for _ in range(self.length):  # 删除之前的输入
-                self.delete('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-
-            text = native.ime_text_get()
-            self.length = len(text) + 2  # 加上中括号两个字符
-            self.caret_pos = native.ime_text_caret_pos_get()
-            self.move_times = self.length - self.caret_pos - 1  # -1 = -2 + 1，-2 是减去之前多加的 2，+1 是右侧的中括号
-            self.insert(text='[' + text + ']')
-            for _ in range(self.move_times):
-                self.move(type='PREVIOUS_CHARACTER')
-
-            if DEBUG:
-                print("当前文本 (长度：%d，光标：%d):" % (self.length - 2, self.caret_pos), CCBY + text + CCZ0)
-
-            if self.target == 'font':
-                update_candidate_window_pos_font_edit(context)
-            elif self.target == 'text':
-                update_candidate_window_pos_text_editor(context)
-            elif self.target == 'console':
-                update_candidate_window_pos_console(context)
+            self.update_text(context, 'update')
 
         # 输出文字 FINISH
         elif key == 'F18' and value == 'PRESS':
             if DEBUG:
                 print(CFHIT1, "确认合成文本")
 
-            if self.move_times != 0:  # 移动到最后的位置
-                for _ in range(self.move_times):
-                    self.move(type='NEXT_CHARACTER')
-
-            for _ in range(self.length):
-                self.delete('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-
-            text = native.ime_text_get()
-            self.insert(text=text)
-
-            if DEBUG:
-                print("当前文本 (长度：%d):" % (self.length - 2), CCBY + text + CCZ0)
-
-            if self.target == 'font':
-                update_candidate_window_pos_font_edit(context)
-            elif self.target == 'text':
-                update_candidate_window_pos_text_editor(context)
-            elif self.target == 'console':
-                update_candidate_window_pos_console(context)
+            self.update_text(context, 'finish')
 
             _state[self.target]['instance'] = None
             _state['inputing'] = False
@@ -557,25 +523,54 @@ class WIRE_OT_fix_ime_input_BASE():
             if DEBUG:
                 print(CFHIT1, "取消合成文本")
 
-            if self.move_times != 0:  # 移动到最后的位置
-                for _ in range(self.move_times):
-                    self.move(type='NEXT_CHARACTER')
-
-            for _ in range(self.length):
-                self.delete('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-
-            if self.target == 'font':
-                update_candidate_window_pos_font_edit(context)
-            elif self.target == 'text':
-                update_candidate_window_pos_text_editor(context)
-            elif self.target == 'console':
-                update_candidate_window_pos_console(context)
+            self.update_text(context, 'cancel')
 
             _state[self.target]['instance'] = None
             _state['inputing'] = False
             return {'CANCELLED'}
 
         return {'RUNNING_MODAL'}
+
+    def update_text(self, context: bpy.types.Context, type: Literal['update', 'finish', 'cancel']):
+        if self.move_times != 0:  # 移动光标到最后的位置
+            for _ in range(self.move_times):
+                self.move(type='NEXT_CHARACTER')
+
+        # 删除之前的输入
+        if self.target == 'font':
+            # 该方法速度更快，但是不能用于文本编辑器和控制台
+            for _ in range(self.length):
+                self.select('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
+            self.delete('EXEC_REGION_WIN', type='SELECTION')
+        else:
+            for _ in range(self.length):
+                self.delete('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
+
+        if type in ['update', 'finish']:
+            # 插入新的文本
+            if type == 'update':
+                text = native.ime_text_get()
+                self.length = len(text) + 2  # 加上中括号两个字符
+                self.caret_pos = native.ime_text_caret_pos_get()
+                self.move_times = self.length - self.caret_pos - 1  # -1 = -2 + 1，-2 是减去之前多加的 2，+1 是右侧的中括号
+                self.insert(text='[' + text + ']')
+                for _ in range(self.move_times):
+                    self.move(type='PREVIOUS_CHARACTER')
+            else:  # finish
+                text = native.ime_text_get()
+                self.insert(text=text)
+
+            if DEBUG:
+                print("当前文本 (长度：%d，光标：%d):" % (self.length - 2, self.caret_pos), CCBY + text + CCZ0)
+
+        if self.target == 'font':
+            update_candidate_window_pos_font_edit(context)
+        elif self.target == 'text':
+            update_candidate_window_pos_text_editor(context)
+        elif self.target == 'console':
+            update_candidate_window_pos_console(context)
+
+        pass
 
 class WIRE_OT_fix_ime_input_font_edit(WIRE_OT_fix_ime_input_BASE, bpy.types.Operator):
     bl_idname = 'wire.fix_ime_input_font_edit'
@@ -970,11 +965,17 @@ def register():
         'use_header_extend_console': int(prefs.use_header_extend_console),
     }, bpy.context)
 
+    if DEBUG_BUILD:
+        test_register()
+
     pass
 
 def unregister():
     global TEXT_HT_header_extend_appended
     global CONSOLE_HT_header_extend_appended
+
+    if DEBUG_BUILD:
+        test_unregister()
 
     native.use_fix_ime_input(False)
     native.use_fix_ime_state(False)

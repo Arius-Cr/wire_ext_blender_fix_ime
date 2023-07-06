@@ -3,7 +3,7 @@ import os
 import ctypes
 import ctypes.wintypes as wintypes
 
-from .. mark import *
+from ..  import mark
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -147,7 +147,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
     def dll_load(self):
         dir = os.path.dirname(os.path.realpath(__file__))
         dll_path = os.path.join(dir, 'native.dll')
-        if DEBUG:
+        if mark.DEBUG:
             # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
             dll_dest = os.path.join(dir, '_native.dll')
             try:
@@ -159,7 +159,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         self.dll_handle = kernel32.LoadLibraryW(dll_path)
 
         if self.dll_handle is not None:
-            if DEBUG:
+            if mark.DEBUG:
                 print("加载 DLL 完成")
         else:
             print("加载 DLL 失败")
@@ -179,7 +179,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
             return
 
         if kernel32.FreeLibrary(self.dll_handle):
-            if DEBUG:
+            if mark.DEBUG:
                 print("卸载 DLL 完成")
         else:
             print("卸载 DLL 失败")

@@ -1,9 +1,12 @@
 import sys
 import importlib
 
-from . mark import *
+from . import mark
 
 # 不要在 __init__.py 中引用直接或间接引用 bpy，参考：make.by: pack()
+# 或者用 try ？
+
+# 注意 ：3.0.X 版的 Blender 自带的 Python (3.9) 不支持 "A | B" 形式的类型注解。
 
 bl_info = {
     'name': "wire_fix_ime",
@@ -36,7 +39,7 @@ def module_clean():
         if k.startswith(addon_prefix):
             module_keys.append(k)
     for k in module_keys:
-        if DEBUG:
+        if mark.DEBUG:
             print("del: %s" % k)
         del sys.modules[k]
     pass

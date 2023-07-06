@@ -1,4 +1,4 @@
-from typing import cast, Literal
+from typing import cast, Literal, Union
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -42,11 +42,11 @@ _print = print
 
 def print(
         *values: object,
-        sep: str | None = None,
-        end: str | None = None,
-        # file: SupportsWrite[str] | None = None,
-        file: str | None = None,
-        flush: str | None = None,
+        sep: Union[str, None] = None,
+        end: Union[str, None] = None,
+        # file: Union[SupportsWrite[str], None] = None,
+        file: Union[str, None] = None,
+        flush: Union[str, None] = None,
     ):
     _color: str = None
     _values: list = None

@@ -8,7 +8,12 @@ import bpy
 import bpy.types
 import blf
 
+# 导入进来的数值型变量和原模块已经脱离关系，修改不会同步到引用该模块的其它模块中
 from .mark import *
+# 要修改原模块中的变量，需要使用 mark.DEBUG = xxx 进行修改。
+# TODO ：是否有更优雅的办法？
+from . import mark
+
 from .debug import *
 
 from .native import native
@@ -21,6 +26,7 @@ if DEBUG_BUILD:
 def use_debug_update(self: dict, context: bpy.types.Context):
     use_debug = bool(self.get('use_debug'))
 
+    mark.DEBUG = use_debug
     global DEBUG
     DEBUG = use_debug
 

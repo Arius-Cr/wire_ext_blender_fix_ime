@@ -4,8 +4,8 @@ import bpy
 import bpy.types
 import time
 
-from .mark import *
-from .debug import *
+from .mark import mark
+from .printx import *
 
 '''
 WIRE_OT_test_delete_speed_1：基本用时 476215700
@@ -93,7 +93,7 @@ class WIRE_OT_test_delete_speed_1(bpy.types.Operator):
         _end = time.perf_counter_ns()
         _span = _end - _statr
 
-        print(CCBY, "删除速度测试1 用时：", _span)
+        printx(CCBY, "删除速度测试1 用时：", _span)
 
         return {'FINISHED'}
 
@@ -121,7 +121,7 @@ class WIRE_OT_test_delete_speed_2(bpy.types.Operator):
         _end = time.perf_counter_ns()
         _span = _end - _statr
 
-        print(CCBY, "删除速度测试2 用时：", _span)
+        printx(CCBY, "删除速度测试2 用时：", _span)
 
         return {'FINISHED'}
 
@@ -132,15 +132,15 @@ def text_menu_prepend(self: bpy.types.Menu, context: bpy.types.Context):
 
 
 def register():
-    if DEBUG_BUILD:
-        print(CCBY, "已加载测试相关功能")
+    if mark.DEBUG_BUILD:
+        printx(CCBY, "已加载测试相关功能")
         bpy.utils.register_class(WIRE_PT_text_editor_info)
         bpy.utils.register_class(WIRE_OT_test_delete_speed_1)
         bpy.utils.register_class(WIRE_OT_test_delete_speed_2)
         bpy.types.VIEW3D_MT_edit_font.prepend(text_menu_prepend)
 
 def unregister():
-    if DEBUG_BUILD:
+    if mark.DEBUG_BUILD:
         bpy.types.VIEW3D_MT_edit_font.remove(text_menu_prepend)
         bpy.utils.unregister_class(WIRE_OT_test_delete_speed_1)
         bpy.utils.unregister_class(WIRE_OT_test_delete_speed_2)

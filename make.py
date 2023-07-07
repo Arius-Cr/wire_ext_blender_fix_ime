@@ -14,6 +14,8 @@ __package__ = os.path.basename(_dir)
 del _dir
 del _dir_dir
 
+from .printx import *
+
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 addon_name = 'wire_fix_ime'
@@ -72,12 +74,12 @@ def make():
             pack(args)
 
         else:
-            print("请指定一个操作")
-            print("----------")
+            printx("请指定一个操作")
+            printx("----------")
             parser.print_help()
 
-        print("\n执行结束")
-        print("----------")
+        printx("\n执行结束")
+        printx("----------")
 
     except:
         traceback.print_exc()
@@ -101,8 +103,8 @@ def build(args):
     # 生成 DLL
 
     if not path_vsdevcmd.exists():
-        print("找不到：%s" % path_vsdevcmd)
-        print("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
+        printx("找不到：%s" % path_vsdevcmd)
+        printx("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
 
     else:
         path_vsxproj = prj_dir.joinpath("native", "main.vcxproj")
@@ -140,17 +142,17 @@ def build(args):
                 'call', path_vsdevcmd, '&&',
                 'msbuild.exe', path_vsxproj, '-property:' + ";".join(props)
             ]
-            print("生成命令: %s\n" % cmd)
+            printx("生成命令: %s\n" % cmd)
 
             p = subprocess.Popen(cmd, shell=True)
             (output, err) = p.communicate()
             p_status = p.wait()
 
-            print("\n")
+            printx("\n")
 
         else:
-            print("无需重新编译")
-            print("\n")
+            printx("无需重新编译")
+            printx("\n")
 
     # 复制文件
 
@@ -165,7 +167,7 @@ def build(args):
 
     files = [  # (src, dst)
         (['__init__.py'], []),
-        (['debug.py'], []),
+        (['printx.py'], []),
         (['main.py'], []),
         _mark,
         _test,
@@ -198,16 +200,28 @@ def build(args):
         if _src_exists:
             if _src_path.is_file():
                 if not _dst_exists or _dst_path.stat().st_mtime < _src_path.stat().st_mtime:
-                    print("复制文件：%s" % str(_src))
+                    printx("复制文件：%s" % str(_src))
+
+                    # Blender 3.0（Python 3.9）不支持该特性
+                    if _src_path.name.endswith(".py"):
+                        _file = open(_src_path, 'r', encoding='utf-8')
+                        _count = 0
+                        for _line in _file:
+                            _count += 1
+                            if "|" in _line:
+                                printx(CCFR, "可能使用了\"A|B\"形式的类型注解")
+                                printx(CCFR, "文件：%s : %d" % (_src_path, _count))
+                                return
+
                     os.makedirs(_dst_path.parent, exist_ok=True)
                     shutil.copyfile(_src_path, _dst_path)
                 else:
-                    print("无改动：%s" % str(_src))
+                    printx("无改动：%s" % str(_src))
         else:
-            print("源不存在：%s" % _src_path)
+            printx(CCFR, "源不存在：%s" % _src_path)
 
-    print("\n")
-    print("生成完成")
+    printx("\n")
+    printx("生成完成")
 
     return 0
 
@@ -218,7 +232,7 @@ def link(args):
     exe_path = blender_dir.joinpath("Blender.exe")
 
     if not exe_path.exists():
-        print("找不到：", exe_path)
+        printx("找不到：", exe_path)
         return
 
     version: tuple[int, int, int] = None
@@ -227,13 +241,13 @@ def link(args):
     if _match := re.match(r'Blender (\d+).(\d+).(\d+)', _rs.readline()):
         version = (_match[1], _match[2], _match[3])
     else:
-        print(_err := "无法获取版本信息")
+        printx(_err := "无法获取版本信息")
         raise Exception(_err)
 
     dst = blender_dir.joinpath('%s.%s' % version[0:2], 'scripts', 'addons', addon_name)
 
     if os.path.lexists(dst):
-        print("删除旧链接")
+        printx("删除旧链接")
         os.unlink(dst)
 
     src = prj_dir.joinpath('xdebug' if args.config == 'debug' else 'xrelease')
@@ -253,7 +267,7 @@ def run(args):
     exe_path = blender_dir.joinpath("Blender.exe")
 
     if not exe_path.exists():
-        print("找不到：", exe_path)
+        printx("找不到：", exe_path)
         return
 
     cmd = [exe_path]
@@ -263,15 +277,15 @@ def run(args):
 
 def clean(args):
     if (_dir := prj_dir.joinpath('xbuild')).exists():
-        print("删除：%s" % _dir)
+        printx("删除：%s" % _dir)
         shutil.rmtree(_dir)
 
     if (_dir := prj_dir.joinpath('xdebug')).exists():
-        print("删除：%s" % _dir)
+        printx("删除：%s" % _dir)
         shutil.rmtree(_dir)
 
     if (_dir := prj_dir.joinpath('xrelease')).exists():
-        print("删除：%s" % _dir)
+        printx("删除：%s" % _dir)
         shutil.rmtree(_dir)
 
     pass
@@ -280,7 +294,7 @@ def pack(args):
     dir = prj_dir.joinpath('xrelease')
 
     if not dir.exists():
-        print("目录不存在：", dir)
+        printx("目录不存在：", dir)
         return
 
     try:
@@ -310,11 +324,11 @@ def pack(args):
                         arcname=addon_name + '/' + os.path.relpath(fp, dir)
                     )
 
-        print("打包完成：%s" % file_path)
+        printx("打包完成：%s" % file_path)
 
     except:
         traceback.print_exc()
-        print("打包失败")
+        printx("打包失败")
 
 
 make()

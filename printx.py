@@ -1,11 +1,22 @@
-from typing import cast, Literal, Union
+from __future__ import annotations  # 兼容 Python 3.9
+
+from typing import cast, Literal, Union, Protocol, TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsWrite
+
+    _T_contra = TypeVar("_T_contra", contravariant=True)
+
+    class SupportsWriteAndFlush(SupportsWrite[_T_contra], Protocol[_T_contra]):
+        def flush(self) -> None: ...
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 all = [
-    'print',
+    'printx',
 
     'CC',
+    
     'CCZ0',
 
     'CCFR',
@@ -37,25 +48,14 @@ all = [
     'CBSUCC',
 ]
 
-# 保存旧 print
-_print = print
-
-def print(
-        *values: object,
-        sep: Union[str, None] = None,
-        end: Union[str, None] = None,
-        # file: Union[SupportsWrite[str], None] = None,
-        file: Union[str, None] = None,
-        flush: Union[str, None] = None,
-    ):
-    _color: str = None
-    _values: list = None
-    kwargs = {
-        'sep': sep,
-        'end': end,
-        'file': file,
-        'flush': flush
-    }
+def printx(
+    *values: object,
+    sep: Union[str, None] = ' ',
+    end: Union[str, None] = '\n',
+    file: Union[SupportsWrite[str], SupportsWriteAndFlush[str], None] = None,
+    flush: bool = False,
+):
+    color: str = None
     if len(values) > 0:
         if (_first := values[0]) in [
             CFHIT1, CFHIT2, CFHIT3, CFWARN, CFERRO, CFSUCC,
@@ -63,19 +63,16 @@ def print(
             CCFR, CCFG, CCFY, CCFB, CCFP, CCFA,
             CCBR, CCBG, CCBY, CCBB, CCBP, CCBA,
         ]:
-            _color = _first
-            _values = values[1:]
-
-    if _color:
+            color = _first
+    if color:
         # 设置颜色
-        _print(_color, end='')
-        # 输出文本（不要换行）
-        kwargs['end'] = ''
-        _print(*_values, **kwargs)
-        # 清除颜色（使用原来的结束字符）
-        _print(CCZ0, end=end)
+        print(color, end='', file=file, flush=flush)
+        # 输出文本
+        print(*values[1:], sep=sep, end='', file=file, flush=flush)
+        # 清除颜色
+        print('\033[0m', end=end, file=file, flush=flush)
     else:
-        _print(*values, **kwargs)
+        print(*values, sep=sep, end=end, file=file, flush=flush)
     pass
 
 def CC(code=0) -> str:

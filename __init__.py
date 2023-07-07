@@ -1,12 +1,8 @@
 import sys
 import importlib
 
-from . import mark
-
-# 不要在 __init__.py 中引用直接或间接引用 bpy，参考：make.by: pack()
-# 或者用 try ？
-
-# 注意 ：3.0.X 版的 Blender 自带的 Python (3.9) 不支持 "A | B" 形式的类型注解。
+# 注意 ：不要在 __init__.py 中直接或间接引用 bpy，参考：make.by: pack()
+# 必须要引用，可以通过 try 来防止异常。
 
 bl_info = {
     'name': "wire_fix_ime",
@@ -20,26 +16,28 @@ bl_info = {
     'category': 'User Interface',
 }
 
+_mark = None
+_main = None
+
 def register():
-    main = importlib.import_module('.main', __package__)
-    main.register()
+    global _mark, _main
+    # Blender 会自动重新加载新的 __init__.py，但是不会重新加载其它模块。
+    # 因此需要 import_module 和 卸载时删除插件中其它模块 来实现刷新。
+    _mark = importlib.import_module('.mark', __package__).mark
+    _main = importlib.import_module('.main', __package__)
+    _main.register()
     pass
 
 def unregister():
-    main = importlib.import_module('.main', __package__)
-    main.unregister()
-    module_clean()  # 以便重新加载时可以载入最新的文件（Blender 会自动重新加载最新的 __init__.py 文件）
-    pass
+    _main.unregister()
 
-def module_clean():
-    addon_name = __package__
-    addon_prefix = "%s." % addon_name
+    addon_sub_modules_prefix = __package__ + '.'
     module_keys: list[str] = []
     for k in sys.modules.keys():
-        if k.startswith(addon_prefix):
+        if k.startswith(addon_sub_modules_prefix):
             module_keys.append(k)
     for k in module_keys:
-        if mark.DEBUG:
+        if _mark.DEBUG:
             print("del: %s" % k)
         del sys.modules[k]
     pass

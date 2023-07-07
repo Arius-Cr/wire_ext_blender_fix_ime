@@ -3,7 +3,7 @@ import os
 import ctypes
 import ctypes.wintypes as wintypes
 
-from ..  import mark
+from ..mark import mark
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -12,12 +12,6 @@ kernel32.LoadLibraryW.argtypes = [ctypes.wintypes.LPCWSTR]
 kernel32.LoadLibraryW.restype = ctypes.wintypes.HMODULE
 kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
 kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
-
-EDITOR_TYPE = {
-    'font': 1,
-    'text': 2,
-    'console': 3,
-}
 
 class _main:
     def _dll_init__main(self):

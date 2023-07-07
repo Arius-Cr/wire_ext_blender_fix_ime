@@ -1,14 +1,15 @@
-from typing import cast, Literal
+from typing import cast, Literal, Union
 from types import SimpleNamespace
 import sys
 import traceback
 
 import bpy
 
-from . import mark
-from .mark import *
+from .mark import mark
+DEBUG_BUILD = mark.DEBUG_BUILD
+DEBUG = mark.DEBUG
 
-from .debug import *
+from .printx import *
 
 from .native import native
 
@@ -17,7 +18,7 @@ if DEBUG_BUILD:
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
-def use_debug_update(self: 'WIRE_FIX_Preferences' | SimpleNamespace, context: bpy.types.Context):
+def use_debug_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context):
     use_debug = self.use_debug
 
     mark.DEBUG = use_debug
@@ -28,7 +29,7 @@ def use_debug_update(self: 'WIRE_FIX_Preferences' | SimpleNamespace, context: bp
     native.use_hook_debug(DEBUG)
     native.use_fix_ime_debug(DEBUG)
 
-def use_fix_ime_update(self: 'WIRE_FIX_Preferences' | SimpleNamespace, context: bpy.types.Context):
+def use_fix_ime_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context):
     use_fix_ime_state = self.use_fix_ime_state
     use_fix_ime_input = self.use_fix_ime_input
 
@@ -45,7 +46,7 @@ def use_fix_ime_update(self: 'WIRE_FIX_Preferences' | SimpleNamespace, context: 
             native.use_fix_ime_input(False)  # 必须关闭
             unregister_fix_ime_input()
 
-def use_header_extend(self: 'WIRE_FIX_Preferences' | SimpleNamespace, context: bpy.types.Context):
+def use_header_extend(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context):
     global TEXT_HT_header_extend_appended
     global CONSOLE_HT_header_extend_appended
 
@@ -266,7 +267,7 @@ def register_fix_ime_input():
         return
 
     if DEBUG:
-        print("注册 fix_ime_input 相关功能（%d）" % len(watchers))
+        printx("注册 fix_ime_input 相关功能（%d）" % len(watchers))
 
     context = bpy.context
     wm = context.window_manager
@@ -317,9 +318,9 @@ def unregister_fix_ime_input():
     if not _registered:
         return
 
-    # 当通过选项关闭相关功能，如果鼠标不移入相关窗口，则监视器是不会主动结束的，
-    # 但我们无法主动结束鼠标位置监视器，所以只能设置标记，避免监视器继续运行，
-    # 然后当用户将鼠标移入窗口时，以标记的监视器会立即结束不会继续运行。
+    # 当通过选项关闭相关功能，如果鼠标不移入相关窗口，则检查器是不会主动结束的，
+    # 但我们无法主动结束鼠标位置检查器，所以只能设置标记，避免检查器继续运行，
+    # 然后当用户将鼠标移入窗口时，已标记的检查器会立即结束不会继续运行。
     # 如果移入窗口前停用了插件，则模态操作会被 Blender 强制结束，
     # 而此时会调用 __del__ 函数，但此时没有任何需要清理的。
     for _watcher in watchers.values():
@@ -327,7 +328,7 @@ def unregister_fix_ime_input():
     watchers.clear()
 
     if DEBUG:
-        print("卸载 fix_ime_input 相关功能（%d）" % len(watchers))
+        printx("卸载 fix_ime_input 相关功能（%d）" % len(watchers))
 
     if _object_font_edit_key_map and _object_font_edit_key_map_item:
         _object_font_edit_key_map.keymap_items.remove(_object_font_edit_key_map_item)
@@ -352,7 +353,7 @@ def update_candidate_window_pos_font_edit(context: bpy.types.Context):
     # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
 
     if DEBUG:
-        print(CFHIT1, "更新光标位置", "VIEW_3D")
+        printx(CFHIT1, "更新光标位置", "VIEW_3D")
 
     window = context.window
 
@@ -365,7 +366,7 @@ def update_candidate_window_pos_text_editor(context: bpy.types.Context):
     # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
 
     if DEBUG:
-        print(CFHIT1, "更新光标位置", "TEXT_EDITOR")
+        printx(CFHIT1, "更新光标位置", "TEXT_EDITOR")
 
     window = context.window
     space = cast(bpy.types.SpaceTextEditor, context.space_data)
@@ -392,7 +393,7 @@ def update_candidate_window_pos_console(context: bpy.types.Context):
     # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
 
     if DEBUG:
-        print(CFHIT1, "更新光标位置", "CONSOLE")
+        printx(CFHIT1, "更新光标位置", "CONSOLE")
 
     window = context.window
     space = cast(bpy.types.SpaceConsole, context.space_data)
@@ -474,7 +475,7 @@ class WIRE_OT_fix_ime_input_BASE():
         _state['inputing'] = True
 
         if DEBUG:
-            print(CFHIT1, "开始合成文本")
+            printx(CFHIT1, "开始合成文本")
 
         text = native.ime_text_get()
         self.length = len(text) + 2
@@ -485,7 +486,7 @@ class WIRE_OT_fix_ime_input_BASE():
             self.move(type='PREVIOUS_CHARACTER')
 
         if DEBUG:
-            print("当前文本 (长度：%d，光标：%d):" % (self.length - 2, self.caret_pos), CCBY + text + CCZ0)
+            printx("当前文本 (长度：%d，光标：%d):" % (self.length - 2, self.caret_pos), CCBY + text + CCZ0)
 
         if self.target == 'font':
             update_candidate_window_pos_font_edit(context)
@@ -504,14 +505,14 @@ class WIRE_OT_fix_ime_input_BASE():
         # 合成文字 UPDATE
         if key == 'F17' and value == 'PRESS':
             if DEBUG:
-                print(CFHIT1, "更新合成文本")
+                printx(CFHIT1, "更新合成文本")
 
             self.update_text(context, 'update')
 
         # 输出文字 FINISH
         elif key == 'F18' and value == 'PRESS':
             if DEBUG:
-                print(CFHIT1, "确认合成文本")
+                printx(CFHIT1, "确认合成文本")
 
             self.update_text(context, 'finish')
 
@@ -522,7 +523,7 @@ class WIRE_OT_fix_ime_input_BASE():
         # 取消合成 CNACEL
         elif (key == 'F19' and value == 'PRESS'):
             if DEBUG:
-                print(CFHIT1, "取消合成文本")
+                printx(CFHIT1, "取消合成文本")
 
             self.update_text(context, 'cancel')
 
@@ -562,7 +563,7 @@ class WIRE_OT_fix_ime_input_BASE():
                 self.insert(text=text)
 
             if DEBUG:
-                print("当前文本 (长度：%d，光标：%d):" % (self.length - 2, self.caret_pos), CCBY + text + CCZ0)
+                printx("当前文本 (长度：%d，光标：%d):" % (self.length - 2, self.caret_pos), CCBY + text + CCZ0)
 
         if self.target == 'font':
             update_candidate_window_pos_font_edit(context)
@@ -631,7 +632,7 @@ watchers: dict[bpy.types.Window, 'WIRE_OT_fix_ime_input_watcher'] = {}
 
 class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
     bl_idname = 'wire.fix_ime_input_watcher'
-    bl_label = "鼠标位置监视器"
+    bl_label = "鼠标位置检查器"
     bl_description = "根据鼠标当前位置，在区块中启用或停用输入法"
     bl_options = set()
 
@@ -648,7 +649,7 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             prefs.use_fix_ime_input_console)):
             return False
 
-        # 每个窗口只需运行一个监视器。
+        # 每个窗口只需运行一个检查器。
         # 似乎 Blender 在销毁临时窗口时不会真正销毁临时窗口，而是隐藏临时窗口，连模态操作也不会销毁，
         # 不过切换工作区时似乎会真正销毁被隐藏的临时窗口。
         if context.window not in watchers:
@@ -668,13 +669,20 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
         self.report({'ERROR'}, "必须以 INVOKE 的方式调用")
         return {'CANCELLED'}
 
+    def __del__(self):
+        # 实例和类型的销毁都会调用该函数（例如停用插件卸载类型时）
+        if hasattr(self, 'base'):
+            return
+        # 目前无需在此处执行任何操作
+        pass
+
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         window = context.window
 
         watchers[window] = self
 
         if DEBUG:
-            print(CFHIT1, "鼠标位置监视器启动 (现有: %d)：%X (wm)" % (
+            printx(CFHIT1, "鼠标位置检查器启动 (现有: %d)：%X (wm)" % (
                 len(watchers), window.as_pointer()))
 
         # 将窗口指针和窗口句柄绑定
@@ -686,11 +694,13 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
         return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event):
-        # 如果用户激活了输入控件，则所有输入消息都会返送到输入控件，此时不会收到任何消息，
+        # 如果用户激活了输入控件，则所有输入消息都会发送到输入控件，此时不会收到任何消息，
         # 因此不用担心和输入控件中输入法状态的冲突。
+
+        # 已失效的检查器自行结束即可
         if not self._valid:
             if DEBUG:
-                print(CFWARN, "鼠标位置监视器结束")
+                printx(CFWARN, "鼠标位置检查器结束")
             return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
 
         window = context.window
@@ -704,7 +714,7 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             if window in watchers:
                 watchers.pop(window)
             if DEBUG:
-                print(CFWARN, "鼠标位置监视器停用 (剩余: %d)：%X (wm)" % (
+                printx(CFWARN, "鼠标位置检查器停用 (剩余: %d)：%X (wm)" % (
                     len(watchers), window.as_pointer()))
             return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
 
@@ -719,7 +729,7 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
         if window in watchers:
             watchers.pop(window)
         if DEBUG:
-            print(CFWARN, "鼠标位置监视器取消 (剩余：%d)：%X (wm)" % (
+            printx(CFWARN, "鼠标位置检查器取消 (剩余：%d)：%X (wm)" % (
                 len(watchers), context.window.as_pointer()))
         pass
 
@@ -795,7 +805,7 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
                 # 检测到符合条件的区块，如果当前没有启用输入法或当前鼠标所在空间和之前不同，则启用输入法
                 if not self._enabled or _space != self._space:
                     if DEBUG:
-                        print(CCFG, "在区块中启用输入法：%s" % _space.type)
+                        printx(CCFG, "在区块中启用输入法：%s" % _space.type)
                     native.ime_input_enable(context.window.as_pointer())
                     self._enabled = True
                     self._space = _space
@@ -804,7 +814,7 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             else:
                 if self._enabled:
                     if DEBUG:
-                        print(CCFP, "在区块中停用输入法")
+                        printx(CCFP, "在区块中停用输入法")
                     native.ime_input_disable(context.window.as_pointer())  # 此处会间接使得【输入法冲突】被“二次”修复
                     self._enabled = False
                     self._space = None
@@ -817,7 +827,7 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             'F16', 'F17', 'F18', 'F19',  # TODO ：原则上需要加入更多不需要的按键，目前先这样
         ] and value == 'RELEASE') and (key not in ['INBETWEEN_MOUSEMOVE'])):
             if DEBUG:
-                print("触发光标位置更新：" + "'" + key + "'")
+                printx("触发光标位置更新：'%s'" % key)
             self.update_candidate_window_pos(context)
 
     def update_candidate_window_pos(self, context: bpy.types.Context):

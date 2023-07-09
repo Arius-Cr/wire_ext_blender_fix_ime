@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Union, Callable
 import os
 import ctypes
 import ctypes.wintypes as wintypes
@@ -12,6 +12,9 @@ kernel32.LoadLibraryW.argtypes = [ctypes.wintypes.LPCWSTR]
 kernel32.LoadLibraryW.restype = ctypes.wintypes.HMODULE
 kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
 kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
+
+# 参数：窗口WM指针，合成事件，合成文本，光标位置
+CompositionEventHandler = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
 
 class _main:
     def _dll_init__main(self):
@@ -77,7 +80,7 @@ class _fix_ime_state:
 
 class _fix_ime_input:
     def _dll_init__fix_ime_input(self):
-        self.dll.use_fix_ime_input.argtypes = [ctypes.c_bool]
+        self.dll.use_fix_ime_input.argtypes = [ctypes.c_bool, ctypes.c_void_p]
         self.dll.use_fix_ime_input.restype = ctypes.c_bool
 
         self.dll.ime_input_enable.argtypes = [ctypes.c_void_p]
@@ -86,23 +89,30 @@ class _fix_ime_input:
         self.dll.ime_input_disable.argtypes = [ctypes.c_void_p]
         self.dll.ime_input_disable.restype = ctypes.c_bool
 
-        self.dll.ime_text_get.argtypes = []
-        self.dll.ime_text_get.restype = ctypes.c_wchar_p
-
-        self.dll.ime_text_caret_pos_get.argtypes = []
-        self.dll.ime_text_caret_pos_get.restype = ctypes.c_int
-
         self.dll.candidate_window_position_update_font_edit.argtypes = [ctypes.c_void_p, ctypes.c_float]
         self.dll.candidate_window_position_update_font_edit.restype = ctypes.c_bool
 
-        self.dll.candidate_window_position_update_text_editor.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+        self.dll.candidate_window_position_update_text_editor.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
         self.dll.candidate_window_position_update_text_editor.restype = ctypes.c_bool
 
-        self.dll.candidate_window_position_update_console.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.dll.candidate_window_position_update_console.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
         self.dll.candidate_window_position_update_console.restype = ctypes.c_bool
 
-    def use_fix_ime_input(self, enable: bool) -> bool:
-        return self.dll.use_fix_ime_input(enable)
+        self._composition_event_handler: ctypes._FuncPointer = None
+
+    def use_fix_ime_input(self, enable: bool,
+        composition_event_handler: Union[Callable[[int, int, str, int], None], None] = None
+    ) -> bool:
+
+        if enable:
+            if not composition_event_handler:
+                raise Exception("缺少 composition_event_handler 参数")
+            self._composition_event_handler = CompositionEventHandler(composition_event_handler)
+        else:
+            if self._composition_event_handler:
+                self._composition_event_handler = None
+
+        return self.dll.use_fix_ime_input(enable, self._composition_event_handler)
 
     def ime_input_enable(self, wm_pinter: int) -> bool:
         return self.dll.ime_input_enable(wm_pinter)
@@ -110,21 +120,14 @@ class _fix_ime_input:
     def ime_input_disable(self, wm_pinter: int) -> bool:
         return self.dll.ime_input_disable(wm_pinter)
 
-    def ime_text_get(self) -> str:
-        # 从Windows传来的是UTF-16字符串，需要编码为UTF-8
-        return self.dll.ime_text_get().encode('utf-8').decode('utf-8')
+    def candidate_window_position_update_font_edit(self, wm_pinter: int, p: float, show_caret: bool) -> bool:
+        return self.dll.candidate_window_position_update_font_edit(wm_pinter, p, show_caret)
 
-    def ime_text_caret_pos_get(self) -> int:
-        return self.dll.ime_text_caret_pos_get()
+    def candidate_window_position_update_text_editor(self, wm_pinter: int, x: int, y: int, h: int, show_caret: bool) -> bool:
+        return self.dll.candidate_window_position_update_text_editor(wm_pinter, x, y, h, show_caret)
 
-    def candidate_window_position_update_font_edit(self, wm_pinter: int, p: float) -> bool:
-        return self.dll.candidate_window_position_update_font_edit(wm_pinter, p)
-
-    def candidate_window_position_update_text_editor(self, wm_pinter: int, x: int, y: int) -> bool:
-        return self.dll.candidate_window_position_update_text_editor(wm_pinter, x, y)
-
-    def candidate_window_position_update_console(self, wm_pinter: int, x: int, y: int, l: int, t: int, r: int, b: int) -> bool:
-        return self.dll.candidate_window_position_update_console(wm_pinter, x, y, l, t, r, b)
+    def candidate_window_position_update_console(self, wm_pinter: int, l: int, t: int, r: int, b: int, show_caret: bool) -> bool:
+        return self.dll.candidate_window_position_update_console(wm_pinter, l, t, r, b, show_caret)
 
 class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
     def __init__(self):
@@ -138,7 +141,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         self.dll_loaded = False
         pass
 
-    def dll_load(self):
+    def dll_load(self) -> bool:
         dir = os.path.dirname(os.path.realpath(__file__))
         dll_path = os.path.join(dir, 'native.dll')
         if mark.DEBUG:
@@ -149,6 +152,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
                 dll_path = dll_dest
             except:
                 print("复制 native.dll 为 _native.dll 失败")
+                return False
 
         self.dll_handle = kernel32.LoadLibraryW(dll_path)
 
@@ -157,6 +161,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
                 print("加载 DLL 完成")
         else:
             print("加载 DLL 失败")
+            return False
 
         self.dll = ctypes.CDLL("", handle=self.dll_handle)
 
@@ -167,16 +172,18 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         self._dll_init__fix_ime()
         self._dll_init__fix_ime_state()
         self._dll_init__fix_ime_input()
+        return True
 
-    def dll_unload(self):
+    def dll_unload(self) -> bool:
         if self.dll_handle is None:
-            return
+            return True
 
         if kernel32.FreeLibrary(self.dll_handle):
             if mark.DEBUG:
                 print("卸载 DLL 完成")
         else:
             print("卸载 DLL 失败")
+            return False
 
         del self.dll
         del self.dll_handle
@@ -184,6 +191,7 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         self.dll = None
         self.dll_handle = None
         self.dll_loaded = False
+        return True
 
 
 native: 'Native' = Native()

@@ -27,7 +27,7 @@
  *     而 Blender 采用的解决方法是硬编码，即如果输入法处于非英文输入状态，则认为某些按键必定被输入法处理，
  *     但按键是否被输入法处理是输入法自身逻辑决定的，
  *     因此硬编码的内容和具体的某款输入法的处理逻辑不同的话，就会导致问题。
- *     此外，在文本物体的编辑模式、脚本编辑器、控制台中 Blender 不启用输入法。
+ *     此外，在文本物体的编辑模式、文本编辑器、控制台中 Blender 不启用输入法。
  * 策略：
  *     通过脚本检查当前鼠标是否在 【文本物体的编辑模式】、【脚本编辑器】、【控制台】 三种状态的任一状态中，
  *     如果是，则脚本主动启用 【自定义输入流程】（ime_input_enable），否则停用该流程（ime_input_disable）。
@@ -50,25 +50,11 @@
  *         接下来必然进入合成状态，由合成状态的流程处理文字输入。
  *     在合成状态中：
  *         在 WM_IME_STARTCOMPOSITION、WM_IME_COMPOSITION、WM_IME_ENDCOMPOSITION 中，
- *         可以获取输入法的整个文字处理阶段和正在处理的文本，
- *         阶段分为三个：START、UPDATE、FINISH、CANCEL
- *         START：
- *             通过 keybd_event() 向窗口发送 Ctrl + F16 消息，由于均为控件按键，所有不会在 WM_INPUT 中被拦截。
- *             组合键会触发通过脚本自定义的一个操作（请参考 imm.py 中的 WIRE_OT_fix_ime_BASE 的子类），
- *             该操作启动后会持续响应 UPDATE、FINISH、CANCEL 的消息，直到合成完成。
- *             该操作主要的功能就是调用 BPY 的功能向目标插入和删除文字，通过将上次插入的文字删除，来模拟输入的效果。
- *             在每个阶段，都会将当前的合成文字存储到 himc_text 变量中，
- *             脚本需要通过调用 ime_text_get() 获取合成文字。
- *         UPDATE：
- *             插件存储当前合成文字到 himc_text 变量；
- *             通过 keybd_event() 向窗口发送 Ctrl + F17 消息；
- *             脚本中已启动的 WIRE_OT_fix_ime_BASE 子类操作监听到该消息，
- *             通过 xxx.delete（如bpy.ops.font.delete） 操作删除之前通过 xxx.insert（如bpy.ops.font.insert）插入的文字，
- *             通过调用 ime_text_get() 获取最新的合成文本，
- *             通过 xxx.insert 插入最新的合成文本。
- *         FINISH、CNACEL：
- *             和 UPDATE 类似，FINISH（Ctrl + F18）表示插入合成文本，CNACEL（Ctrl + F19）表示取消输入。
- *
+ *         可以获取输入法的整个文字处理阶段和正在处理的文本及文本中光标的位置，
+ *         阶段分为四个：START、UPDATE、FINISH、CANCEL。
+ *         当进入某个阶段，获取合成文本和合成文本中光标位置后，
+ *         将数据通过 use_fix_ime_input() 时传入的回调函数发送给脚本侧的代码，
+ *         由脚本侧的代码通过 bpy.ops.insert 之类的操作将合成文本显示到界面中。
  */
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
@@ -76,25 +62,20 @@
 
 bool himc_composition_start = false; // 是否已经处于合成流程开始阶段，用于判断是否触发 himc_input_start
 
+Composition_Event_Handler *composition_event_handler = NULL;
+
+enum Composition_Event_Type
+{
+    CET_START = 0,
+    CET_UPDATE = 1,
+    CET_FINISH = 2,
+    CET_CANCEL = 3,
+};
+
 #define myHIMC_INPUT_PASS 0x77697265 // 按键能否通过 WM_INPUT 的标记
 
-#define myHIMC_INPUT_ENABLE 0x0100     // 合成事件被启用的标记，如 (himc_input_start & myHIMC_INPUT_ENABLE) > 0 表示 START 已开启
-#define myHIMC_INPUT_KEY1_DOWN 0x0001  // 合成事件按键1按下状态处理完毕的标记
-#define myHIMC_INPUT_KEY1_UP 0x0002    // 合成事件按键1释放状态处理完毕的标记
-#define myHIMC_INPUT_KEY2_DOWN 0x0004  // 合成事件按键2按下状态处理完毕的标记
-#define myHIMC_INPUT_KEY2_UP 0x0008    // 合成事件按键2释放状态处理完毕的标记
-#define myHIMC_INPUT_START_KEY VK_F16  // 合成事件 START  的按键2 虚拟键码
-#define myHIMC_INPUT_UPDATE_KEY VK_F17 // 合成事件 UPDATE 的按键2 虚拟键码
-#define myHIMC_INPUT_FINISH_KEY VK_F18 // 合成事件 FINISH 的按键2 虚拟键码
-#define myHIMC_INPUT_CANCEL_KEY VK_F19 // 合成事件 CANCEL 的按键2 虚拟键码
-
-short himc_input_start = 0;  // 合成事件 START   的状态，包括是否启用，各个按键是否已经处理的标记
-short himc_input_update = 0; // 合成事件 UPDATE  的状态，包括是否启用，各个按键是否已经处理的标记
-short himc_input_finish = 0; // 合成事件 FINISH  的状态，包括是否启用，各个按键是否已经处理的标记
-short himc_input_cancel = 0; // 合成事件 CANCEL  的状态，包括是否启用，各个按键是否已经处理的标记
-
 wchar_t *himc_text = NULL;      // 当前的合成字串
-wchar_t himc_text_empty = '\0'; // 空字符
+wchar_t himc_text_empty = '\0'; // 空白字符串，用于表示没有合成文本
 int himc_text_size = 0;         // 当前的合成字串字节大小
 int himc_text_length = 0;       // 当前的合成字串字符数量，不含零尾
 int himc_text_caret_pos = 0;    // 当前的合成字串中光标的位置
@@ -105,8 +86,6 @@ void window_ime_text_update(HWND hwnd, HIMC himc, DWORD type)
 {
     if (himc_text)
         free(himc_text); // 清理上次获取的字符
-
-    // ImmGetCompositionWindow
 
     himc_text_size = ImmGetCompositionStringW(himc, type, NULL, 0);
     if (himc_text_size > 0)
@@ -125,43 +104,6 @@ void window_ime_text_update(HWND hwnd, HIMC himc, DWORD type)
     }
 }
 
-void window_ime_message_send(USHORT key1, USHORT key2)
-{
-    keybd_event(key1, 0, 0, 0);
-    keybd_event(key2, 0, 0, 0);
-    keybd_event(key2, 0, KEYEVENTF_KEYUP, 0);
-    keybd_event(key1, 0, KEYEVENTF_KEYUP, 0);
-}
-
-bool window_ime_message_check(USHORT key, bool down, short *check_list, USHORT key_1, USHORT key_2)
-{
-    if (key == key_1)
-    {
-        if (down)
-        {
-            *check_list |= myHIMC_INPUT_KEY1_DOWN;
-        }
-        else
-        {
-            *check_list |= myHIMC_INPUT_KEY1_UP;
-        }
-        return true;
-    }
-    else if (key == key_2)
-    {
-        if (down)
-        {
-            *check_list |= myHIMC_INPUT_KEY2_DOWN;
-        }
-        else
-        {
-            *check_list |= myHIMC_INPUT_KEY2_UP;
-        }
-        return true;
-    }
-    return false;
-}
-
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序内功能
 
@@ -173,11 +115,9 @@ extern bool himc_enabled = false;
 
 extern bool himc_composition = false;
 
-extern bool himc_composition_core = false;
-
 extern bool himc_block_shift_mouse_button = false;
 
-extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     // 虽然函数的名称为 WM_KILLFOCUS，但在鼠标按键按下时，依然由该函数处理，因此该函数实际上在准备或已经丢失焦点时运行
 
@@ -215,20 +155,7 @@ extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
     }
 }
 
-extern void fix_ime_input_WM_SETFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if (himc_composition)
-    {
-        if (!himc_composition_core)
-        {
-            DEBUGI(D_IME, "强制取消文字合成(焦点丢失时)：%p", hWnd);
-            himc_input_cancel = myHIMC_INPUT_ENABLE;
-            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_CANCEL_KEY);
-        }
-    }
-}
-
-extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     RAWINPUT raw;
     UINT raw_size = sizeof(RAWINPUT);
@@ -308,62 +235,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     }
     else
     {
-        // 在合成阶段，会拦截所有按键，
-        // 但当任何合成事件启用后，只要按键符合事件相关的按键（如：Ctrl + F16）则不拦截，
-        // 并跟踪按键状态来调整事件状态，譬如完整接收到 Ctrl + F16 的 KeyDown 和 KeyUp 后关闭该事件，
-        // 如果不关闭事件，则会一直放行 Ctrl 和 F16 按键。
-        if ((himc_input_start & myHIMC_INPUT_ENABLE) > 0)
-        {
-            if (window_ime_message_check(key, key_down, &himc_input_start, VK_CONTROL, myHIMC_INPUT_START_KEY))
-            {
-                block = false;
-                if ((himc_input_start & 0x000F) == 0x000F)
-                {
-                    DEBUGI(D_HOK, CCBY "发送 “合成开始” 消息：%x" CCZ0, himc_input_start);
-                    himc_input_start = 0;
-                }
-            }
-        }
-        else if ((himc_input_update & myHIMC_INPUT_ENABLE) > 0)
-        {
-            if (window_ime_message_check(key, key_down, &himc_input_update, VK_CONTROL, myHIMC_INPUT_UPDATE_KEY))
-            {
-                block = false;
-                if ((himc_input_update & 0x000F) == 0x000F)
-                {
-                    DEBUGI(D_HOK, CCBP "发送 “合成更新” 消息：%x" CCZ0, himc_input_update);
-                    himc_input_update = 0;
-                }
-            }
-        }
-        else if ((himc_input_finish & myHIMC_INPUT_ENABLE) > 0)
-        {
-            if (window_ime_message_check(key, key_down, &himc_input_finish, VK_CONTROL, myHIMC_INPUT_FINISH_KEY))
-            {
-                block = false;
-                if ((himc_input_finish & 0x000F) == 0x000F)
-                {
-                    DEBUGI(D_HOK, CCBG "发送 “确认合成” 消息：%x" CCZ0, himc_input_finish);
-                    himc_input_finish = 0;
-                    himc_composition = false;
-                    himc_composition_core = false;
-                }
-            }
-        }
-        else if ((himc_input_cancel & myHIMC_INPUT_ENABLE) > 0)
-        {
-            if (window_ime_message_check(key, key_down, &himc_input_cancel, VK_CONTROL, myHIMC_INPUT_CANCEL_KEY))
-            {
-                block = false;
-                if ((himc_input_cancel & 0x000F) == 0x000F)
-                {
-                    DEBUGI(D_HOK, CCBR "发送 “取消合成” 消息：%x" CCZ0, himc_input_cancel);
-                    himc_input_cancel = 0;
-                    himc_composition = false;
-                    himc_composition_core = false;
-                }
-            }
-        }
+        // 在合成阶段，会拦截所有按键
     }
     if (block)
     {
@@ -377,7 +249,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     return false;
 }
 
-extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     /**
      * 如果当前开启了输入法，并且处于普通状态（非合成状态），且输入法不处理该按键，
@@ -412,7 +284,7 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     }
 }
 
-extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     USHORT key = wParam;
     if (!himc_composition && wParam != VK_PROCESSKEY)
@@ -449,25 +321,24 @@ extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     }
 }
 
-extern void fix_ime_input_WM_IME_NOTIFY(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_IME_NOTIFY(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
 }
 
-extern void fix_ime_input_WM_IME_SETCONTEXT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_IME_SETCONTEXT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
 }
 
-extern void fix_ime_input_WM_IME_STARTCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_IME_STARTCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION");
 
     himc_composition = true;
-    himc_composition_core = true;
 
     himc_composition_start = true;
 }
 
-extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     WORD chDBCS = (WORD)wParam;
     BOOL fFlags = (BOOL)lParam;
@@ -482,9 +353,11 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
             if (himc_text_size)
             {
                 himc_composition_start = false;
-                // DEBUGI(D_IME, "myHIMC_INPUT_START");
-                himc_input_start = myHIMC_INPUT_ENABLE;
-                window_ime_message_send(VK_CONTROL, myHIMC_INPUT_START_KEY);
+                if (composition_event_handler)
+                {
+                    // DEBUGI(D_IME, "myHIMC_INPUT_START");
+                    composition_event_handler(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
+                }
             }
         }
         else
@@ -495,9 +368,11 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
             if (himc_text_size)
             {
                 himc_composition_start = false;
-                // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
-                himc_input_update = myHIMC_INPUT_ENABLE;
-                window_ime_message_send(VK_CONTROL, myHIMC_INPUT_UPDATE_KEY);
+                if (composition_event_handler)
+                {
+                    // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
+                    composition_event_handler(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
+                }
             }
         }
     }
@@ -511,25 +386,18 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
         if (himc_text_size)
         {
             himc_composition_start = false;
-            // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
-            himc_input_update = myHIMC_INPUT_ENABLE;
-            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_UPDATE_KEY);
+            if (composition_event_handler)
+            {
+                // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
+                composition_event_handler(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
+            }
         }
     }
 }
 
-extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     DEBUGI(D_IME, "WM_IME_ENDCOMPOSITION");
-
-    /**
-     * 注意：因为外部原因导致窗口失去焦点时（截图的时候可能会发生这种情况），
-     * 在 WM_KILLFOCUS 中会强制取消合成，但此时 window_ime_message_send 很可能无法将按键发送到目标窗口，
-     * 因此 himc_composition = false 不能在 fix_ime_input_WM_INPUT 中进行设置。
-     * 如果无法发送按键也有备用手段。在 BPY 的 WIRE_OT_fix_ime_input_BASE 会在鼠标移动时检查是否依然处于合成状态，
-     * 如果不是，则会自动取消合成，通过这两种手段可以基本确保意外情况下，一切按原设计进行。
-     */
-    himc_composition_core = false;
 
     if (himc_composition_start)
     {
@@ -544,12 +412,13 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
              * 合成过程会快速经过开始、更新、完成，不会弹出候选窗口。
              * 这里的代码就是为了应对这种情况。
              **/
-            // DEBUGI(D_IME, "myHIMC_INPUT_START");
-            himc_input_start = myHIMC_INPUT_ENABLE;
-            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_START_KEY);
-            // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
-            himc_input_finish = myHIMC_INPUT_ENABLE;
-            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_FINISH_KEY);
+            if (composition_event_handler)
+            {
+                // DEBUGI(D_IME, "myHIMC_INPUT_START");
+                // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
+                composition_event_handler(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
+                composition_event_handler(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
+            }
         }
     }
     else
@@ -559,23 +428,29 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
         ImmReleaseContext(hWnd, himc);
         if (himc_text_size)
         {
-            // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
-            himc_input_finish = myHIMC_INPUT_ENABLE;
-            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_FINISH_KEY);
+            if (composition_event_handler)
+            {
+                // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
+                composition_event_handler(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
+            }
         }
         else
         {
-            // DEBUGI(D_IME, "myHIMC_INPUT_CNACEL");
-            himc_input_cancel = myHIMC_INPUT_ENABLE;
-            window_ime_message_send(VK_CONTROL, myHIMC_INPUT_CANCEL_KEY);
+            if (composition_event_handler)
+            {
+                // DEBUGI(D_IME, "myHIMC_INPUT_CNACEL");
+                composition_event_handler(window->wm_pointer, CET_CANCEL, &himc_text_empty, 0);
+            }
         }
     }
+
+    himc_composition = false;
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序外功能
 
-extern __declspec(dllexport) bool use_fix_ime_input(bool enable)
+extern __declspec(dllexport) bool use_fix_ime_input(bool enable, Composition_Event_Handler handler)
 {
     DEBUGH(D_IME, "use_fix_ime_input: %s", enable ? "True" : "False");
 
@@ -584,11 +459,16 @@ extern __declspec(dllexport) bool use_fix_ime_input(bool enable)
 
     if (enable)
     {
+        composition_event_handler = handler;
         // if (himc_custom == NULL)
         // {
         //     himc_custom = ImmCreateContext();
         //     ImmSetConversionStatus(himc_custom, IME_CMODE_ALPHANUMERIC, IME_SMODE_NONE);
         // }
+    }
+    else
+    {
+        composition_event_handler = NULL;
     }
 
     data_use_fix_ime_input = enable;
@@ -619,7 +499,6 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
 
         himc_enabled = true;
         himc_composition = false;
-        himc_composition_core = false;
         himc_block_shift_mouse_button = false;
 
         ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
@@ -666,34 +545,7 @@ extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer)
     return true;
 }
 
-extern __declspec(dllexport) wchar_t *ime_text_get()
-{
-    /**
-     * 获取当前的合成文本，实际上该文本在 WM_XXX 事件中保存到 himc_text 的，
-     * 原则上来说需要在此处才获取的，但是本质上没有太大区别，就这样吧。
-     * 该函数由 BPY 侧的代码调用。
-     **/
-    if (himc_text)
-    {
-        return himc_text;
-    }
-    else
-    {
-        return &himc_text_empty;
-    }
-}
-
-extern __declspec(dllexport) int ime_text_caret_pos_get()
-{
-    /**
-     * 获取当前的合成文本中光标的位置。
-     * 该位置实际上在 WM_XXX 事件中进行获取。
-     * 该函数由 BPY 侧的代码调用。
-     **/
-    return himc_text_caret_pos;
-}
-
-extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p)
+extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p, bool show_caret)
 {
     if (!himc_enabled)
         return false;
@@ -703,35 +555,38 @@ extern __declspec(dllexport) bool candidate_window_position_update_font_edit(voi
         return false;
 
     HWND hwnd = window->handle;
-    HIMC himc = ImmGetContext(hwnd);
 
-    POINT xy = {0};
-    POINT lt = {0};
-    POINT rb = {0};
+    /**
+     * 本函数用于更新候选窗口的位置。
+     *
+     * 注意：
+     *      ImmSetCandidateWindow 对大部分输入法都 *无效*，
+     *      即使对微软拼音输入法也会有时候失效。
+     *      候选窗口基本上看光标的位置和大小来进行定位。
+     *
+     * 光标创建后无需 ShowCaret()，光标在隐藏的状态下，依然是有效的。
+     *
+     * 所有坐标都是相对窗口客户区左上角。
+     */
+
     HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
     MONITORINFO monitor_info = {0};
     monitor_info.cbSize = sizeof(monitor_info);
     GetMonitorInfo(monitor, &monitor_info);
-
-    xy.x = monitor_info.rcWork.left + (int)(p * monitor_info.rcWork.right - monitor_info.rcWork.left);
-    xy.y = monitor_info.rcWork.bottom;
-    lt.x = monitor_info.rcWork.left;
-    lt.y = monitor_info.rcWork.top;
-    rb.x = monitor_info.rcWork.right;
-    rb.y = monitor_info.rcWork.bottom;
-
-    // DEBUGI(D_IME, "x: %d, y: %d", xy.x, xy.y);
-    // DEBUGI(D_IME, "l: %d, t: %d", lt.x, lt.y);
-    // DEBUGI(D_IME, "r: %d, b: %d", rb.x, rb.y);
-
+    POINT xy = {
+        monitor_info.rcWork.left + (int)(p * monitor_info.rcWork.right - monitor_info.rcWork.left),
+        monitor_info.rcWork.bottom};
+    POINT lt = {
+        monitor_info.rcWork.left,
+        monitor_info.rcWork.top};
+    POINT rb = {
+        monitor_info.rcWork.right,
+        monitor_info.rcWork.bottom};
     ScreenToClient(hwnd, &xy);
     ScreenToClient(hwnd, &lt);
     ScreenToClient(hwnd, &rb);
 
-    // DEBUGI(D_IME, "x: %d, y: %d", xy.x, xy.y);
-    // DEBUGI(D_IME, "l: %d, t: %d", lt.x, lt.y);
-    // DEBUGI(D_IME, "r: %d, b: %d", rb.x, rb.y);
-
+    HIMC himc = ImmGetContext(hwnd);
     CANDIDATEFORM candidate_form = {0};
     candidate_form.dwIndex = 0;
     candidate_form.dwStyle = CFS_CANDIDATEPOS;
@@ -742,18 +597,20 @@ extern __declspec(dllexport) bool candidate_window_position_update_font_edit(voi
     candidate_form.rcArea.right = rb.x;
     candidate_form.rcArea.bottom = rb.y;
     ImmSetCandidateWindow(himc, &candidate_form);
-
     ImmReleaseContext(hwnd, himc);
 
     DestroyCaret();
-    CreateCaret(hwnd, NULL, 10, 20);
+    CreateCaret(hwnd, NULL, 10, 10); // 宽高不能同时为 1，否者部分字上屏后，微软拼音的候选窗口会偏移一段位置（原因未知）
     SetCaretPos(xy.x, xy.y);
-    // ShowCaret(hwnd);
+    if (show_caret)
+    {
+        ShowCaret(hwnd);
+    }
 
     return true;
 }
 
-extern __declspec(dllexport) bool candidate_window_position_update_text_editor(void *wm_pointer, int x, int y)
+extern __declspec(dllexport) bool candidate_window_position_update_text_editor(void *wm_pointer, int x, int y, int h, bool show_caret)
 {
     if (!himc_enabled)
         return false;
@@ -763,44 +620,28 @@ extern __declspec(dllexport) bool candidate_window_position_update_text_editor(v
         return false;
 
     HWND hwnd = window->handle;
+
     HIMC himc = ImmGetContext(hwnd);
-
-    // 更新候选窗口位置（所有坐标相对窗口客户区左上角）
-
     CANDIDATEFORM candidate_form = {0};
     candidate_form.dwIndex = 0;
     candidate_form.dwStyle = CFS_CANDIDATEPOS;
     candidate_form.ptCurrentPos.x = x;
     candidate_form.ptCurrentPos.y = y;
     ImmSetCandidateWindow(himc, &candidate_form);
-
-    // if (D_IME)
-    // {
-    //     DEBUGI(D_IME, "x: %d, y: %d", x, y);
-
-    //     ImmGetCandidateWindow(himc, 0, &candidate_form);
-    //     DEBUGI(D_IME, "ptCurrentPos.x: %d", candidate_form.ptCurrentPos.x);
-    //     DEBUGI(D_IME, "ptCurrentPos.y: %d", candidate_form.ptCurrentPos.y);
-    // }
-
     ImmReleaseContext(hwnd, himc);
 
-    /**
-     * 从 Blender 源码注释中得知，似乎某些输入法不理会 ImmSetCandidateWindow() 的设置，
-     * 只根据输入光标的位置来定位候选窗口。
-     * 测试过微软拼音、微软日语、搜狗输入法，都能响应 ImmSetCandidateWindow()，
-     * 而在没有设置 CANDIDATEFORM 时，搜狗会以光标位置定位，而微软的输入法会定位到工作区右下角。
-     * 光标创建后无需 ShowCaret()，光标在隐藏的状态下，依然是有效的。
-     * */
     DestroyCaret();
-    CreateCaret(hwnd, NULL, 10, 20);
+    CreateCaret(hwnd, NULL, 10, max(2, h));
     SetCaretPos(x, y);
-    // ShowCaret(hwnd);
+    if (show_caret)
+    {
+        ShowCaret(hwnd);
+    }
 
     return true;
 }
 
-extern __declspec(dllexport) bool candidate_window_position_update_console(void *wm_pointer, int x, int y, int l, int t, int r, int b)
+extern __declspec(dllexport) bool candidate_window_position_update_console(void *wm_pointer, int l, int t, int r, int b, bool show_caret)
 {
     if (!himc_enabled)
         return false;
@@ -810,29 +651,27 @@ extern __declspec(dllexport) bool candidate_window_position_update_console(void 
         return false;
 
     HWND hwnd = window->handle;
-    HIMC himc = ImmGetContext(hwnd);
 
+    HIMC himc = ImmGetContext(hwnd);
     CANDIDATEFORM candidate_form = {0};
     candidate_form.dwIndex = 0;
     candidate_form.dwStyle = CFS_EXCLUDE;
-    candidate_form.ptCurrentPos.x = x;
-    candidate_form.ptCurrentPos.y = y;
+    candidate_form.ptCurrentPos.x = l;
+    candidate_form.ptCurrentPos.y = b;
     candidate_form.rcArea.left = l;
     candidate_form.rcArea.top = t;
     candidate_form.rcArea.right = r;
     candidate_form.rcArea.bottom = b;
     ImmSetCandidateWindow(himc, &candidate_form);
-
-    // DEBUGI(D_IME, "x: %d, y: %d", x, y);
-    // DEBUGI(D_IME, "l: %d, t: %d", l, t);
-    // DEBUGI(D_IME, "r: %d, b: %d", r, b);
-
     ImmReleaseContext(hwnd, himc);
 
     DestroyCaret();
-    CreateCaret(hwnd, NULL, 10, 20);
-    SetCaretPos(x, y);
-    // ShowCaret(hwnd);
+    CreateCaret(hwnd, NULL, 10, max(2, b - t));
+    SetCaretPos(l, t);
+    if (show_caret)
+    {
+        ShowCaret(hwnd);
+    }
 
     return true;
 }

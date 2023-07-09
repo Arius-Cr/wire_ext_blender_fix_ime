@@ -187,7 +187,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled) // 已经启用自定义输入流程
             {
-                fix_ime_input_WM_KILLFOCUS(hWnd, uMsg, wParam, lParam);
+                fix_ime_input_WM_KILLFOCUS(hWnd, uMsg, wParam, lParam, window);
             }
             else if (data_use_fix_ime_state)
             {
@@ -200,23 +200,13 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         }
         break;
     }
-    case WM_SETFOCUS:{
-        if (data_use_fix_ime_input)
-        {
-            if (himc_enabled)
-            {
-                fix_ime_input_WM_SETFOCUS(hWnd, uMsg, wParam, lParam);
-            }
-        }
-        break;
-    }
     case WM_INPUT:
     {
         if (data_use_fix_ime_input)
         {
             if (himc_enabled)
             {
-                if (fix_ime_input_WM_INPUT(hWnd, uMsg, wParam, lParam))
+                if (fix_ime_input_WM_INPUT(hWnd, uMsg, wParam, lParam, window))
                 {
                     // 注意 ：自行处理消息，并且对 Blender 屏蔽该消息。
                     return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -231,7 +221,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled)
             {
-                fix_ime_input_WM_KEYDOWN(hWnd, uMsg, wParam, lParam);
+                fix_ime_input_WM_KEYDOWN(hWnd, uMsg, wParam, lParam, window);
             }
             else if (data_use_fix_ime_state)
             {
@@ -250,7 +240,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled)
             {
-                fix_ime_input_WM_KEYUP(hWnd, uMsg, wParam, lParam);
+                fix_ime_input_WM_KEYUP(hWnd, uMsg, wParam, lParam, window);
             }
         }
         break;
@@ -277,7 +267,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled)
             {
-                fix_ime_input_WM_IME_STARTCOMPOSITION(hWnd, uMsg, wParam, lParam);
+                fix_ime_input_WM_IME_STARTCOMPOSITION(hWnd, uMsg, wParam, lParam, window);
 
                 ImmReleaseContext(hWnd, himc);
                 /**
@@ -297,7 +287,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled)
             {
-                fix_ime_input_WM_IME_COMPOSITION(hWnd, uMsg, wParam, lParam);
+                fix_ime_input_WM_IME_COMPOSITION(hWnd, uMsg, wParam, lParam, window);
 
                 ImmReleaseContext(hWnd, himc);
                 return 0; // 屏蔽消息
@@ -313,7 +303,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         {
             if (himc_enabled)
             {
-                fix_ime_input_WM_IME_ENDCOMPOSITION(hWnd, uMsg, wParam, lParam);
+                fix_ime_input_WM_IME_ENDCOMPOSITION(hWnd, uMsg, wParam, lParam, window);
 
                 ImmReleaseContext(hWnd, himc);
                 return 0; // 屏蔽消息

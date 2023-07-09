@@ -1,4 +1,4 @@
-# wire_fixe_ime
+# wire_fix_ime
 
 **项目链接**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime)
 

@@ -841,7 +841,7 @@ def update_candidate_window_pos(watcher: Watcher) -> None:
         update_candidate_window_pos_console(ctx)
 
 def update_candidate_window_pos_font_edit(context: bpy.types.Context) -> None:
-    # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
+    # 注意 ：修改代码时留意 update_candidate_window_pos 中的 ctx 的属性
 
     window = context.window
 
@@ -852,7 +852,7 @@ def update_candidate_window_pos_font_edit(context: bpy.types.Context) -> None:
         window.as_pointer(), pref.candidate_window_percent, show_caret)
 
 def update_candidate_window_pos_text_editor(context: bpy.types.Context) -> None:
-    # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
+    # 注意 ：修改代码时留意 update_candidate_window_pos 中的 ctx 的属性
 
     window = context.window
     region = context.region
@@ -866,6 +866,7 @@ def update_candidate_window_pos_text_editor(context: bpy.types.Context) -> None:
     line_height = int(20 * preferences.system.ui_scale * (space.font_size / 12))
 
     # 偏移（offset）的原点在区块左下角，相对行的底部
+    # 注意 ：region_location_from_cursor 返回坐标不是准确的，存在问题
     offset_x, offset_y = space.region_location_from_cursor(
         text.current_line_index, text.current_character)
 
@@ -882,7 +883,7 @@ def update_candidate_window_pos_text_editor(context: bpy.types.Context) -> None:
         window.as_pointer(), client_x, client_y, line_height, show_caret)
 
 def update_candidate_window_pos_console(context: bpy.types.Context) -> None:
-    # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
+    # 注意 ：修改代码时留意 update_candidate_window_pos 中的 ctx 的属性
 
     window = context.window
     region = context.region

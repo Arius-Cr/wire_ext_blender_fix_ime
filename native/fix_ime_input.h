@@ -28,7 +28,11 @@ extern bool himc_composition; // 是否已经处于合成流程
 
 extern bool himc_block_shift_mouse_button; // 表示 Shift + 鼠标按键时临时停用输入法
 
+extern void fix_ime_input_WM_xBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
+
 extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
+
+extern void fix_ime_input_WM_DESTROY(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
 
 extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
 
@@ -49,10 +53,18 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序外功能
 
-typedef void Composition_Event_Handler(void *wm_pointer, int event, wchar_t *text, int pos);
+typedef void CompositionCallback(void *wm_pointer, int event, wchar_t *text, int pos);
+typedef void ButtonPressCallback(void *wm_pointer);
+typedef void LostFocusCallback(void *wm_pointer);
+typedef void WindowDestoryCallback(void *wm_pointer);
 
 // 由脚本调用，启停【使用输入法输入文字】功能
-extern __declspec(dllexport) bool use_fix_ime_input(bool enable, Composition_Event_Handler handler);
+extern __declspec(dllexport) bool use_fix_ime_input(
+    bool enable,
+    CompositionCallback composition_callback_,
+    ButtonPressCallback button_press_callback_,
+    LostFocusCallback lost_focus_callback_,
+    WindowDestoryCallback windown_destory_callback_);
 
 // 由脚本调用，在进入特定状态后主动启用输入法
 extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer);

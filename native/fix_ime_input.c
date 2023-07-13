@@ -62,7 +62,10 @@
 
 bool himc_composition_start = false; // 是否已经处于合成流程开始阶段，用于判断是否触发 himc_input_start
 
-Composition_Event_Handler *composition_event_handler = NULL;
+CompositionCallback *composition_callback = NULL;
+ButtonPressCallback *button_press_callback = NULL;
+LostFocusCallback *lost_focus_callback = NULL;
+WindowDestoryCallback *windown_destory_callback = NULL;
 
 enum Composition_Event_Type
 {
@@ -117,14 +120,12 @@ extern bool himc_composition = false;
 
 extern bool himc_block_shift_mouse_button = false;
 
-extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
+extern void fix_ime_input_WM_xBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
-    // 虽然函数的名称为 WM_KILLFOCUS，但在鼠标按键按下时，依然由该函数处理，因此该函数实际上在准备或已经丢失焦点时运行
-
     if (himc_composition)
     {
         // 取消所有未完成的合成
-        DEBUGI(D_IME, "强制取消文字合成：%p", hWnd);
+        DEBUGI(D_IME, "强制取消文字合成（鼠标按键）：%p", hWnd);
         HIMC himc = ImmGetContext(hWnd);
         if (himc != NULL)
         {
@@ -141,7 +142,7 @@ extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
          * 则重新启用输入法。该行为主要用于修复：
          * 文字物体编辑时用 Shfit + 鼠标中键 移动视图后，输入法的输入模式(英文/中文）会改变的问题。
          */
-        if (uMsg != WM_KILLFOCUS && (0x8000 & GetKeyState(VK_SHIFT)) > 0)
+        if ((0x8000 & GetKeyState(VK_SHIFT)) > 0)
         {
             HIMC himc = ImmGetContext(hWnd);
             if (himc != NULL)
@@ -152,6 +153,37 @@ extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
                 ImmReleaseContext(hWnd, himc);
             }
         }
+        if (button_press_callback)
+        {
+            button_press_callback(window->wm_pointer);
+        }
+    }
+}
+
+extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
+{
+    if (himc_composition)
+    {
+        // 取消所有未完成的合成
+        DEBUGI(D_IME, "强制取消文字合成（焦点丢失）：%p", hWnd);
+        HIMC himc = ImmGetContext(hWnd);
+        if (himc != NULL)
+        {
+            ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+            ImmReleaseContext(hWnd, himc);
+        }
+    }
+    if (lost_focus_callback)
+    {
+        lost_focus_callback(window->wm_pointer);
+    }
+}
+
+extern void fix_ime_input_WM_DESTROY(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
+{
+    if (windown_destory_callback)
+    {
+        windown_destory_callback(window->wm_pointer);
     }
 }
 
@@ -281,6 +313,11 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
                 DEBUGI(D_IME, "WM_KEYDOWN 回放...完成");
             }
         }
+
+        if (button_press_callback)
+        {
+            button_press_callback(window->wm_pointer);
+        }
     }
 }
 
@@ -353,10 +390,10 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
             if (himc_text_size)
             {
                 himc_composition_start = false;
-                if (composition_event_handler)
+                if (composition_callback)
                 {
                     // DEBUGI(D_IME, "myHIMC_INPUT_START");
-                    composition_event_handler(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
+                    composition_callback(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
                 }
             }
         }
@@ -368,10 +405,10 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
             if (himc_text_size)
             {
                 himc_composition_start = false;
-                if (composition_event_handler)
+                if (composition_callback)
                 {
                     // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
-                    composition_event_handler(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
+                    composition_callback(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
                 }
             }
         }
@@ -386,10 +423,10 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
         if (himc_text_size)
         {
             himc_composition_start = false;
-            if (composition_event_handler)
+            if (composition_callback)
             {
                 // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
-                composition_event_handler(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
+                composition_callback(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
             }
         }
     }
@@ -412,12 +449,12 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
              * 合成过程会快速经过开始、更新、完成，不会弹出候选窗口。
              * 这里的代码就是为了应对这种情况。
              **/
-            if (composition_event_handler)
+            if (composition_callback)
             {
                 // DEBUGI(D_IME, "myHIMC_INPUT_START");
                 // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
-                composition_event_handler(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
-                composition_event_handler(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
+                composition_callback(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
+                composition_callback(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
             }
         }
     }
@@ -428,18 +465,18 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
         ImmReleaseContext(hWnd, himc);
         if (himc_text_size)
         {
-            if (composition_event_handler)
+            if (composition_callback)
             {
                 // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
-                composition_event_handler(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
+                composition_callback(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
             }
         }
         else
         {
-            if (composition_event_handler)
+            if (composition_callback)
             {
                 // DEBUGI(D_IME, "myHIMC_INPUT_CNACEL");
-                composition_event_handler(window->wm_pointer, CET_CANCEL, &himc_text_empty, 0);
+                composition_callback(window->wm_pointer, CET_CANCEL, &himc_text_empty, 0);
             }
         }
     }
@@ -450,7 +487,12 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  程序外功能
 
-extern __declspec(dllexport) bool use_fix_ime_input(bool enable, Composition_Event_Handler handler)
+extern __declspec(dllexport) bool use_fix_ime_input(
+    bool enable,
+    CompositionCallback composition_callback_,
+    ButtonPressCallback button_press_callback_,
+    LostFocusCallback lost_focus_callback_,
+    WindowDestoryCallback windown_destory_callback_)
 {
     DEBUGH(D_IME, "use_fix_ime_input: %s", enable ? "True" : "False");
 
@@ -459,7 +501,11 @@ extern __declspec(dllexport) bool use_fix_ime_input(bool enable, Composition_Eve
 
     if (enable)
     {
-        composition_event_handler = handler;
+        composition_callback = composition_callback_;
+        button_press_callback = button_press_callback_;
+        lost_focus_callback = lost_focus_callback_;
+        windown_destory_callback = windown_destory_callback_;
+
         // if (himc_custom == NULL)
         // {
         //     himc_custom = ImmCreateContext();
@@ -468,7 +514,10 @@ extern __declspec(dllexport) bool use_fix_ime_input(bool enable, Composition_Eve
     }
     else
     {
-        composition_event_handler = NULL;
+        composition_callback = NULL;
+        button_press_callback = NULL;
+        lost_focus_callback = NULL;
+        windown_destory_callback = NULL;
     }
 
     data_use_fix_ime_input = enable;

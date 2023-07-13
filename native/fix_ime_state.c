@@ -21,7 +21,7 @@ extern void fix_ime_state_with_mouse_event(HWND hWnd, UINT uMsg, WPARAM wParam, 
     HIMC himc = ImmGetContext(hWnd);
     if (himc != NULL)
     {
-        DEBUGH(D_IME, "自动停用输入法");
+        DEBUGH(D_IME, "自动管理输入法状态（鼠标）: %d", uMsg);
         ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
         ImmReleaseContext(hWnd, himc);
     }
@@ -35,7 +35,7 @@ extern void fix_ime_state_with_key_event(HWND hWnd, UINT uMsg, WPARAM wParam, LP
         HIMC himc = ImmGetContext(hWnd);
         if (himc != NULL)
         {
-            DEBUGH(D_IME, "自动启用输入法");
+            DEBUGH(D_IME, "自动管理输入法状态（键盘）: %hd", vkCode);
             ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
             ImmReleaseContext(hWnd, himc);
         }

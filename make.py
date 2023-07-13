@@ -54,7 +54,7 @@ def make():
     subparser = subparsers.add_parser('pack', parents=[parser_parent],
         help="打包")
 
-    args, unknow_args = parser.parse_known_args()
+    args = parser.parse_args()
 
     try:
 
@@ -296,6 +296,8 @@ def pack(args):
     if not dir.exists():
         printx("目录不存在：", dir)
         return
+    else:
+        printx("打包目录：", dir)
 
     try:
 
@@ -324,7 +326,7 @@ def pack(args):
                         arcname=addon_name + '/' + os.path.relpath(fp, dir)
                     )
 
-        printx("打包完成：%s" % file_path)
+        printx("打包完成：", file_path)
 
     except:
         traceback.print_exc()

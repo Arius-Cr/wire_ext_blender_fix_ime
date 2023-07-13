@@ -150,17 +150,9 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
 
     switch (uMsg)
     {
-    case WM_SHOWWINDOW:
-    {
-        if (window->gw_pointer == NULL)
-        {
-            window->gw_pointer = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-            DEBUGH(D_HOK, "GW 指针：%p [hwnd: %p]", window->gw_pointer, hWnd);
-        }
-        break;
-    }
     case WM_DESTROY:
     {
+        fix_ime_input_WM_DESTROY(hWnd, uMsg, wParam, lParam, window);
         window_unwrap(hWnd);
         break;
     }
@@ -170,33 +162,36 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
     case WM_RBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_XBUTTONDOWN:
-    case WM_KILLFOCUS:
+    case WM_NCLBUTTONDOWN:
+    case WM_NCRBUTTONDOWN:
+    case WM_NCMBUTTONDOWN:
+    case WM_NCXBUTTONDOWN:
     {
-        // if (D_IME)
-        // {
-        //     if (uMsg == WM_KILLFOCUS)
-        //     {
-        //         DEBUGI(D_IME, "WM_KILLFOCUS：%p", hWnd);
-        //     }
-        //     else
-        //     {
-        //         DEBUGI(D_IME, "WM_#BUTTONDOWN：%p", hWnd);
-        //     }
-        // }
-        if (data_use_fix_ime_input) // 已经启用【修复输入法输入】特性
+        if (data_use_fix_ime_input) // 已经启用【使用输入法输入文字】特性
         {
-            if (himc_enabled) // 已经启用自定义输入流程
+            if (himc_enabled) // 已经在区块中启用输入法
             {
-                fix_ime_input_WM_KILLFOCUS(hWnd, uMsg, wParam, lParam, window);
+                fix_ime_input_WM_xBUTTONDOWN(hWnd, uMsg, wParam, lParam, window);
             }
-            else if (data_use_fix_ime_state)
+            else if (data_use_fix_ime_state && (uMsg == WM_LBUTTONDOWN || uMsg == WM_RBUTTONDOWN))
             {
                 fix_ime_state_with_mouse_event(hWnd, uMsg, wParam, lParam);
             }
         }
-        else if (data_use_fix_ime_state)
+        else if (data_use_fix_ime_state && (uMsg == WM_LBUTTONDOWN || uMsg == WM_RBUTTONDOWN))
         {
             fix_ime_state_with_mouse_event(hWnd, uMsg, wParam, lParam);
+        }
+        break;
+    }
+    case WM_KILLFOCUS:
+    {
+        if (data_use_fix_ime_input)
+        {
+            if (himc_enabled)
+            {
+                fix_ime_input_WM_KILLFOCUS(hWnd, uMsg, wParam, lParam, window);
+            }
         }
         break;
     }

@@ -3,9 +3,14 @@ import typing
 import bpy
 import bpy.types
 import time
+import traceback
+import sys
 
 from .mark import mark
 from .printx import *
+
+
+# ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 '''
 WIRE_OT_test_delete_speed_1：基本用时 476215700
@@ -125,11 +130,12 @@ class WIRE_OT_test_delete_speed_2(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def text_menu_prepend(self: bpy.types.Menu, context: bpy.types.Context):
+def VIEW3D_MT_edit_font_draw_func(self: bpy.types.Menu, context: bpy.types.Context):
     layout = self.layout
     layout.operator(WIRE_OT_test_delete_speed_1.bl_idname)
     layout.operator(WIRE_OT_test_delete_speed_2.bl_idname)
 
+# ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 def register():
     if mark.DEBUG_BUILD:
@@ -137,11 +143,88 @@ def register():
         bpy.utils.register_class(WIRE_PT_text_editor_info)
         bpy.utils.register_class(WIRE_OT_test_delete_speed_1)
         bpy.utils.register_class(WIRE_OT_test_delete_speed_2)
-        bpy.types.VIEW3D_MT_edit_font.prepend(text_menu_prepend)
+        bpy.types.VIEW3D_MT_edit_font.prepend(VIEW3D_MT_edit_font_draw_func)
+
+        if WIRE_OT_test_fix_ime_toggle.__name__ not in dir(bpy.types):
+            # 注册后不卸载
+            bpy.utils.register_class(WIRE_OT_test_fix_ime_toggle)
+            bpy.utils.register_class(WIRE_OT_test_fix_ime_reload)
+            bpy.types.STATUSBAR_HT_header.prepend(STATUSBAR_HT_header_draw_func)
 
 def unregister():
     if mark.DEBUG_BUILD:
-        bpy.types.VIEW3D_MT_edit_font.remove(text_menu_prepend)
+        bpy.types.VIEW3D_MT_edit_font.remove(VIEW3D_MT_edit_font_draw_func)
         bpy.utils.unregister_class(WIRE_OT_test_delete_speed_1)
         bpy.utils.unregister_class(WIRE_OT_test_delete_speed_2)
         bpy.utils.unregister_class(WIRE_PT_text_editor_info)
+
+# ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
+
+class WIRE_OT_test_fix_ime_toggle(bpy.types.Operator):
+    bl_idname = 'wire.test_fix_ime_toggle'
+    bl_label = "启停插件"
+    bl_description = "启停插件"
+
+    def execute(self, context: bpy.types.Context):
+        if __package__ in bpy.context.preferences.addons:
+            try:
+                bpy.ops.preferences.addon_disable(module=__package__)
+            except:
+                traceback.print_exc()
+                print("ERROR: addon_disable %s false" % __package__)
+                return {'CANCELLED'}
+
+            for name in list(sys.modules.keys()):
+                if name == __package__:
+                    del sys.modules[name]
+        else:
+            try:
+                bpy.ops.preferences.addon_enable(module=__package__)
+            except:
+                traceback.print_exc()
+                print("ERROR: addon_enable %s false" % __package__)
+                return {'CANCELLED'}
+
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    area.tag_redraw()
+
+        return {'FINISHED'}
+
+class WIRE_OT_test_fix_ime_reload(bpy.types.Operator):
+    bl_idname = 'wire.test_fix_ime_reload'
+    bl_label = "重启插件"
+    bl_description = "重启插件"
+
+    def execute(self, context: bpy.types.Context):
+        try:
+            bpy.ops.preferences.addon_disable(module=__package__)
+        except:
+            traceback.print_exc()
+            print("插件停用失败：%s" % __package__)
+            return {'CANCELLED'}
+
+        for name in list(sys.modules.keys()):
+            if name == __package__:
+                del sys.modules[name]
+
+        try:
+            bpy.ops.preferences.addon_enable(module=__package__)
+        except:
+            traceback.print_exc()
+            print("插件启用失败：%s" % __package__)
+            return {'CANCELLED'}
+
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                area.tag_redraw()
+
+        return {'FINISHED'}
+
+def STATUSBAR_HT_header_draw_func(self: 'bpy.types.TOPBAR_MT_blender', context: bpy.types.Context):
+    layout: bpy.types.UILayout = self.layout
+    row = layout.row(align=True)
+    row.operator(WIRE_OT_test_fix_ime_reload.bl_idname, text="", icon='FILE_SCRIPT')
+    row.operator(WIRE_OT_test_fix_ime_toggle.bl_idname, text="",
+        icon='RADIOBUT_ON' if __package__ in context.preferences.addons else 'RADIOBUT_OFF')

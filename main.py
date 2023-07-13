@@ -1,7 +1,10 @@
 from typing import cast, Literal, Union
 from types import SimpleNamespace
+import sys
+import os
 
 import bpy
+import bpy.types
 
 from .mark import mark
 DEBUG_BUILD = mark.DEBUG_BUILD
@@ -13,6 +16,7 @@ from .native import native
 
 if DEBUG_BUILD:
     from .test import register as test_register, unregister as test_unregister
+
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -29,21 +33,32 @@ def use_debug_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], conte
     native.use_fix_ime_debug(DEBUG)
 
 def use_fix_ime_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context):
+    use_fix_ime_input_update(self, context)
+
     use_fix_ime_state = self.use_fix_ime_state
     use_fix_ime_input = self.use_fix_ime_input
 
     if use_fix_ime_state:
         native.use_fix_ime_state(True)
-        native.use_fix_ime_input(use_fix_ime_input,
-            WIRE_OT_fix_ime_input_watcher.event_dispatch)
         if use_fix_ime_input:
             fix_ime_input_enable()
         else:
             fix_ime_input_disable()
     else:
         native.use_fix_ime_state(False)
-        native.use_fix_ime_input(False)  # 必须关闭
-        fix_ime_input_disable()
+        fix_ime_input_disable()  # 必须关闭
+
+def use_fix_ime_input_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context):
+    global use_fix_ime_input_is_valid
+
+    use_fix_ime_input_is_valid = (self.use_fix_ime_state and
+            self.use_fix_ime_input and (
+            self.use_fix_ime_input_font_edit or
+            self.use_fix_ime_input_text_editor or
+            self.use_fix_ime_input_console))
+    
+    if DEBUG:
+        printx(CCFY, "use_fix_ime_input_is_valid:", use_fix_ime_input_is_valid)
 
 def use_header_extend(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context):
     global TEXT_HT_header_extend_appended
@@ -52,22 +67,26 @@ def use_header_extend(self: Union['WIRE_FIX_Preferences', SimpleNamespace], cont
     use_header_extend_text_editor = self.use_header_extend_text_editor
     use_header_extend_console = self.use_header_extend_console
 
+    if DEBUG:
+        printx("use_header_extend_text_editor:", use_header_extend_text_editor)
+        printx("use_header_extend_console:", use_header_extend_console)
+
     if use_header_extend_text_editor:
         if not TEXT_HT_header_extend_appended:
-            bpy.types.TEXT_HT_header.append(TEXT_HT_header_extend)
+            bpy.types.TEXT_HT_header.append(header_extend_draw_func)
             TEXT_HT_header_extend_appended = True
     else:
         if TEXT_HT_header_extend_appended:
-            bpy.types.TEXT_HT_header.remove(TEXT_HT_header_extend)
+            bpy.types.TEXT_HT_header.remove(header_extend_draw_func)
             TEXT_HT_header_extend_appended = False
 
     if use_header_extend_console:
         if not CONSOLE_HT_header_extend_appended:
-            bpy.types.CONSOLE_HT_header.append(CONSOLE_HT_header_extend)
+            bpy.types.CONSOLE_HT_header.append(header_extend_draw_func)
             CONSOLE_HT_header_extend_appended = True
     else:
         if CONSOLE_HT_header_extend_appended:
-            bpy.types.CONSOLE_HT_header.remove(CONSOLE_HT_header_extend)
+            bpy.types.CONSOLE_HT_header.remove(header_extend_draw_func)
             CONSOLE_HT_header_extend_appended = False
 
 def get_prefs(context: bpy.types.Context) -> 'WIRE_FIX_Preferences':
@@ -94,18 +113,21 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
         name="文本物体编辑模式",
         description="启用后，可以在【3D视图】的【文本物体】的【编辑模式】中直接使用输入法输入文字",
         default=True,
+        update=use_fix_ime_input_update,
     )
 
     use_fix_ime_input_text_editor: bpy.props.BoolProperty(
         name="文本编辑器",
         description="启用后，可以在【文本编辑器】中直接使用输入法输入文字",
         default=True,
+        update=use_fix_ime_input_update,
     )
 
     use_fix_ime_input_console: bpy.props.BoolProperty(
         name="控制台",
         description="启用后，可以在【控制台】中直接使用输入法输入文字",
         default=True,
+        update=use_fix_ime_input_update,
     )
 
     candidate_window_percent: bpy.props.FloatProperty(
@@ -243,6 +265,13 @@ def fix_ime_input_enable():
     global _fix_ime_input_enabled
     if _fix_ime_input_enabled:
         return
+
+    native.use_fix_ime_input(True,
+        Watcher.composition_callback,
+        Watcher.button_press_callback,
+        Watcher.kill_focus_callback,
+        Watcher.window_destory_callback)
+
     _fix_ime_input_enabled = True
     pass
 
@@ -250,16 +279,15 @@ def fix_ime_input_disable():
     global _fix_ime_input_enabled
     if not _fix_ime_input_enabled:
         return
-    _fix_ime_input_enabled = False
 
-    # 当通过选项关闭相关功能，如果鼠标不移入相关窗口，则检查器是不会主动结束的，
-    # 但我们无法主动结束鼠标位置检查器，所以只能设置标记，避免检查器继续运行，
-    # 然后当用户将鼠标移入窗口时，已标记的检查器会立即结束不会继续运行。
-    # 如果移入窗口前停用了插件，则模态操作会被 Blender 强制结束，
-    # 此时会调用 __del__ 函数，但此时已经没有任何需要清理的。
-    for _watcher in watchers.values():
-        _watcher._valid = False
+    native.use_fix_ime_input(False)
+
+    for window in list(watchers.keys()):
+        watchers[window].close()
+
     watchers.clear()
+
+    _fix_ime_input_enabled = False
     pass
 
 
@@ -268,396 +296,329 @@ def fix_ime_input_disable():
 
 use_temp_override: bool = False
 
-watchers: dict[bpy.types.Window, 'WIRE_OT_fix_ime_input_watcher'] = {}
+use_fix_ime_input_is_valid: bool = False
+
+watchers: dict[bpy.types.Window, 'Watcher'] = {}
 
 EditorType = Literal['font', 'text', 'console']
 CompositionEventMaps = {0: 'START', 1: 'UPDATE', 2: 'FINISH', 3: 'CANCEL'}
 CompositionEventType = Literal['START', "UPDATE", 'FINISH', 'CANCEL']
 
-class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
-    bl_idname = 'wire.fix_ime_input_watcher'
-    bl_label = "鼠标位置检查器"
-    bl_description = "根据鼠标当前位置，在区块中启用或停用输入法"
-    bl_options = set()
-
-    @classmethod
-    def poll(clss, context: bpy.types.Context) -> bool:
-        if not native.dll:
-            return False
-
-        prefs = get_prefs(context)
-        if not (prefs.use_fix_ime_state and
-                prefs.use_fix_ime_input and (
-            prefs.use_fix_ime_input_font_edit or
-            prefs.use_fix_ime_input_text_editor or
-            prefs.use_fix_ime_input_console)):
-            return False
-
-        # 每个窗口只需运行一个检查器
-        if context.window not in watchers:
-            return True
-        return False
-
+class Watcher():
     def __init__(self) -> None:
-        super().__init__()
-
-        # 当通过选项停用相关功能时，会将该属性设为 False
-        self._valid = True
+        self.window: bpy.types.Window = None
+        self.hwnd: int = None
+        self.wm_pointer: int = None
 
         # 当前输入法是否已经启动
-        self._enabled = False
+        self.ime_enabled = False
+        self.editor_type: EditorType = None
+        self.area = None
+        self.region = None
+        self.space = None
 
-        self._window: bpy.types.Window = None
-        self._editor_type: EditorType = None
-        self._area = None
-        self._region = None
-        self._space = None
-        self._insert = None  # bpy.ops.xxx.insert 操作
-        self._delete = None  # bpy.ops.xxx.delete 操作
-        self._move = None  # bpy.ops.xxx.move 操作
-        self._select = None  # bpy.ops.xxx.select 操作
+        self.op_insert = None
+        self.op_delete = None
+        self.op_move = None
+        self.op_select = None
 
-        # 是否处于文字合成状态，在 START 时开启，在 FINISH 或 CANCEL 时关闭
-        self._inputing: bool = False
-        # 文字合成消息
-        # 在一些情况下，输入法会连续发送多个合成消息，这里就会有多个消息。
-        # 譬如确认合成时，UPDATE 和 FINISH 和接续出现，
-        # 微软拼音输入法在中文模式下按数字键会连续产生 START、UPDATE、FINISH 三个消息。
-        # tuple[合成事件类型, 合成文本, 合成文本中光标的位置]
-        self._events: list[tuple[CompositionEventType, str, int]] = []
-        # 是否已经启动文字合成消息处理器（bpy.app.timers.register ...）
-        self._event_processor_timer_registered: bool = False
+        self.inputing: bool = False
+        self.events: list[tuple[CompositionEventType, str, int]] = []
+        self.input_handler: WIRE_OT_fix_ime_input_handler = None
+        self.input_handler_start_timer: function = None
+        self.input_handelr_event_timer: bpy.types.Timer = None
+
         # 上次合成文本的长度
-        self._length: int = 0
+        self.length: int = 0
         # 上次合成文本中光标相对末尾的字符数
-        self._move_times: int = 0
+        self.move_times: int = 0
 
-    def execute(self, context: bpy.types.Context):
-        self.report({'ERROR'}, "必须以 INVOKE 的方式调用")
-        return {'CANCELLED'}
-
-    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
+    def start(self, context: bpy.types.Context):
         window = context.window
-
         watchers[window] = self
-        self._window = window
 
-        if DEBUG:
-            printx(CFHIT1, "鼠标位置检查器启动 (现有: %d)：%X (wm)" % (
-                len(watchers), window.as_pointer()))
+        self.window = window
+        self.wm_pointer = window.as_pointer()
 
         # 将窗口指针和窗口句柄绑定
-        native.window_associate_pointer(window.as_pointer())
+        native.window_associate_pointer(self.wm_pointer)
 
-        self.update_ime_state(context, event)
-
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
-
-    def modal(self, context: bpy.types.Context, event: bpy.types.Event):
-        # 如果用户激活了输入控件，则所有输入消息都会发送到输入控件，此时不会收到任何消息，
-        # 因此不用担心和输入控件中输入法状态的冲突。
-
-        # 已失效的检查器自行结束即可
-        if not self._valid:
-            if DEBUG:
-                printx(CFWARN, "鼠标位置检查器结束")
-            return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
-
-        window = context.window
-
-        prefs = get_prefs(context)
-        if not (prefs.use_fix_ime_state and
-                prefs.use_fix_ime_input and (
-            prefs.use_fix_ime_input_font_edit or
-            prefs.use_fix_ime_input_text_editor or
-            prefs.use_fix_ime_input_console)):
-            if window in watchers:
-                watchers.pop(window)
-            if DEBUG:
-                printx(CFWARN, "鼠标位置检查器停用 (剩余: %d)：%X (wm)" % (
-                    len(watchers), window.as_pointer()))
-            return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
-
-        if not self._inputing:
-            if native.window_is_active(window.as_pointer()):
-                self.update_ime_state(context, event)
-
-        # 输入时屏蔽所有按键
-        else:
-            return {'RUNNING_MODAL'}
-
-        return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
-
-    def cancel(self, context: bpy.types.Context):
-        # 窗口关闭的时候 Blender 也会触发 cancel 函数
-        window = context.window
-        if window in watchers:
-            watchers.pop(window)
         if DEBUG:
-            printx(CFWARN, "鼠标位置检查器取消 (剩余：%d)：%X (wm)" % (
-                len(watchers), window.as_pointer()))
+            printx(CCBY, "鼠标位置检查器启动 (现有: %d)：%X (wm)" % (
+                len(watchers), self.wm_pointer))
         pass
 
-    def __del__(self):
-        # 实例和类型的销毁都会调用该函数（例如停用插件卸载类型时）
-        if hasattr(self, 'base'):
-            return
-        # 目前无需在此处执行任何操作
+    def close(self):
+        if self.window in watchers:
+            watchers.pop(self.window)
+        if DEBUG:
+            printx(CCFY, "鼠标位置检查器关闭 (剩余：%d)：%X (wm)" % (
+                len(watchers), self.wm_pointer))
         pass
+
+    def mouse_move(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        # 如果用户激活了输入控件，则 MOUSEMOVE 事件不会被触发，因此不用担心和输入控件中的输入法状态的冲突。
+        if not self.inputing:
+            # 因为任务栏中的输入法状态仅反映活动窗口的，所以仅在窗口处于活动状态时维护输入法状态
+            if native.window_is_active(self.wm_pointer):
+                self.update_ime_state(context, event)
 
     def update_ime_state(self, context: bpy.types.Context, event: bpy.types.Event):
         # 鼠标进入符合条件的区块则启用输入法，否则停用输入法
 
         prefs = get_prefs(context)
-        key = event.type
-        value = event.value
         mouse_x = event.mouse_x
         mouse_y = event.mouse_y
 
-        if key == 'WINDOW_DEACTIVATE':
-            native.ime_input_disable(context.window.as_pointer())
-            self._enabled = False
-            self._editor_type = None
-            self._area = None
-            self._region = None
-            self._space = None
-            self._insert = None
-            self._delete = None
-            self._move = None
-            self._delete = None
+        editor_type: EditorType = None
+        area: bpy.types.Area = None
+        region: bpy.types.Region = None
+        space: bpy.types.Space = None
 
-        # 仅在鼠标发生了移动时才检查，否则可能会误判
-        # 虽然只是监听 MOUSEMOVE，但实际在鼠标不移动的时候也会触发，譬如按 TAB 切换编辑模式时。
-        elif key == 'MOUSEMOVE':
-
-            editor_type: EditorType = None
-            area: bpy.types.Area = None
-            region: bpy.types.Region = None
-            space: bpy.types.Space = None
-
-            if not editor_type and prefs.use_fix_ime_input_font_edit:
-                _obj = context.active_object
-                if _obj and _obj.type == 'FONT' and _obj.mode == 'EDIT':
-                    for _area in context.screen.areas.values():
-                        if _area.type == 'VIEW_3D':
-                            for _region in _area.regions.values():
-                                if _region.type == 'WINDOW':
-                                    break
-                            if (_region.x <= mouse_x <= _region.x + _region.width and
-                                _region.y <= mouse_y <= _region.y + _region.height):
-                                editor_type = 'font'
-                                area = _area
-                                region = _region
-                                space = _area.spaces[0]
-                                break
-
-            if not editor_type and prefs.use_fix_ime_input_text_editor:
+        if not editor_type and prefs.use_fix_ime_input_font_edit:
+            _obj = context.active_object
+            if _obj and _obj.type == 'FONT' and _obj.mode == 'EDIT':
                 for _area in context.screen.areas.values():
-                    if _area.type == 'TEXT_EDITOR':
-                        _space: bpy.types.SpaceTextEditor = _area.spaces[0]
-                        if _space.text:
-                            for _region in _area.regions.values():
-                                if _region.type == 'WINDOW':
-                                    break
-                            if (_region.x <= mouse_x <= _region.x + _region.width and
-                                _region.y <= mouse_y <= _region.y + _region.height):
-                                editor_type = 'text'
-                                area = _area
-                                region = _region
-                                space = _area.spaces[0]
-                                break
-
-            if not editor_type and prefs.use_fix_ime_input_console:
-                for _area in context.screen.areas.values():
-                    if _area.type == 'CONSOLE':
+                    if _area.type == 'VIEW_3D':
                         for _region in _area.regions.values():
                             if _region.type == 'WINDOW':
                                 break
                         if (_region.x <= mouse_x <= _region.x + _region.width and
                             _region.y <= mouse_y <= _region.y + _region.height):
-                            editor_type = 'console'
+                            editor_type = 'font'
                             area = _area
                             region = _region
                             space = _area.spaces[0]
                             break
 
-            if editor_type:
-                # 检测到符合条件的区块，如果当前没有启用输入法或当前鼠标所在空间和之前不同，则启用输入法
-                if not self._enabled or space != self._space:
-                    if DEBUG:
-                        printx(CBHIT2, "在区块中启用输入法：%s" % space.type)
-                    native.ime_input_enable(context.window.as_pointer())
-                    self._enabled = True
-                    self._editor_type = editor_type
-                    self._area = area
-                    self._region = region
-                    self._space = space
-                    self._insert = None  # 延迟到 event_process 中再初始化
-                    self._delete = None
-                    self._move = None
-                    self._delete = None
-                    if DEBUG:
-                        printx(CFHIT2, "启动后更新光标位置")
-                    update_candidate_window_pos(self)
-            else:
-                if self._enabled:
-                    if DEBUG:
-                        printx(CBHIT3, "在区块中停用输入法")
-                    native.ime_input_disable(context.window.as_pointer())  # 此处会间接使得【输入法冲突】被“二次”修复
-                    self._enabled = False
-                    self._editor_type = None
-                    self._area = None
-                    self._region = None
-                    self._space = None
-                    self._insert = None
-                    self._delete = None
-                    self._move = None
-                    self._delete = None
+        if not editor_type and prefs.use_fix_ime_input_text_editor:
+            for _area in context.screen.areas.values():
+                if _area.type == 'TEXT_EDITOR':
+                    _space: bpy.types.SpaceTextEditor = _area.spaces[0]
+                    if _space.text:
+                        for _region in _area.regions.values():
+                            if _region.type == 'WINDOW':
+                                break
+                        if (_region.x <= mouse_x <= _region.x + _region.width and
+                            _region.y <= mouse_y <= _region.y + _region.height):
+                            editor_type = 'text'
+                            area = _area
+                            region = _region
+                            space = _area.spaces[0]
+                            break
 
-        # 在大部分按键事件中均会重新获取光标位置，以便下次输入的时候，候选框能够在准确的位置显示，不会闪一下
-        elif self._enabled and ((key not in [
-            '',  # 未知按键类型
-            'LEFT_CTRL', 'LEFT_SHIFT', 'LEFT_ALT', 'RIGHT_ALT', 'RIGHT_CTRL', 'RIGHT_SHIFT',
-            'F16', 'F17', 'F18', 'F19',  # TODO ：原则上需要加入更多不需要的按键，目前先这样
-        ] and value == 'RELEASE') and (key not in ['INBETWEEN_MOUSEMOVE'])):
+        if not editor_type and prefs.use_fix_ime_input_console:
+            for _area in context.screen.areas.values():
+                if _area.type == 'CONSOLE':
+                    for _region in _area.regions.values():
+                        if _region.type == 'WINDOW':
+                            break
+                    if (_region.x <= mouse_x <= _region.x + _region.width and
+                        _region.y <= mouse_y <= _region.y + _region.height):
+                        editor_type = 'console'
+                        area = _area
+                        region = _region
+                        space = _area.spaces[0]
+                        break
+
+        if editor_type:
+            # 检测到符合条件的区块，如果当前没有启用输入法或当前鼠标所在空间和之前不同，则启用输入法
+            if not self.ime_enabled or space != self.space:
+                if DEBUG:
+                    printx(CBHIT2, "在区块中启用输入法：%s" % space.type)
+                native.ime_input_enable(self.wm_pointer)
+                self.ime_enabled = True
+                self.editor_type = editor_type
+                self.area = area
+                self.region = region
+                self.space = space
+                self.op_insert = None  # 延迟到 event_process 中再初始化
+                self.op_delete = None
+                self.op_move = None
+                self.op_delete = None
+                if DEBUG:
+                    printx(CFHIT2, "启动后更新光标位置")
+                update_candidate_window_pos(self)
+        else:
+            if self.ime_enabled:
+                if DEBUG:
+                    printx(CBHIT3, "在区块中停用输入法")
+                native.ime_input_disable(self.wm_pointer)
+                self.ime_enabled = False
+                self.editor_type = None
+                self.area = None
+                self.region = None
+                self.space = None
+                self.op_insert = None
+                self.op_delete = None
+                self.op_move = None
+                self.op_delete = None
+
+    @ staticmethod
+    def button_press_callback(wm_pointer: int) -> None:
+        # 该回调函数只在启用了 “使用输入法输入文字” 且 非正在合成文字 且 非输入法按键 时调用，
+        # 简单来说，就是在启用了功能后且处于普通状态下时才被调用。
+        watcher: Watcher = None
+        for k, v in watchers.items():
+            if v.wm_pointer == wm_pointer:
+                watcher = v
+                break
+        if not watcher:
+            return
+        if watcher.ime_enabled and not watcher.inputing:
+            # 在大部分按键事件中均会重新获取光标位置，以便下次输入的时候，候选框能够在准确的位置显示，不会闪一下
             if DEBUG:
-                printx(CFHIT2, "按键后更新光标位置：'%s'" % key)
-            update_candidate_window_pos(self)
+                printx(CFHIT2, "按键后更新光标位置")
+            update_candidate_window_pos(watcher)
 
-    @staticmethod
-    def event_dispatch(wm_pointer: int, event: int, text: str, pos: int) -> None:
+    @ staticmethod
+    def kill_focus_callback(wm_pointer: int) -> None:
+        watcher: Watcher = None
+        for k, v in watchers.items():
+            if v.wm_pointer == wm_pointer:
+                watcher = v
+                break
+        if not watcher:
+            return
+        if watcher.ime_enabled:
+            def _func():  # 延迟到下一个事件才执行，否则和“强制取消文字合成”冲突
+                if DEBUG:
+                    printx(CBHIT3, "在区块中停用输入法（窗口失去焦点）")
+                native.ime_input_disable(watcher.wm_pointer)
+                watcher.ime_enabled = False
+                watcher.editor_type = None
+                watcher.area = None
+                watcher.region = None
+                watcher.space = None
+                watcher.op_insert = None
+                watcher.op_delete = None
+                watcher.op_move = None
+                watcher.op_delete = None
+            bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
+
+    @ staticmethod
+    def window_destory_callback(wm_pointer: int) -> None:
+        watcher: Watcher = None
+        for k, v in watchers.items():
+            if v.wm_pointer == wm_pointer:
+                watcher = v
+                break
+        if not watcher:
+            return
+        watchers.pop(watcher.window)
         if DEBUG:
-            printx("派送消息(wm: %x)：" % wm_pointer, event, text, pos)
-        watcher: WIRE_OT_fix_ime_input_watcher = None
+            printx(CCFY, "鼠标位置检查器销毁 (剩余：%d)：%X (wm)" % (
+                len(watchers), wm_pointer))
+
+    @ staticmethod
+    def composition_callback(wm_pointer: int, event_: int, text_: str, pos: int) -> None:
+        if DEBUG:
+            printx("派送消息(wm: %x)：" % wm_pointer, event_, text_, pos)
+        watcher: Watcher = None
         for k, v in watchers.items():
             if k.as_pointer() == wm_pointer:
                 watcher = v
                 break
-        if watcher:
-            # 从 Windows 传来的是 UTF-16 字符串，需要编码为 UTF-8
-            watcher.event_push(CompositionEventMaps[event],
-                text.encode('utf-8').decode('utf-8'), pos)
+        if not watcher:
+            return
 
-    def event_push(self, event: CompositionEventType, text: str, pos: int):
-        if DEBUG:
-            printx("压入消息(wm: %x)：" % self._window.as_pointer(), event, text, pos)
-        self._events.append((event, text, pos))
-        if not self._event_processor_timer_registered:
-            self._event_processor_timer_registered = True
-            # 不能直接调用，大概是因为 Blender 处理消息是有阶段的，
-            # 不在特定阶段，就无法使用界面相关的功能？
-            # 而这个定时器不管时间设为什么，似乎都只会在能处理界面的阶段才触发。
+        event: CompositionEventType = CompositionEventMaps[event_]
 
-            def _func():
-                return self.event_process()
-            bpy.app.timers.register(_func, first_interval=0.000001)
+        # 从 Windows 传来的是 UTF-16 字符串，需要编码为 UTF-8
+        text = text_.encode('utf-8').decode('utf-8')
+
+        watcher.events.append((event, text, pos))
+
+        # 收到开始消息，并且当前没有处理文本输入，则注册定时器
+        if event == 'START' and not watcher.input_handler:
+            watcher.register_start_timer()
+
+        # 收到其它消息，则注册一个定时器，以便在没有输入消息时也能触发 input_handler 的 modal 函数
+        elif event != 'START' and watcher.input_handler:
+            if not watcher.input_handelr_event_timer:
+                printx(CCBR, "注册定时器")
+                watcher.input_handelr_event_timer = bpy.context.window_manager.event_timer_add(0.001, window=watcher.window)
         pass
 
-    def event_process(self) -> Union[float, None]:
-        self._event_processor_timer_registered = False
+    def register_start_timer(self):
+        if self.input_handler_start_timer:
+            return
+
+        def _func():
+            ctx = bpy.context.copy()
+            ctx['window'] = self.window
+            ctx['area'] = self.area
+            ctx['region'] = self.region
+            ctx['space_data'] = self.space
+            if self.editor_type == 'text':
+                ctx['edit_text'] = self.space.text
+            if use_temp_override:
+                with bpy.context.temp_override(**ctx):
+                    bpy.ops.wire.fix_ime_input_handler('INVOKE_DEFAULT')
+            else:  # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
+                bpy.ops.wire.fix_ime_input_handler(ctx, 'INVOKE_DEFAULT')
+
+            self.input_handler_start_timer = None  # 必须放在操作调用之后
+            pass
+
+        bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
+        self.input_handler_start_timer = _func
+        pass
+
+    def process_event(self) -> CompositionEventType:
+        if len(self.events) == 0:
+            return
 
         if DEBUG:
-            printx(CCFY, "处理输入事件...(总数：%d)" % len(self._events))
+            printx(CCFY, "处理输入事件...(总数：%d)" % len(self.events))
 
-        if self._insert is None:
-            if self._editor_type == 'font':
-                self._insert = bpy.ops.font.text_insert
-                self._delete = bpy.ops.font.delete
-                self._move = bpy.ops.font.move
-                self._select = bpy.ops.font.move_select
-            if self._editor_type == 'text':
-                self._insert = bpy.ops.text.insert
-                self._delete = bpy.ops.text.delete
-                self._move = bpy.ops.text.move
-                self._select = None,  # 虽然有该操作，但 selection 无法用于 delete，等于没用
-            elif self._editor_type == 'console':
-                self._insert = bpy.ops.console.insert
-                self._delete = bpy.ops.console.delete
-                self._move = bpy.ops.console.move
-                self._select = None,  # 没有该操作
+        if self.op_insert is None:
+            if self.editor_type == 'font':
+                self.op_insert = bpy.ops.font.text_insert
+                self.op_delete = bpy.ops.font.delete
+                self.op_move = bpy.ops.font.move
+                self.op_select = bpy.ops.font.move_select
+            if self.editor_type == 'text':
+                self.op_insert = bpy.ops.text.insert
+                self.op_delete = bpy.ops.text.delete
+                self.op_move = bpy.ops.text.move
+                self.op_select = None,  # 虽然有该操作，但 selection 无法用于 delete，等于没用
+            elif self.editor_type == 'console':
+                self.op_insert = bpy.ops.console.insert
+                self.op_delete = bpy.ops.console.delete
+                self.op_move = bpy.ops.console.move
+                self.op_select = None,  # 没有该操作
 
         ctx = bpy.context.copy()
-        ctx['window'] = self._window
-        ctx['area'] = self._area
-        ctx['region'] = self._region
-        ctx['space_data'] = self._space
-        if self._editor_type == 'text':
-            ctx['edit_text'] = self._space.text
+        ctx['window'] = self.window
+        ctx['area'] = self.area
+        ctx['region'] = self.region
+        ctx['space_data'] = self.space
+        if self.editor_type == 'text':
+            ctx['edit_text'] = self.space.text
 
         # 更新合成文本
         if use_temp_override:
-            self.event_process_core_temp_override(ctx)
+            with bpy.context.temp_override(**ctx):
+                last_event = self.process_event_core(ctx)
+        # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
         else:
-            # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
-            self.event_process_core_context_override(ctx)
+            last_event = self.process_event_core(ctx)
 
         # 更新光标位置
         if DEBUG:
             printx(CFHIT2, "输入后更新光标位置")
         update_candidate_window_pos(self)
 
-        return None
+        return last_event
 
-    def event_process_core_temp_override(self, ctx: bpy.types.Context):
-        with bpy.context.temp_override(**ctx):
-            while len(self._events) > 0:
-                event, text, pos = self._events.pop(0)
+    def process_event_core(self, ctx: bpy.types.Context) -> CompositionEventType:
+        event: CompositionEventType = None
 
-                start = (event == 'START')
-                update = (event == 'UPDATE')
-                finish = (event == 'FINISH')
-                cancel = (event == 'CANCEL')
+        args: list[object] = ['EXEC_REGION_WIN'] if use_temp_override else [ctx, 'EXEC_REGION_WIN']
 
-                if DEBUG:
-                    if event == 'START':
-                        printx(CFHIT1, "开始合成文本")
-                    elif event == 'UPDATE':
-                        printx(CFHIT1, "更新合成文本")
-                    elif event == 'FINISH':
-                        printx(CFHIT1, "确认合成文本")
-                    elif event == 'CANCEL':
-                        printx(CFHIT1, "取消合成文本")
-
-                if start:
-                    self._inputing = True
-                elif finish or cancel:
-                    self._inputing = False
-
-                # 删除旧的文本
-                if update or finish or cancel:
-
-                    if self._move_times != 0:  # 移动光标到最后的位置
-                        for _ in range(self._move_times):
-                            self._move('EXEC_REGION_WIN', type='NEXT_CHARACTER')
-
-                    if self._editor_type == 'font':
-                        # 该方法速度更快，但是不能用于文本编辑器和控制台
-                        for _ in range(self._length):
-                            self._select('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-                        self._delete('EXEC_REGION_WIN', type='SELECTION')
-                    else:
-                        for _ in range(self._length):
-                            self._delete('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-
-                # 插入新的文本
-                if start or update:
-                    self._length = len(text) + 2  # 加上中括号两个字符
-                    self._move_times = self._length - pos - 1  # -1 = -2 + 1，-2 是减去之前多加的 2，+1 是右侧的中括号
-                    self._insert('EXEC_REGION_WIN', text='[' + text + ']')
-                    for _ in range(self._move_times):
-                        self._move('EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-                elif finish:
-                    self._insert('EXEC_REGION_WIN', text=text)
-
-                if DEBUG:
-                    if start or update or finish:
-                        printx("当前文本 (长度：%d，光标：%d):" % (self._length - 2, pos), CCBY + text + CCZ0)
-        pass
-
-    def event_process_core_context_override(self, ctx: bpy.types.Context):
-        while len(self._events) > 0:
-            event, text, pos = self._events.pop(0)
+        while len(self.events) > 0:
+            event, text, pos = self.events.pop(0)
 
             start = (event == 'START')
             update = (event == 'UPDATE')
@@ -675,48 +636,79 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
                     printx(CFHIT1, "取消合成文本")
 
             if start:
-                self._inputing = True
-            elif finish or cancel:
-                self._inputing = False
+                self.inputing = True
 
             # 删除旧的文本
             if update or finish or cancel:
 
-                if self._move_times != 0:  # 移动光标到最后的位置
-                    for _ in range(self._move_times):
-                        self._move(ctx, 'EXEC_REGION_WIN', type='NEXT_CHARACTER')
+                if self.move_times != 0:  # 移动光标到最后的位置
+                    for _ in range(self.move_times):
+                        self.op_move(*args, type='NEXT_CHARACTER')
 
-                if self._editor_type == 'font':
+                if self.editor_type == 'font':
                     # 该方法速度更快，但是不能用于文本编辑器和控制台
-                    for _ in range(self._length):
-                        self._select(ctx, 'EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
-                    self._delete(ctx, 'EXEC_REGION_WIN', type='SELECTION')
+                    for _ in range(self.length):
+                        self.op_select(*args, type='PREVIOUS_CHARACTER')
+                    self.op_delete(*args, type='SELECTION')
                 else:
-                    for _ in range(self._length):
-                        self._delete(ctx, 'EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
+                    for _ in range(self.length):
+                        self.op_delete(*args, type='PREVIOUS_CHARACTER')
 
             # 插入新的文本
             if start or update:
-                self._length = len(text) + 2  # 加上中括号两个字符
-                self._move_times = self._length - pos - 1  # -1 = -2 + 1，-2 是减去之前多加的 2，+1 是右侧的中括号
-                self._insert(ctx, 'EXEC_REGION_WIN', text='[' + text + ']')
-                for _ in range(self._move_times):
-                    self._move(ctx, 'EXEC_REGION_WIN', type='PREVIOUS_CHARACTER')
+                self.length = len(text) + 2  # 加上中括号两个字符
+                self.move_times = self.length - pos - 1  # -1 = -2 + 1，-2 是减去之前多加的 2，+1 是右侧的中括号
+                self.op_insert(*args, text='[' + text + ']')
+                for _ in range(self.move_times):
+                    self.op_move(*args, type='PREVIOUS_CHARACTER')
             elif finish:
-                self._insert(ctx, 'EXEC_REGION_WIN', text=text)
+                self.op_insert(*args, text=text)
 
             if DEBUG:
                 if start or update or finish:
-                    printx("当前文本 (长度：%d，光标：%d):" % (self._length - 2, pos), CCBY + text + CCZ0)
-        pass
+                    printx("当前文本 (长度：%d，光标：%d):" % (self.length - 2, pos), CCBY + text + CCZ0)
 
-    @classmethod
+            if finish or cancel:
+                self.inputing = False
+
+                # 注意 ：每次处理事件只处理到文本输入结束，之后的消息属于下一轮的事件
+                return event
+
+        return event
+
+class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
+    bl_idname = 'wire.fix_ime_input_watcher'
+    bl_label = "鼠标位置检查器"
+    bl_description = "由 wire_fix_ime 插件在内部使用"
+    bl_options = set()
+
+    # 注意 ：通过非模态方式获取 MOUSEMOVE 事件，用模态操作会导致自动保存失效（Blender 不会在模态操作存在时保存文件）。
+
+    # 注意 ：必须监听 Blender 提供的 MOUSEMOVE 事件，因为该事件在非鼠标移动时也会触发，例如切换编辑模式等。
+
+    @ classmethod
+    def poll(clss, context: bpy.types.Context) -> bool:
+        if not use_fix_ime_input_is_valid:
+            return False
+        return True
+
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        window = context.window
+        if window in watchers:
+            watcher = watchers[window]
+        else:
+            watcher = Watcher()
+            watcher.start(context)
+        watcher.mouse_move(context, event)
+        return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+
+    @ classmethod
     def add_key_map_item(clss):
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(
             'Screen Editing', space_type='EMPTY', region_type='WINDOW')
         km.keymap_items.new(clss.bl_idname, type='MOUSEMOVE', value='ANY')
 
-    @classmethod
+    @ classmethod
     def remove_key_map_item(clss):
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(
             'Screen Editing', space_type='EMPTY', region_type='WINDOW')
@@ -724,25 +716,91 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
             if _kmi.idname == clss.bl_idname:
                 km.keymap_items.remove(_kmi)
 
+class WIRE_OT_fix_ime_input_handler(bpy.types.Operator):
+    bl_idname = 'wire.fix_ime_input_handler'
+    bl_label = "文本输入"
+    bl_description = ""
+    bl_options = {'UNDO'}
+
+    # 注意 ：文本输入必须在具有 'UNDO' 特性的 Operator 的生命周期内完成，否则无法完整撤销输入的文本
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.watcher = None
+
+    # def __del__(self):
+    #     # 实例和类型的销毁都会调用该函数（例如停用插件卸载类型时）
+    #     if hasattr(self, 'base'):
+    #         return
+
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        window = context.window
+
+        if window in watchers:
+            self.watcher = watchers[window]
+            self.watcher.input_handler = self
+
+            if DEBUG:
+                printx(CCBG, "文本输入处理器启动")
+
+            if len(self.watcher.events) > 0:
+                ret = self.process()
+                if 'RUNNING_MODAL' not in ret:
+                    return ret
+
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+
+        return {'CANCELLED'}
+
+    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        if self.watcher.input_handelr_event_timer:
+            # 有没有收到 TIMER 消息都取消定时器，因为定时器只是用来触发 modal 的保险手段而已
+            printx(CCBR, "卸载定时器")
+            context.window_manager.event_timer_remove(self.watcher.input_handelr_event_timer)
+            self.watcher.input_handelr_event_timer = None
+
+        if len(self.watcher.events) > 0:
+            ret = self.process()
+            return ret
+
+        return {'RUNNING_MODAL'}
+
+    def process(self) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        last_event = self.watcher.process_event()
+
+        if last_event in ['FINISH', 'CANCEL']:
+            self.watcher.input_handler = None
+            if DEBUG:
+                printx(CCBR, "文本输入处理器关闭")
+
+            # 如果依然存在消息，则准备下一轮的文本输入
+            if len(self.watcher.events) > 0:
+                self.watcher.register_start_timer()
+
+            return {'FINISHED'} if last_event == 'FINISH' else {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 
 show_caret = True if DEBUG_BUILD else False
 
-def update_candidate_window_pos(watcher: 'WIRE_OT_fix_ime_input_watcher'):
-        ctx = SimpleNamespace()
-        ctx.window = watcher._window
-        ctx.area = watcher._area
-        ctx.region = watcher._region
-        ctx.space_data = watcher._space
-        ctx.preferences = bpy.context.preferences
-        if watcher._space.type == 'VIEW_3D':
-            update_candidate_window_pos_font_edit(ctx)
-        elif watcher._space.type == 'TEXT_EDITOR':
-            update_candidate_window_pos_text_editor(ctx)
-        elif watcher._space.type == 'CONSOLE':
-            update_candidate_window_pos_console(ctx)
+def update_candidate_window_pos(watcher: Watcher):
+    ctx = SimpleNamespace()
+    ctx.window = watcher.window
+    ctx.area = watcher.area
+    ctx.region = watcher.region
+    ctx.space_data = watcher.space
+    ctx.preferences = bpy.context.preferences
+    if watcher.space.type == 'VIEW_3D':
+        update_candidate_window_pos_font_edit(ctx)
+    elif watcher.space.type == 'TEXT_EDITOR':
+        update_candidate_window_pos_text_editor(ctx)
+    elif watcher.space.type == 'CONSOLE':
+        update_candidate_window_pos_console(ctx)
 
 def update_candidate_window_pos_font_edit(context: bpy.types.Context):
     # 注意 ：修改代码时留意 update_candidate_window_pos 中的 _ctx 的属性
@@ -817,119 +875,98 @@ def update_candidate_window_pos_console(context: bpy.types.Context):
 TEXT_HT_header_extend_appended = False
 CONSOLE_HT_header_extend_appended = False
 
-def TEXT_HT_header_extend(self: bpy.types.Header, context: bpy.types.Context):
+def header_extend_draw_func(self: bpy.types.Header, context: bpy.types.Context):
     layout = self.layout
 
     window = context.window
-
     prefs = get_prefs(context)
 
     active = (prefs.use_fix_ime_state and prefs.use_fix_ime_input)
+
+    if context.space_data.type == 'TEXT_EDITOR':
+        switcher = prefs.use_fix_ime_input_text_editor
+        prop = 'use_fix_ime_input_text_editor'
+    else:
+        switcher = prefs.use_fix_ime_input_console
+        prop = 'use_fix_ime_input_console'
+        layout.separator_spacer()
 
     row = layout.row()
     row.active = active
 
     icon = 'PROP_OFF'
-    if active and prefs.use_fix_ime_input_text_editor:
-        watcher: WIRE_OT_fix_ime_input_watcher = None
+    if active and switcher:
+        watcher: Watcher = None
         if window in watchers:
             watcher = watchers[window]
-        if watcher and watcher._space == context.space_data:
+        if watcher and watcher.space == context.space_data:
             icon = 'PROP_ON'
         else:
             icon = 'PROP_CON'
 
-    row.prop(prefs, 'use_fix_ime_input_text_editor', text="", icon=icon, emboss=False,
-        invert_checkbox=True if prefs.use_fix_ime_input_text_editor else False)
-
-def CONSOLE_HT_header_extend(self: bpy.types.Header, context: bpy.types.Context):
-    layout = self.layout
-
-    window = context.window
-
-    prefs = get_prefs(context)
-
-    active = (prefs.use_fix_ime_state and prefs.use_fix_ime_input)
-
-    layout.separator_spacer()
-
-    row = layout.row()
-    row.active = active
-
-    icon = 'PROP_OFF'
-    if active and prefs.use_fix_ime_input_console:
-        watcher: WIRE_OT_fix_ime_input_watcher = None
-        if window in watchers:
-            watcher = watchers[window]
-        if watcher and watcher._space == context.space_data:
-            icon = 'PROP_ON'
-        else:
-            icon = 'PROP_CON'
-
-    row.prop(prefs, 'use_fix_ime_input_console', text="", icon=icon, emboss=False,
-        invert_checkbox=True if prefs.use_fix_ime_input_console else False)
+    row.prop(prefs, prop, text="", icon=icon, emboss=False,
+        invert_checkbox=True if switcher else False)
 
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
-
 def register():
-    if not native.dll_load():
-        return
-
-    native.init()
-
-    native.use_hook(True)
-
-    global use_temp_override
-
-    m, s, _ = bpy.app.version
-    if m >= 3 and s >= 2:
-        use_temp_override = True
-
     bpy.utils.register_class(WIRE_FIX_Preferences)
-
     bpy.utils.register_class(WIRE_OT_fix_ime_input_watcher)
+    bpy.utils.register_class(WIRE_OT_fix_ime_input_handler)
 
     WIRE_OT_fix_ime_input_watcher.add_key_map_item()
-
-    prefs = get_prefs(bpy.context)
-
-    use_debug_update(prefs, bpy.context)
-
-    use_fix_ime_update(prefs, bpy.context)
-
-    use_header_extend(prefs, bpy.context)
 
     if DEBUG_BUILD:
         test_register()
 
+    if native.dll_load():
+
+        prefs = get_prefs(bpy.context)
+
+        use_debug_update(prefs, bpy.context)
+
+        global use_temp_override
+        if bpy.app.version >= (3, 2, 0):
+            use_temp_override = True
+        if DEBUG:
+            printx("use_temp_override:", use_temp_override)
+
+        native.init()
+
+        native.use_hook(True)
+
+        use_fix_ime_update(prefs, bpy.context)
+
+        use_fix_ime_input_update(prefs, bpy.context)
+
+        use_header_extend(prefs, bpy.context)
     pass
 
 def unregister():
-    if not native.dll_loaded:
-        return
+
+    bpy.utils.unregister_class(WIRE_FIX_Preferences)
+    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_watcher)
+    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_handler)
+
+    WIRE_OT_fix_ime_input_watcher.remove_key_map_item()
 
     if DEBUG_BUILD:
         test_unregister()
 
-    use_header_extend(SimpleNamespace(
-        use_header_extend_text_editor=False,
-        use_header_extend_console=False,
-    ), bpy.context)
+    if native.dll_loaded:
 
-    use_fix_ime_update(SimpleNamespace(
-        use_fix_ime_state=False,
-        use_fix_ime_input=False,
-    ), bpy.context)
+        native.use_hook(False)
 
-    WIRE_OT_fix_ime_input_watcher.remove_key_map_item()
+        use_fix_ime_update(SimpleNamespace(
+            use_fix_ime_state=False,
+            use_fix_ime_input=False,
+        ), bpy.context)
 
-    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_watcher)
+        use_header_extend(SimpleNamespace(
+            use_header_extend_text_editor=False,
+            use_header_extend_console=False,
+        ), bpy.context)
 
-    bpy.utils.unregister_class(WIRE_FIX_Preferences)
-
-    native.use_hook(False)
-
-    native.dll_unload()
+        native.dll_unload()
     pass

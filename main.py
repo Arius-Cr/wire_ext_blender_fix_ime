@@ -2,13 +2,16 @@ from typing import cast, Literal, Union
 from types import SimpleNamespace
 import sys
 import os
+import time
 
 import bpy
-import bpy.types
 
 from .mark import mark
 DEBUG_BUILD = mark.DEBUG_BUILD
 DEBUG = mark.DEBUG
+
+# 输出更详细的调试信息，仅调试版使用。
+DEBUG_CHECKER = False if not DEBUG_BUILD else True
 
 from .printx import *
 
@@ -263,10 +266,10 @@ def fix_ime_input_enable() -> None:
         return
 
     native.use_fix_ime_input(True,
-        Watcher.composition_callback,
-        Watcher.button_press_callback,
-        Watcher.kill_focus_callback,
-        Watcher.window_destory_callback)
+        Manager.composition_callback,
+        Manager.button_press_callback,
+        Manager.kill_focus_callback,
+        Manager.window_destory_callback)
 
     fix_ime_input_enabled = True
     pass
@@ -278,10 +281,10 @@ def fix_ime_input_disable() -> None:
 
     native.use_fix_ime_input(False)
 
-    for window in list(watchers.keys()):
-        watchers[window].close()
+    for window in list(managers.keys()):
+        managers[window].close()
 
-    watchers.clear()
+    managers.clear()
 
     fix_ime_input_enabled = False
     pass
@@ -289,18 +292,17 @@ def fix_ime_input_disable() -> None:
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+EditorType = Literal['font', 'text', 'console']
+CompositionEventMaps = {0: 'START', 1: 'UPDATE', 2: 'FINISH', 3: 'CANCEL'}
+CompositionEventType = Literal['START', "UPDATE", 'FINISH', 'CANCEL']
 
 use_temp_override: bool = False
 
 use_fix_ime_input_is_valid: bool = False  # 参考：use_fix_ime_input_update
 
-watchers: dict[bpy.types.Window, 'Watcher'] = {}
+managers: dict[bpy.types.Window, 'Manager'] = {}
 
-EditorType = Literal['font', 'text', 'console']
-CompositionEventMaps = {0: 'START', 1: 'UPDATE', 2: 'FINISH', 3: 'CANCEL'}
-CompositionEventType = Literal['START', "UPDATE", 'FINISH', 'CANCEL']
-
-class Watcher():
+class Manager():
     def __init__(self) -> None:
         self.window: bpy.types.Window = None
         self.hwnd: int = None
@@ -318,12 +320,16 @@ class Watcher():
         self.op_move = None
         self.op_select = None
 
+        self.checker: WIRE_OT_fix_ime_input_checker = None
+        self.checker_start_time: function = None
+        self.checker_take_turns: bool = False  # 仅用于调试
+
+        self.handler: WIRE_OT_fix_ime_input_handler = None
+        self.handler_start_timer: function = None
+        self.handelr_event_timer: bpy.types.Timer = None
+
         self.inputting: bool = False
         self.events: list[tuple[CompositionEventType, str, int]] = []
-        self.input_handler: WIRE_OT_fix_ime_input_handler = None
-        self.input_handler_start_timer: function = None
-        self.input_handelr_event_timer: bpy.types.Timer = None
-
         # 上次合成文本的长度
         self.length: int = 0
         # 上次合成文本中光标相对末尾的字符数
@@ -331,7 +337,7 @@ class Watcher():
 
     def start(self, context: bpy.types.Context) -> None:
         window = context.window
-        watchers[window] = self
+        managers[window] = self
 
         self.window = window
         self.wm_pointer = window.as_pointer()
@@ -340,19 +346,25 @@ class Watcher():
         native.window_associate_pointer(self.wm_pointer)
 
         if DEBUG:
-            printx(CCFG, "检查器启动 (现有: %d)：%X (wm)" % (
-                len(watchers), self.wm_pointer))
+            printx(CCFG, "管理器启动 (现有: %d)：%X (wm)" % (
+                len(managers), self.wm_pointer))
         pass
 
-    def close(self) -> None:
-        if self.window in watchers:
-            watchers.pop(self.window)
+    def close(self, window_destory: bool = False) -> None:
+        if self.window in managers:
+            managers.pop(self.window)
+            if (checker := self.checker):
+                checker.close('MANAGER_CLOSE')
         if DEBUG:
-            printx(CCFY, "检查器关闭 (剩余：%d)：%X (wm)" % (
-                len(watchers), self.wm_pointer))
+            if not window_destory:
+                printx(CCFY, "管理器关闭（剩余：%d）：%X (wm)" % (
+                    len(managers), self.wm_pointer))
+            else:
+                printx(CCFY, "管理器销毁（剩余：%d）：%X (wm)" % (
+                    len(managers), self.wm_pointer))
         pass
 
-    def mouse_move(self, context: bpy.types.Context, event: bpy.types.Event) -> None:
+    def checker_callback(self, context: bpy.types.Context, event: bpy.types.Event) -> None:
         # 如果用户激活了输入控件，则 MOUSEMOVE 事件不会被触发，因此不用担心和【输入控件】冲突。
         if not self.inputting:
             # 因为任务栏中的输入法状态仅反映活动窗口的，所以仅在窗口处于活动状态时维护输入法状态
@@ -454,57 +466,55 @@ class Watcher():
     def button_press_callback(wm_pointer: int) -> None:
         # 该回调函数只在启用了 “使用输入法输入文字” 且 非正在合成文字 且 非输入法按键 时调用，
         # 简单来说，就是在启用了功能后且处于普通状态下时才被调用。
-        watcher: Watcher = None
-        for k, v in watchers.items():
+        manager: Manager = None
+        for k, v in managers.items():
             if v.wm_pointer == wm_pointer:
-                watcher = v
+                manager = v
                 break
-        if not watcher:
+        if not manager:
             return
-        if watcher.ime_enabled and not watcher.inputting:
+        if manager.ime_enabled and not manager.inputting:
             # 在大部分按键事件中均会重新获取光标位置，以便下次输入的时候，候选框能够在准确的位置显示，不会闪一下
             if DEBUG:
                 printx(CCFP, "按键后更新光标位置")
-            update_candidate_window_pos(watcher)
+            update_candidate_window_pos(manager)
 
     @ staticmethod
     def kill_focus_callback(wm_pointer: int) -> None:
-        watcher: Watcher = None
-        for k, v in watchers.items():
+        manager: Manager = None
+        for k, v in managers.items():
             if v.wm_pointer == wm_pointer:
-                watcher = v
+                manager = v
                 break
-        if not watcher:
+        if not manager:
             return
-        if watcher.ime_enabled:
+        if manager.ime_enabled:
             def _func():  # 延迟到下一个事件才执行，否则和“强制取消文字合成”冲突
                 if DEBUG:
                     printx(CCBB, "在区块中停用输入法（窗口失去焦点）")
-                native.ime_input_disable(watcher.wm_pointer)
-                watcher.ime_enabled = False
-                watcher.editor_type = None
-                watcher.area = None
-                watcher.region = None
-                watcher.space = None
-                watcher.op_insert = None
-                watcher.op_delete = None
-                watcher.op_move = None
-                watcher.op_delete = None
+                native.ime_input_disable(manager.wm_pointer)
+                manager.ime_enabled = False
+                manager.editor_type = None
+                manager.area = None
+                manager.region = None
+                manager.space = None
+                manager.op_insert = None
+                manager.op_delete = None
+                manager.op_move = None
+                manager.op_delete = None
             bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
 
     @ staticmethod
     def window_destory_callback(wm_pointer: int) -> None:
-        watcher: Watcher = None
-        for k, v in watchers.items():
+        manager: Manager = None
+        for k, v in managers.items():
             if v.wm_pointer == wm_pointer:
-                watcher = v
+                manager = v
                 break
-        if not watcher:
+        if not manager:
             return
-        watchers.pop(watcher.window)
-        if DEBUG:
-            printx(CCFY, "检查器销毁 (剩余：%d)：%X (wm)" % (
-                len(watchers), wm_pointer))
+        manager.close(window_destory=True)
+        pass
 
     '''
     文字合成消息处理流程：
@@ -512,7 +522,7 @@ class Watcher():
     1. native 在接收到 WM_IME_STARTCOMPOSITION、WM_IME_COMPOSITION、WM_IME_ENDCOMPOSITION 消息时，
     会调用 composition_callback 回调函数，并且将相关数据传入。
 
-    2. composition_callback 将每个输入事件压入窗口对应的 watcher 的 events 中。
+    2. composition_callback 将每个输入事件压入窗口对应的 manager 的 events 中。
     这些事件在极限状态下可能呈现这种情况：
         合成开始
         合成确认 （在中文模式中输入单个标点符号时就是这种开始紧接着就是结束的模式）
@@ -520,35 +530,35 @@ class Watcher():
         合成更新
         ...
     
-    3. 在收到【合成开始】时，如果当前没有正在运行的 input_handler，也没有正在等待的 start_timer，
-    那么 composition_callback 会启动一个 start_timer。start_timer 的任务是调用 input_handler。
+    3. 在收到【合成开始】时，如果当前没有正在运行的 handler，也没有正在等待的 start_timer，
+    那么 composition_callback 会启动一个 start_timer。start_timer 的任务是调用 handler。
 
-    4. input_handler 被调用后会以模态方式持续运行，
-    并且在 invoke 和 modal 中均会处理当前窗口对应的 watcher 的 events 中的消息。
+    4. handler 被调用后会以模态方式持续运行，
+    并且在 invoke 和 modal 中均会处理当前窗口对应的 manager 的 events 中的消息。
     每次处理只处理到【合成确认】或【合成取消】，然后结束运行。
     如果 events 中依然存在消息，
-    则 input_handler 会在结束前启动一个 start_timer 来启动下一个 input_handler 来处理。
-    将消息分开多个 input_handler 来处理，是为了实现撤销输入的功能，
-    每个 input_handler 都会生成一个历史记录，撤销时仅撤销到这组消息的开头的状态不会多组消息同时撤销。
+    则 handler 会在结束前启动一个 start_timer 来启动下一个 handler 来处理。
+    将消息分开多个 handler 来处理，是为了实现撤销输入的功能，
+    每个 handler 都会生成一个历史记录，撤销时仅撤销到这组消息的开头的状态不会多组消息同时撤销。
 
-    5. 在收到合成开始之外的消息后，如果当前存在正在运行的 input_handler，
+    5. 在收到合成开始之外的消息后，如果当前存在正在运行的 handler，
     则 composition_callback 会注册一个 event_timer，
-    该定时器仅用于产生一个 TIMER 消息，以便激活 input_handler 的 modal 函数处理消息，如果此时有其它消息，
-    实际上也会激活 input_handler，但无法肯定必有这个其它消息，
-    所以 event_timer 实际上只是一种保险措施，即无论怎样都肯定可以激活 input_handler。
-    在 input_handler 的 modal 函数中，会卸载 event_timer，因此 event_timer 并非用于周期性触发事件。
+    该定时器仅用于产生一个 TIMER 消息，以便激活 handler 的 modal 函数处理消息，如果此时有其它消息，
+    实际上也会激活 handler，但无法肯定必有这个其它消息，
+    所以 event_timer 实际上只是一种保险措施，即无论怎样都肯定可以激活 handler。
+    在 handler 的 modal 函数中，会卸载 event_timer，因此 event_timer 并非用于周期性触发事件。
     '''
 
     @ staticmethod
     def composition_callback(wm_pointer: int, event_: int, text_: str, pos: int) -> None:
         if DEBUG:
             printx("派送消息(wm: %x)：" % wm_pointer, event_, text_, pos)
-        watcher: Watcher = None
-        for k, v in watchers.items():
+        manager: Manager = None
+        for k, v in managers.items():
             if k.as_pointer() == wm_pointer:
-                watcher = v
+                manager = v
                 break
-        if not watcher:
+        if not manager:
             return
 
         event: CompositionEventType = CompositionEventMaps[event_]
@@ -556,41 +566,41 @@ class Watcher():
         # 从 Windows 传来的是 UTF-16 字符串，需要编码为 UTF-8
         text = text_.encode('utf-8').decode('utf-8')
 
-        watcher.events.append((event, text, pos))
+        manager.events.append((event, text, pos))
 
         # 收到开始消息，并且当前没有处理文本输入，则注册定时器
-        if event == 'START' and not watcher.input_handler:
-            watcher.register_start_timer()
+        if event == 'START' and not manager.handler:
+            manager.register_start_timer()
 
         # 收到其它消息，则注册一个定时器，以便在没有输入消息时也能触发 input_handler 的 modal 函数
-        elif event != 'START' and watcher.input_handler:
-            if not watcher.input_handelr_event_timer:
+        elif event != 'START' and manager.handler:
+            if not manager.handelr_event_timer:
                 if DEBUG:
                     printx(CCBA, "启动定时器（event_timer）")
-                watcher.input_handelr_event_timer = bpy.context.window_manager.event_timer_add(0.001, window=watcher.window)
+                manager.handelr_event_timer = bpy.context.window_manager.event_timer_add(0.001, window=manager.window)
         pass
 
     def register_start_timer(self) -> None:
-        if self.input_handler_start_timer:
+        if self.handler_start_timer:
             return
 
         def _func():
             # 必须放在调用操作之前清空。如果 input_handler 在 invoke 时就处理完消息后，
             # 并且依然存在消息，则 input_handler 将无法启动 start_timer 来启动下一个 input_handler。
-            self.input_handler_start_timer = None
+            self.handler_start_timer = None
             if DEBUG:
                 printx(CCBA, "卸载定时器（start_timer）")
 
             ctx = self.build_context()
             if use_temp_override:
                 with bpy.context.temp_override(**ctx):
-                    bpy.ops.wire.fix_ime_input_handler('INVOKE_DEFAULT')
-            # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
-            else:
-                bpy.ops.wire.fix_ime_input_handler(ctx, 'INVOKE_DEFAULT')
+                    # 注意 :必须明确指定 UNDO，否则输入单个数字或标点时，不会被记录在操作历史中
+                    bpy.ops.wire.fix_ime_input_handler('INVOKE_DEFAULT', True)
+            else:  # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
+                bpy.ops.wire.fix_ime_input_handler(ctx, 'INVOKE_DEFAULT', True)
             pass
 
-        self.input_handler_start_timer = _func
+        self.handler_start_timer = _func
         bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
 
         if DEBUG:
@@ -711,31 +721,189 @@ class Watcher():
             ctx['edit_text'] = self.space.text
         return ctx
 
-class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
-    bl_idname = 'wire.fix_ime_input_watcher'
-    bl_label = "鼠标移动消息转发器"
+class WIRE_OT_fix_ime_input_checker(bpy.types.Operator):
+    bl_idname = 'wire.fix_ime_input_checker'
+    bl_label = "状态更新"
     bl_description = "由 wire_fix_ime 插件在内部使用"
     bl_options = set()
-
-    # 注意 ：通过非模态方式获取 MOUSEMOVE 事件，用模态操作会导致自动保存失效（Blender 不会在模态操作存在时执行自动保存）。
-
-    # 注意 ：必须监听 Blender 提供的 MOUSEMOVE 事件，因为该事件在非鼠标移动时也会触发，例如切换编辑模式等。
 
     @ classmethod
     def poll(clss, context: bpy.types.Context) -> bool:
         if not use_fix_ime_input_is_valid:
             return False
+
+        window = context.window
+        if window in managers:
+            manager = managers[window]
+            if manager.checker or manager.checker_start_time:
+                return False
+
         return True
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.manager: Manager = None
+        self.valid: bool = True
+
+        self.start_time: int = 0
+        self.timer: bpy.types.Timer = None
+
+        self.prev_step_time: int = 0
+        self.step_timer: bpy.types.Timer = None
+
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        self.start_time = time.time_ns()
+
+        wm = context.window_manager
         window = context.window
-        if window in watchers:
-            watcher = watchers[window]
+
+        if window in managers:
+            manager = managers[window]
         else:
-            watcher = Watcher()
-            watcher.start(context)
-        watcher.mouse_move(context, event)
-        return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+            manager = Manager()
+            manager.start(context)
+        self.manager = manager
+
+        manager.checker = self
+
+        if DEBUG:
+            if not manager.checker_take_turns:
+                printx(CCBG, "检查器启动：%x (wm)" % manager.wm_pointer)
+            elif DEBUG_CHECKER:
+                printx(CCFA, "检查器轮换：%x (wm)" % manager.wm_pointer)
+            manager.checker_take_turns = False
+
+        self.prev_step_time = self.start_time
+        manager.checker_callback(context, event)
+
+        self.timer = wm.event_timer_add(5, window=window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
+
+    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        # 注意 ：字体选择窗口中，有时 context 的任何方法都为 None，原因未知
+        if getattr(context, 'copy', None) is None:
+            printx(CCBR, "context.copy", event.type, context.copy)
+            # return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
+
+        wm = context.window_manager
+        manager = self.manager
+
+        # 在切换选项等无法主动关闭模态操作，但需要关闭模态操作时，该属性被设为 False，
+        # 表示该检查器不应该再执行任何操作，直接结束即可。
+        if not self.valid:
+            self.close('INVALID')
+            return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+
+        '''
+        在任何时候都需要重新检查状态，不能仅限于 MOUSEMOVE，
+        譬如执行撤销后，可能会从编辑模式退回到物体模式，此时不会触发 MOUSEMOVE，
+        但需要重新检查状态，否则输入法依然处于启用状态。
+
+        因为需要在所有种类的消息中执行状态检查，执行会非常频繁，
+        所以现在的机制为每隔一段时间检查一次，间隔之间的消息全部忽略。
+        但忽略后，无法保证后面依然有消息，会导致检查无法反应最新情况，
+        因此需要在忽略的时候设置一个定时器，这样必然有一条消息在最后。
+        如果后续来了消息，则将定时器取消。没有消息，则定时器将会触发消息。
+
+        注意 ：在 modal 中设置的定时器，定时消息似乎会变为 NONE 而不是 TIMER，但对当前情况没有影响。
+        '''
+
+        if DEBUG_CHECKER:
+            if manager.checker != self:
+                printx(CCBG, "检查器与管理器中的检查器不匹配 %x(wm)" % manager.wm_pointer)
+
+        if self.step_timer:
+            if DEBUG_CHECKER:
+                printx("取消定时器")
+            wm.event_timer_remove(self.step_timer)
+            self.step_timer = None
+
+        span_step = (_now := time.time_ns()) - self.prev_step_time
+        if span_step > 50 * 1000000:  # 0.050秒
+            if DEBUG_CHECKER:
+                printx("检查：", event.type)
+            self.prev_step_time = _now
+            manager.checker_callback(context, event)
+        else:
+            if DEBUG_CHECKER:
+                printx("设置定时器：", event.type)
+            self.step_timer = wm.event_timer_add(0.050, window=manager.window)
+            pass
+
+        '''
+        Blender 的自动保存功能在任意模态操作存在的时候都不会执行，
+        因此这里每隔一段时间就关闭检查器，然后在指定间隔后重新启动，
+        Blender 的自动保存功能在遇到模态操作后，会以 0.01s 的间隔不断重试，
+        因此重启的间隔必须大于 0.01s，以便能够让自动保存顺利执行。
+        '''
+        if time.time_ns() - self.start_time > 5000 * 1000000:  # 5.000秒
+
+            self.close('TAKE_TURNS')
+
+            # 注意 ：字体选择窗口中，有时 context 的任何方法都为 None，原因未知
+            if getattr(context, 'copy', None) is not None:
+                ctx = context.copy()
+            else:
+                if DEBUG:
+                    printx(CCBR, "context 异常", context.copy)
+                ctx = {}
+                for _name in dir(context):
+                    ctx[_name] = getattr(context, _name)
+
+            def _func():
+                # 必须先取消，否则 poll 必然失败
+                manager.checker_start_time = None
+                if use_temp_override:
+                    with context.temp_override(**ctx):
+                        bpy.ops.wire.fix_ime_input_checker('INVOKE_DEFAULT')
+                else:
+                    bpy.ops.wire.fix_ime_input_checker(ctx, 'INVOKE_DEFAULT')
+            manager.checker_start_time = _func
+
+            if DEBUG:
+                manager.checker_take_turns = True
+
+            # Blender 的自动保存在遇到模态操作后，会以 0.01s 的间隔不断重试，所以这里的间隔必须大于 0.01
+            bpy.app.timers.register(_func, first_interval=0.050, persistent=True)
+
+            return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+
+        return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
+
+    def cancel(self, context: bpy.types.Context) -> None:
+        self.close('CANCEL')
+
+    def close(self, reason: Literal['TAKE_TURNS', 'CANCEL', 'MANAGER_CLOSE', 'INVALID']) -> None:
+        wm = bpy.context.window_manager
+        manager = self.manager
+
+        self.valid = False  # 实际上仅用于 MANAGER_CLOSE
+
+        if manager.checker == self:
+            manager.checker = None
+
+        if self.timer:
+            wm.event_timer_remove(self.timer)
+            self.timer = None
+
+        if self.step_timer:
+            wm.event_timer_remove(self.step_timer)
+            self.step_timer = None
+
+        if DEBUG:
+            # 无需在 TAKE_TURNS 时输出任何内容
+
+            # 窗口关闭时（模态操作的 cancel 早于 window_destory_callback 被调用）
+            if reason == 'CANCEL':
+                printx(CCBP, "检查器关闭：%x (wm)" % manager.wm_pointer)
+            # 选项关闭或插件停用时（插件停用时模态操作的 modal 不会被调用，但不会有任何影响）
+            elif reason == 'MANAGER_CLOSE':
+                printx(CCBP, "检查器失效（等待）：%x (wm)" % manager.wm_pointer)
+            # modal 中检测到 self.valid == False 时
+            elif reason == 'INVALID':
+                printx(CCBP, "检查器失效（完成）：%x (wm)" % manager.wm_pointer)
+        pass
 
     @ classmethod
     def add_key_map_item(clss) -> None:
@@ -754,14 +922,14 @@ class WIRE_OT_fix_ime_input_watcher(bpy.types.Operator):
 class WIRE_OT_fix_ime_input_handler(bpy.types.Operator):
     bl_idname = 'wire.fix_ime_input_handler'
     bl_label = "文本输入"
-    bl_description = ""
+    bl_description = "由 wire_fix_ime 插件在内部使用"
     bl_options = {'UNDO'}
 
     # 注意 ：文本输入必须在具有 'UNDO' 特性的 Operator 的生命周期内完成，否则无法完整撤销输入的文本
 
     def __init__(self) -> None:
         super().__init__()
-        self.watcher = None
+        self.manager = None
 
     # def __del__(self):
     #     # 实例和类型的销毁都会调用该函数（例如停用插件卸载类型时）
@@ -771,16 +939,17 @@ class WIRE_OT_fix_ime_input_handler(bpy.types.Operator):
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         window = context.window
 
-        if window in watchers:
-            self.watcher = watchers[window]
-            self.watcher.input_handler = self
+        if window in managers:
+            self.manager = managers[window]
+            self.manager.handler = self
 
             if DEBUG:
                 printx(CCBG, "文本输入处理器启动")
 
-            if len(self.watcher.events) > 0:
+            if len(self.manager.events) > 0:
                 ret = self.process()
                 if 'RUNNING_MODAL' not in ret:
+                    print("返回：", ret)
                     return ret
 
             context.window_manager.modal_handler_add(self)
@@ -789,32 +958,32 @@ class WIRE_OT_fix_ime_input_handler(bpy.types.Operator):
         return {'CANCELLED'}
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
-        if self.watcher.input_handelr_event_timer:
+        if self.manager.handelr_event_timer:
             # 有没有收到 TIMER 消息都取消定时器，因为定时器只是用来触发 modal 的保险手段而已
             if DEBUG:
                 printx(CCBA, "卸载定时器（event_timer）")
-            context.window_manager.event_timer_remove(self.watcher.input_handelr_event_timer)
-            self.watcher.input_handelr_event_timer = None
+            context.window_manager.event_timer_remove(self.manager.handelr_event_timer)
+            self.manager.handelr_event_timer = None
 
-        if len(self.watcher.events) > 0:
+        if len(self.manager.events) > 0:
             ret = self.process()
             return ret
 
         return {'RUNNING_MODAL'}
 
     def process(self) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
-        last_event = self.watcher.process_event()
+        last_event = self.manager.process_event()
 
         if last_event in ['FINISH', 'CANCEL']:
-            self.watcher.input_handler = None
+            self.manager.handler = None
             if DEBUG:
                 printx(CCBR, "文本输入处理器关闭")
 
             # 如果依然存在消息，则准备下一轮的文本输入
-            if len(self.watcher.events) > 0:
+            if len(self.manager.events) > 0:
                 if DEBUG:
-                    printx(CCBR, "等待下一轮进行处理，剩余消息：", len(self.watcher.events))
-                self.watcher.register_start_timer()
+                    printx(CCBR, "等待下一轮进行处理，剩余消息：", len(self.manager.events))
+                self.manager.register_start_timer()
 
             return {'FINISHED'} if last_event == 'FINISH' else {'CANCELLED'}
 
@@ -826,18 +995,18 @@ class WIRE_OT_fix_ime_input_handler(bpy.types.Operator):
 
 show_caret = True if DEBUG_BUILD else False
 
-def update_candidate_window_pos(watcher: Watcher) -> None:
+def update_candidate_window_pos(manager: Manager) -> None:
     ctx = SimpleNamespace()
-    ctx.window = watcher.window
-    ctx.area = watcher.area
-    ctx.region = watcher.region
-    ctx.space_data = watcher.space
+    ctx.window = manager.window
+    ctx.area = manager.area
+    ctx.region = manager.region
+    ctx.space_data = manager.space
     ctx.preferences = bpy.context.preferences
-    if watcher.space.type == 'VIEW_3D':
+    if manager.space.type == 'VIEW_3D':
         update_candidate_window_pos_font_edit(ctx)
-    elif watcher.space.type == 'TEXT_EDITOR':
+    elif manager.space.type == 'TEXT_EDITOR':
         update_candidate_window_pos_text_editor(ctx)
-    elif watcher.space.type == 'CONSOLE':
+    elif manager.space.type == 'CONSOLE':
         update_candidate_window_pos_console(ctx)
 
 def update_candidate_window_pos_font_edit(context: bpy.types.Context) -> None:
@@ -847,7 +1016,6 @@ def update_candidate_window_pos_font_edit(context: bpy.types.Context) -> None:
 
     # 由 native 完成设置
     pref = get_prefs(context)
-    print(pref.candidate_window_percent)
     native.candidate_window_position_update_font_edit(
         window.as_pointer(), pref.candidate_window_percent, show_caret)
 
@@ -935,10 +1103,10 @@ def header_extend_draw_func(self: bpy.types.Header, context: bpy.types.Context) 
 
     icon = 'PROP_OFF'
     if active and switcher:
-        watcher: Watcher = None
-        if window in watchers:
-            watcher = watchers[window]
-        if watcher and watcher.space == context.space_data:
+        manager: Manager = None
+        if window in managers:
+            manager = managers[window]
+        if manager and manager.space == context.space_data:
             icon = 'PROP_ON'
         else:
             icon = 'PROP_CON'
@@ -954,10 +1122,10 @@ def register() -> None:
         printx(CCFY, f"===== {__package__} start =====")
 
     bpy.utils.register_class(WIRE_FIX_Preferences)
-    bpy.utils.register_class(WIRE_OT_fix_ime_input_watcher)
+    bpy.utils.register_class(WIRE_OT_fix_ime_input_checker)
     bpy.utils.register_class(WIRE_OT_fix_ime_input_handler)
 
-    WIRE_OT_fix_ime_input_watcher.add_key_map_item()
+    WIRE_OT_fix_ime_input_checker.add_key_map_item()
 
     if DEBUG_BUILD:
         test_register()
@@ -983,19 +1151,10 @@ def register() -> None:
         use_fix_ime_input_update(prefs, bpy.context)
 
         use_header_extend(prefs, bpy.context)
+
     pass
 
 def unregister() -> None:
-
-    bpy.utils.unregister_class(WIRE_FIX_Preferences)
-    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_watcher)
-    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_handler)
-
-    WIRE_OT_fix_ime_input_watcher.remove_key_map_item()
-
-    if DEBUG_BUILD:
-        test_unregister()
-
     if native.dll_loaded:
 
         native.use_hook(False)
@@ -1011,6 +1170,15 @@ def unregister() -> None:
         ), bpy.context)
 
         native.dll_unload()
+
+    if DEBUG_BUILD:
+        test_unregister()
+
+    WIRE_OT_fix_ime_input_checker.remove_key_map_item()
+
+    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_handler)
+    bpy.utils.unregister_class(WIRE_OT_fix_ime_input_checker)
+    bpy.utils.unregister_class(WIRE_FIX_Preferences)
 
     if DEBUG_BUILD:
         printx(CCFY, f"===== {__package__} end =====")

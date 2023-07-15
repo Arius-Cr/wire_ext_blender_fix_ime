@@ -11,7 +11,7 @@ DEBUG_BUILD = mark.DEBUG_BUILD
 DEBUG = mark.DEBUG
 
 # 输出更详细的调试信息，仅调试版使用。
-DEBUG_CHECKER = False if not DEBUG_BUILD else True
+DEBUG_CHECKER = False if not DEBUG_BUILD else False
 
 from .printx import *
 
@@ -36,32 +36,25 @@ def use_debug_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], conte
     native.use_fix_ime_debug(DEBUG)
 
 def use_fix_ime_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context) -> None:
-    use_fix_ime_input_update(self, context)
+    native.use_fix_ime_state(self.use_fix_ime_state)
 
-    use_fix_ime_state = self.use_fix_ime_state
-    use_fix_ime_input = self.use_fix_ime_input
-
-    if use_fix_ime_state:
-        native.use_fix_ime_state(True)
-        if use_fix_ime_input:
-            fix_ime_input_enable()
-        else:
-            fix_ime_input_disable()
-    else:
-        native.use_fix_ime_state(False)
-        fix_ime_input_disable()  # 必须关闭
-
-def use_fix_ime_input_update(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context) -> None:
     global use_fix_ime_input_is_valid
 
-    use_fix_ime_input_is_valid = (self.use_fix_ime_state and
-            self.use_fix_ime_input and (
-            self.use_fix_ime_input_font_edit or
-            self.use_fix_ime_input_text_editor or
-            self.use_fix_ime_input_console))
+    use_fix_ime_input_is_valid = (
+        self.use_fix_ime_state and
+        self.use_fix_ime_input and (
+        self.use_fix_ime_input_font_edit or
+        self.use_fix_ime_input_text_editor or
+        self.use_fix_ime_input_console))
 
     if DEBUG:
         printx(CCFY, "use_fix_ime_input_is_valid:", use_fix_ime_input_is_valid)
+
+    if use_fix_ime_input_is_valid:
+        fix_ime_input_enable()
+    else:
+        fix_ime_input_disable()
+    pass
 
 def use_header_extend(self: Union['WIRE_FIX_Preferences', SimpleNamespace], context: bpy.types.Context) -> None:
     global TEXT_HT_header_extend_appended
@@ -96,42 +89,42 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
 
     use_fix_ime_state: bpy.props.BoolProperty(
         name="自动管理输入法状态",
-        description="启用后，当用户激活输入框时，插件会自动启用输入法，退出输入框时，插件会自动停用输入法",
+        description="当用户激活输入框时，自动启用输入法，退出输入框时，自动停用输入法",
         default=True,
         update=use_fix_ime_update,
     )
 
     use_fix_ime_input: bpy.props.BoolProperty(
         name="使用输入法输入文字",
-        description="启用后，可以在某些情况下直接使用输入法输入文字",
+        description="在下面的情景中直接使用输入法输入文字",
         default=True,
         update=use_fix_ime_update,
     )
 
     use_fix_ime_input_font_edit: bpy.props.BoolProperty(
         name="文本物体编辑模式",
-        description="启用后，可以在【3D视图】的【文本物体】的【编辑模式】中直接使用输入法输入文字",
+        description="在【3D视图】的【文本物体】的【编辑模式】中直接使用输入法输入文字",
         default=True,
-        update=use_fix_ime_input_update,
+        update=use_fix_ime_update,
     )
 
     use_fix_ime_input_text_editor: bpy.props.BoolProperty(
         name="文本编辑器",
-        description="启用后，可以在【文本编辑器】中直接使用输入法输入文字",
+        description="在【文本编辑器】中直接使用输入法输入文字",
         default=True,
-        update=use_fix_ime_input_update,
+        update=use_fix_ime_update,
     )
 
     use_fix_ime_input_console: bpy.props.BoolProperty(
         name="控制台",
-        description="启用后，可以在【控制台】中直接使用输入法输入文字",
+        description="在【控制台】中直接使用输入法输入文字",
         default=True,
-        update=use_fix_ime_input_update,
+        update=use_fix_ime_update,
     )
 
     candidate_window_percent: bpy.props.FloatProperty(
         name="候选窗口水平位置",
-        description="候选窗口的左侧在屏幕工作区底部的水平位置，最终位置会受系统调整",
+        description="设置候选窗口相对屏幕左侧的位置，最终位置会受系统调整",
         default=0.4,
         min=0,
         max=1,
@@ -140,21 +133,21 @@ class WIRE_FIX_Preferences(bpy.types.AddonPreferences):
 
     use_header_extend_text_editor: bpy.props.BoolProperty(
         name="文本编辑器状态提示",
-        description="启用后，在【文本编辑器】的标题栏中显示“使用输入法输入文字”功能相关的状态提示",
+        description="在【文本编辑器】的标题栏中显示输入状态",
         default=True if DEBUG_BUILD else False,
         update=use_header_extend,
     )
 
     use_header_extend_console: bpy.props.BoolProperty(
         name="控制台状态提示",
-        description="启用后，在【控制台】的标题栏中显示“使用输入法输入文字”功能相关的状态提示",
+        description="在【控制台】的标题栏中显示输入状态",
         default=True if DEBUG_BUILD else False,
         update=use_header_extend,
     )
 
     use_debug: bpy.props.BoolProperty(
         name="启用调试",
-        description="启用调试模式，运行信息将会输出到控制台",
+        description="启用调试模式。调试信息将会输出到控制台",
         default=True if DEBUG_BUILD else False,
         update=use_debug_update,
     )
@@ -281,8 +274,8 @@ def fix_ime_input_disable() -> None:
 
     native.use_fix_ime_input(False)
 
-    for window in list(managers.keys()):
-        managers[window].close()
+    for manager in list(managers.values()):
+        manager.close()
 
     managers.clear()
 
@@ -292,7 +285,7 @@ def fix_ime_input_disable() -> None:
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
-EditorType = Literal['font', 'text', 'console']
+EditorType = Literal['FONT', 'TEXT', 'CONSOLE']
 CompositionEventMaps = {0: 'START', 1: 'UPDATE', 2: 'FINISH', 3: 'CANCEL'}
 CompositionEventType = Literal['START', "UPDATE", 'FINISH', 'CANCEL']
 
@@ -365,7 +358,7 @@ class Manager():
         pass
 
     def checker_callback(self, context: bpy.types.Context, event: bpy.types.Event) -> None:
-        # 如果用户激活了输入控件，则 MOUSEMOVE 事件不会被触发，因此不用担心和【输入控件】冲突。
+        # 如果用户激活了输入控件，则不会有事件发送到模态操作，因此不用担心和【输入控件】冲突。
         if not self.inputting:
             # 因为任务栏中的输入法状态仅反映活动窗口的，所以仅在窗口处于活动状态时维护输入法状态
             if native.window_is_active(self.wm_pointer):
@@ -393,7 +386,7 @@ class Manager():
                                 break
                         if (_region.x <= mouse_x <= _region.x + _region.width and
                             _region.y <= mouse_y <= _region.y + _region.height):
-                            editor_type = 'font'
+                            editor_type = 'FONT'
                             area = _area
                             region = _region
                             space = _area.spaces[0]
@@ -409,7 +402,7 @@ class Manager():
                                 break
                         if (_region.x <= mouse_x <= _region.x + _region.width and
                             _region.y <= mouse_y <= _region.y + _region.height):
-                            editor_type = 'text'
+                            editor_type = 'TEXT'
                             area = _area
                             region = _region
                             space = _area.spaces[0]
@@ -423,7 +416,7 @@ class Manager():
                             break
                     if (_region.x <= mouse_x <= _region.x + _region.width and
                         _region.y <= mouse_y <= _region.y + _region.height):
-                        editor_type = 'console'
+                        editor_type = 'CONSOLE'
                         area = _area
                         region = _region
                         space = _area.spaces[0]
@@ -489,7 +482,7 @@ class Manager():
         if not manager:
             return
         if manager.ime_enabled:
-            def _func():  # 延迟到下一个事件才执行，否则和“强制取消文字合成”冲突
+            def _func():
                 if DEBUG:
                     printx(CCBB, "在区块中停用输入法（窗口失去焦点）")
                 native.ime_input_disable(manager.wm_pointer)
@@ -502,6 +495,8 @@ class Manager():
                 manager.op_delete = None
                 manager.op_move = None
                 manager.op_delete = None
+            # 先执行 kill_focus_callback 然后再执行 强制取消文字合成，
+            # 如果不延迟，则取消文字合成时，一些标记的状态会不正确。
             bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
 
     @ staticmethod
@@ -572,7 +567,7 @@ class Manager():
         if event == 'START' and not manager.handler:
             manager.register_start_timer()
 
-        # 收到其它消息，则注册一个定时器，以便在没有输入消息时也能触发 input_handler 的 modal 函数
+        # 收到其它消息，则注册一个定时器，以便在没有输入消息时也能触发 handler 的 modal 函数
         elif event != 'START' and manager.handler:
             if not manager.handelr_event_timer:
                 if DEBUG:
@@ -585,8 +580,8 @@ class Manager():
             return
 
         def _func():
-            # 必须放在调用操作之前清空。如果 input_handler 在 invoke 时就处理完消息后，
-            # 并且依然存在消息，则 input_handler 将无法启动 start_timer 来启动下一个 input_handler。
+            # 必须放在调用操作之前清空。如果 handler 在 invoke 时就处理完消息后，
+            # 并且依然存在消息，则 handler 将无法启动 start_timer 来启动下一个 handler。
             self.handler_start_timer = None
             if DEBUG:
                 printx(CCBA, "卸载定时器（start_timer）")
@@ -594,7 +589,7 @@ class Manager():
             ctx = self.build_context()
             if use_temp_override:
                 with bpy.context.temp_override(**ctx):
-                    # 注意 :必须明确指定 UNDO，否则输入单个数字或标点时，不会被记录在操作历史中
+                    # 注意 :必须明确指定 UNDO = True，否则输入单个数字或标点时，不会被记录在操作历史中
                     bpy.ops.wire.fix_ime_input_handler('INVOKE_DEFAULT', True)
             else:  # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
                 bpy.ops.wire.fix_ime_input_handler(ctx, 'INVOKE_DEFAULT', True)
@@ -615,17 +610,17 @@ class Manager():
             printx(CCFY, "处理输入事件...(总数：%d)" % len(self.events))
 
         if self.op_insert is None:
-            if self.editor_type == 'font':
+            if self.editor_type == 'FONT':
                 self.op_insert = bpy.ops.font.text_insert
                 self.op_delete = bpy.ops.font.delete
                 self.op_move = bpy.ops.font.move
                 self.op_select = bpy.ops.font.move_select
-            if self.editor_type == 'text':
+            if self.editor_type == 'TEXT':
                 self.op_insert = bpy.ops.text.insert
                 self.op_delete = bpy.ops.text.delete
                 self.op_move = bpy.ops.text.move
                 self.op_select = None,  # 虽然有该操作，但 selection 无法用于 delete，等于没用
-            elif self.editor_type == 'console':
+            elif self.editor_type == 'CONSOLE':
                 self.op_insert = bpy.ops.console.insert
                 self.op_delete = bpy.ops.console.delete
                 self.op_move = bpy.ops.console.move
@@ -636,8 +631,7 @@ class Manager():
         if use_temp_override:
             with bpy.context.temp_override(**ctx):
                 last_event = self.process_event_core(ctx)
-        # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
-        else:
+        else:  # 3.0.0 ~ 3.1.0 不支持 temp_override() ，只能使用旧方法
             last_event = self.process_event_core(ctx)
 
         # 更新光标位置
@@ -680,7 +674,7 @@ class Manager():
                     for _ in range(self.move_times):
                         self.op_move(*args, type='NEXT_CHARACTER')
 
-                if self.editor_type == 'font':
+                if self.editor_type == 'FONT':
                     # 该方法速度更快，但是不能用于文本编辑器和控制台
                     for _ in range(self.length):
                         self.op_select(*args, type='PREVIOUS_CHARACTER')
@@ -717,7 +711,7 @@ class Manager():
         ctx['area'] = self.area
         ctx['region'] = self.region
         ctx['space_data'] = self.space
-        if self.editor_type == 'text':
+        if self.editor_type == 'TEXT':
             ctx['edit_text'] = self.space.text
         return ctx
 
@@ -854,11 +848,19 @@ class WIRE_OT_fix_ime_input_checker(bpy.types.Operator):
             def _func():
                 # 必须先取消，否则 poll 必然失败
                 manager.checker_start_time = None
+                
+                _poll = False
                 if use_temp_override:
                     with context.temp_override(**ctx):
-                        bpy.ops.wire.fix_ime_input_checker('INVOKE_DEFAULT')
+                        if (_poll := bpy.ops.wire.fix_ime_input_checker.poll()):
+                            bpy.ops.wire.fix_ime_input_checker('INVOKE_DEFAULT')
                 else:
-                    bpy.ops.wire.fix_ime_input_checker(ctx, 'INVOKE_DEFAULT')
+                    if (_poll := bpy.ops.wire.fix_ime_input_checker.poll(ctx)):
+                        bpy.ops.wire.fix_ime_input_checker(ctx, 'INVOKE_DEFAULT')
+
+                if DEBUG and not _poll:
+                    printx(CCBG, "检查器轮换中止（poll == False）：%x (wm)" % manager.wm_pointer)
+
             manager.checker_start_time = _func
 
             if DEBUG:
@@ -1147,8 +1149,6 @@ def register() -> None:
         native.use_hook(True)
 
         use_fix_ime_update(prefs, bpy.context)
-
-        use_fix_ime_input_update(prefs, bpy.context)
 
         use_header_extend(prefs, bpy.context)
 

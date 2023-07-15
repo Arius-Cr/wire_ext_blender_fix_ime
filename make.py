@@ -160,10 +160,12 @@ def build(args):
         _mark = (['mark.py'], [])
         _test = (['test.py'], [])
         _dll = (['xbuild', 'debug', 'out', 'native.dll'], ['native', 'native.dll'])
+        _dll_pdb = (['xbuild', 'debug', 'out', 'native.pdb'], ['native', 'native.pdb'])
     elif args.config == 'release':
         _mark = (['mark.release.py'], ['mark.py'])
         _test = ([None, None])
         _dll = (['xbuild', 'release', 'out', 'native.dll'], ['native', 'native.dll'])
+        _dll_pdb = ([None, None])
 
     files = [  # (src, dst)
         (['__init__.py'], []),
@@ -173,6 +175,7 @@ def build(args):
         _test,
         (['native', '__init__.py'], []),
         _dll,
+        _dll_pdb,
         #
         (['doc', 'images', 'state_icon_1.jpg'], []),
         (['doc', 'images', 'state_icon_2.jpg'], []),

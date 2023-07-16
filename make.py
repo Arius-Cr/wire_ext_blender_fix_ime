@@ -156,26 +156,12 @@ def build(args):
 
     # 复制文件
 
-    if args.config == 'debug':
-        _mark = (['mark.py'], [])
-        _test = (['test.py'], [])
-        _dll = (['xbuild', 'debug', 'out', 'native.dll'], ['native', 'native.dll'])
-        _dll_pdb = (['xbuild', 'debug', 'out', 'native.pdb'], ['native', 'native.pdb'])
-    elif args.config == 'release':
-        _mark = (['mark.release.py'], ['mark.py'])
-        _test = ([None, None])
-        _dll = (['xbuild', 'release', 'out', 'native.dll'], ['native', 'native.dll'])
-        _dll_pdb = ([None, None])
-
     files = [  # (src, dst)
         (['__init__.py'], []),
-        (['printx.py'], []),
         (['main.py'], []),
-        _mark,
-        _test,
+        (['mark.py'], []),
+        (['printx.py'], []),
         (['native', '__init__.py'], []),
-        _dll,
-        _dll_pdb,
         #
         (['doc', 'images', 'state_icon_1.jpg'], []),
         (['doc', 'images', 'state_icon_2.jpg'], []),
@@ -187,6 +173,14 @@ def build(args):
         (['LICENSE'], []),
         (['README.md'], []),
     ]
+
+    if args.config == 'debug':
+        files.append((['mark_debug.py'], []))
+        files.append((['test.py'], []))
+        files.append((['xbuild', 'debug', 'out', 'wire_fix_ime.dll'], ['native', 'wire_fix_ime.dll']))
+        files.append((['xbuild', 'debug', 'out', 'wire_fix_ime.pdb'], ['native', 'wire_fix_ime.pdb']))
+    elif args.config == 'release':
+        files.append((['xbuild', 'release', 'out', 'wire_fix_ime.dll'], ['native', 'wire_fix_ime.dll']))
 
     for _src, _dst in files:
         if _src is None:

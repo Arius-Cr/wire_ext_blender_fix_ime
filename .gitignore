@@ -11,6 +11,8 @@ __pycache__/
 !/make.py
 !/make_*.py
 
+/mark_debug.py
+
 # 暂记待办事项的文件，为私用文件
 /TODO.markdown
 

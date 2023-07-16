@@ -27,7 +27,7 @@
         <!-- 输出文件的类型 -->
         <ConfigurationType>DynamicLibrary</ConfigurationType>
         <!-- 输出文件的名称 -->
-        <TargetName>native</TargetName>
+        <TargetName>wire_fix_ime</TargetName>
         <!-- 输出文件的扩展名 -->
         <TargetExt>.dll</TargetExt>
         <!-- 中间文件目录 -->

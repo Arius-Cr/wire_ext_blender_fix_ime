@@ -100,6 +100,14 @@ def build(args):
     os.makedirs(int_dir, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
 
+    if args.config == 'release':
+        for _name in os.listdir(out_dir):
+            _path = out_dir.joinpath(_name)
+            if _path.is_file():
+                os.remove(_path)
+            else:
+                shutil.rmtree(_path)
+
     # 生成 DLL
 
     if not path_vsdevcmd.exists():

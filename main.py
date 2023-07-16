@@ -773,7 +773,7 @@ class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
             # 注意 ：必须加 UNDO = True，否则标点的输入会无法撤销
             bpy.ops.wire_fix_ime.input_handler('INVOKE_DEFAULT', True)
 
-        return {'FINISHED'}
+        return {'FINISHED', 'PASS_THROUGH', 'INTERFACE'}
 
     @classmethod
     def add_key_map_item(clss) -> None:
@@ -1022,7 +1022,9 @@ class WIRE_FIX_IME_OT_input_handler(bpy.types.Operator):
             ret = self.process(context)
             return ret
 
-        return {'RUNNING_MODAL'}
+        # TODO ：TIMER 类消息要放行吗？按官方手册的指引，应该不用放行...
+        
+        return {'RUNNING_MODAL'} # 进行文字输入时，屏蔽其它按键
 
     def process(self, context: bpy.types.Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         last_event = self.manager.process_event()

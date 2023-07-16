@@ -13,12 +13,12 @@ from .printx import *
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 '''
-WIRE_OT_test_delete_speed_1：基本用时 476215700
-WIRE_OT_test_delete_speed_2：基本用时 121231100
+WIRE_FIX_IME_OT_test_delete_speed_1：基本用时 476215700
+WIRE_FIX_IME_OT_test_delete_speed_2：基本用时 121231100
 '''
 
-class WIRE_PT_text_editor_info(bpy.types.Panel):
-    bl_idname = 'WIRE_PT_text_editor_info'
+class WIRE_FIX_IME_PT_text_editor_info(bpy.types.Panel):
+    bl_idname = 'WIRE_FIX_IME_PT_text_editor_info'
     bl_label = "信息（仅用于测试）"
     bl_space_type = 'TEXT_EDITOR'
     bl_region_type = 'UI'
@@ -75,8 +75,8 @@ class WIRE_PT_text_editor_info(bpy.types.Panel):
 
         pass
 
-class WIRE_OT_test_delete_speed_1(bpy.types.Operator):
-    bl_idname = 'wire.test_delete_speed_1'
+class WIRE_FIX_IME_OT_test_delete_speed_1(bpy.types.Operator):
+    bl_idname = 'wire_fix_ime.test_delete_speed_1'
     bl_label = "删除速度测试1"
     bl_description = "删除速度测试1"
     bl_options = {'REGISTER', 'UNDO'}
@@ -102,8 +102,8 @@ class WIRE_OT_test_delete_speed_1(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class WIRE_OT_test_delete_speed_2(bpy.types.Operator):
-    bl_idname = 'wire.test_delete_speed_2'
+class WIRE_FIX_IME_OT_test_delete_speed_2(bpy.types.Operator):
+    bl_idname = 'wire_fix_ime.test_delete_speed_2'
     bl_label = "删除速度测试2"
     bl_description = "删除速度测试2"
     bl_options = {'REGISTER', 'UNDO'}
@@ -132,37 +132,67 @@ class WIRE_OT_test_delete_speed_2(bpy.types.Operator):
 
 def VIEW3D_MT_edit_font_draw_func(self: bpy.types.Menu, context: bpy.types.Context):
     layout = self.layout
-    layout.operator(WIRE_OT_test_delete_speed_1.bl_idname)
-    layout.operator(WIRE_OT_test_delete_speed_2.bl_idname)
+    layout.operator(WIRE_FIX_IME_OT_test_delete_speed_1.bl_idname)
+    layout.operator(WIRE_FIX_IME_OT_test_delete_speed_2.bl_idname)
+
+class WIRE_FIX_IME_OT_test_insert(bpy.types.Operator):
+    bl_idname = 'wire_fix_ime.test_insert'
+    bl_label = "插入文本"
+    # bl_options = {'UNDO'} # 必须不能有 UNOD 否则无法在编辑模式使用文本编辑器时撤销输入
+
+    def execute(self, context: bpy.types.Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        bpy.ops.text.insert(text="A")
+        bpy.ops.text.delete(type='PREVIOUS_CHARACTER')
+        bpy.ops.text.insert(True, text="ABC") # 最后一个插入必须使用 UNDO
+        return {'FINISHED'}
+
+    @classmethod
+    def add_key_map_item(clss) -> None:
+        km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(
+            'Text Generic', space_type='TEXT_EDITOR', region_type='WINDOW')
+        km.keymap_items.new(clss.bl_idname, type='I', value='PRESS',
+                            ctrl=True, shift=False, alt=False, oskey=False)
+
+    @classmethod
+    def remove_key_map_item(clss) -> None:
+        km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(
+            'Screen Editing', space_type='EMPTY', region_type='WINDOW')
+        for _kmi in reversed(km.keymap_items):
+            if _kmi.idname == clss.bl_idname:
+                km.keymap_items.remove(_kmi)
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 def register():
     if mark.DEBUG_BUILD:
         printx(CCBY, "已加载测试相关功能")
-        bpy.utils.register_class(WIRE_PT_text_editor_info)
-        bpy.utils.register_class(WIRE_OT_test_delete_speed_1)
-        bpy.utils.register_class(WIRE_OT_test_delete_speed_2)
+        bpy.utils.register_class(WIRE_FIX_IME_PT_text_editor_info)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_test_delete_speed_1)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_test_delete_speed_2)
         bpy.types.VIEW3D_MT_edit_font.prepend(VIEW3D_MT_edit_font_draw_func)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_test_insert)
+        WIRE_FIX_IME_OT_test_insert.add_key_map_item()
 
-        if WIRE_OT_test_fix_ime_toggle.__name__ not in dir(bpy.types):
+        if WIRE_FIX_IME_OT_test_fix_ime_toggle.__name__ not in dir(bpy.types):
             # 注册后不卸载
-            bpy.utils.register_class(WIRE_OT_test_fix_ime_toggle)
-            bpy.utils.register_class(WIRE_OT_test_fix_ime_reload)
+            bpy.utils.register_class(WIRE_FIX_IME_OT_test_fix_ime_toggle)
+            bpy.utils.register_class(WIRE_FIX_IME_OT_test_fix_ime_reload)
             bpy.types.STATUSBAR_HT_header.prepend(STATUSBAR_HT_header_draw_func)
 
 def unregister():
     if mark.DEBUG_BUILD:
+        WIRE_FIX_IME_OT_test_insert.add_key_map_item()
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_insert)
         bpy.types.VIEW3D_MT_edit_font.remove(VIEW3D_MT_edit_font_draw_func)
-        bpy.utils.unregister_class(WIRE_OT_test_delete_speed_1)
-        bpy.utils.unregister_class(WIRE_OT_test_delete_speed_2)
-        bpy.utils.unregister_class(WIRE_PT_text_editor_info)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_delete_speed_1)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_delete_speed_2)
+        bpy.utils.unregister_class(WIRE_FIX_IME_PT_text_editor_info)
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 
-class WIRE_OT_test_fix_ime_toggle(bpy.types.Operator):
-    bl_idname = 'wire.test_fix_ime_toggle'
+class WIRE_FIX_IME_OT_test_fix_ime_toggle(bpy.types.Operator):
+    bl_idname = 'wire_fix_ime.test_fix_ime_toggle'
     bl_label = "启停插件"
     bl_description = "启停插件"
 
@@ -192,8 +222,8 @@ class WIRE_OT_test_fix_ime_toggle(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class WIRE_OT_test_fix_ime_reload(bpy.types.Operator):
-    bl_idname = 'wire.test_fix_ime_reload'
+class WIRE_FIX_IME_OT_test_fix_ime_reload(bpy.types.Operator):
+    bl_idname = 'wire_fix_ime.test_fix_ime_reload'
     bl_label = "重启插件"
     bl_description = "重启插件"
 
@@ -225,6 +255,6 @@ class WIRE_OT_test_fix_ime_reload(bpy.types.Operator):
 def STATUSBAR_HT_header_draw_func(self: 'bpy.types.TOPBAR_MT_blender', context: bpy.types.Context):
     layout: bpy.types.UILayout = self.layout
     row = layout.row(align=True)
-    row.operator(WIRE_OT_test_fix_ime_reload.bl_idname, text="", icon='FILE_SCRIPT')
-    row.operator(WIRE_OT_test_fix_ime_toggle.bl_idname, text="",
+    row.operator(WIRE_FIX_IME_OT_test_fix_ime_reload.bl_idname, text="", icon='FILE_SCRIPT')
+    row.operator(WIRE_FIX_IME_OT_test_fix_ime_toggle.bl_idname, text="",
         icon='RADIOBUT_ON' if __package__ in context.preferences.addons else 'RADIOBUT_OFF')

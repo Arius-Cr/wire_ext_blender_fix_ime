@@ -15,7 +15,6 @@ kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
 
 # 参数：窗口WM指针，合成事件，合成文本，光标位置
 CompositionCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
-ButtonPressCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 LostFocusCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 WindowDestoryCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 
@@ -102,13 +101,11 @@ class _fix_ime_input:
         self.dll.candidate_window_position_update_console.restype = ctypes.c_bool
 
         self._composition_callback: ctypes._FuncPointer = None
-        self._button_press_callback: ctypes._FuncPointer = None
         self._kill_focus_callback: ctypes._FuncPointer = None
         self._window_destory_callback: ctypes._FuncPointer = None
 
     def use_fix_ime_input(self, enable: bool,
         composition_callback: Union[Callable[[int, int, str, int], None], None] = None,
-        button_press_callback: Union[Callable[[int], None], None] = None,
         kill_focus_callback: Union[Callable[[int], None], None] = None,
         window_destory_callback: Union[Callable[[int], None], None] = None,
     ) -> bool:
@@ -117,9 +114,6 @@ class _fix_ime_input:
             if not composition_callback:
                 raise Exception("缺少 composition_event_handler 参数")
 
-            if not button_press_callback:
-                raise Exception("缺少 button_press_callback 参数")
-
             if not kill_focus_callback:
                 raise Exception("缺少 kill_focus_callback 参数")
 
@@ -127,19 +121,15 @@ class _fix_ime_input:
                 raise Exception("缺少 window_destory_callback 参数")
 
             self._composition_callback = CompositionCallback(composition_callback)
-            self._button_press_callback = ButtonPressCallback(button_press_callback)
             self._kill_focus_callback = LostFocusCallback(kill_focus_callback)
             self._window_destory_callback = WindowDestoryCallback(window_destory_callback)
         else:
             self._composition_callback = None
-            self._button_press_callback = None
             self._kill_focus_callback = None
             self._window_destory_callback = None
 
-        return self.dll.use_fix_ime_input(
-            enable,
+        return self.dll.use_fix_ime_input(enable,
             self._composition_callback,
-            self._button_press_callback,
             self._kill_focus_callback,
             self._window_destory_callback,)
 
@@ -172,15 +162,16 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
 
     def dll_load(self) -> bool:
         dir = os.path.dirname(os.path.realpath(__file__))
-        dll_path = os.path.join(dir, 'native.dll')
-        if mark.DEBUG:
+        dll_path = os.path.join(dir, 'wire_fix_ime.dll')
+        if mark.DEBUG_BUILD:
             # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
-            dll_dest = os.path.join(dir, '_native.dll')
+            dll_dest = os.path.join(dir, '_wire_fix_ime.dll')
             try:
                 os.system('copy "%s" "%s" > nul' % (dll_path, dll_dest))
+                os.system('copy "%s" "%s" > nul' % (dll_path.replace(".dll", '.pdb'), dll_dest.replace(".dll", '.pdb')))
                 dll_path = dll_dest
             except:
-                print("复制 native.dll 为 _native.dll 失败")
+                print("复制 wire_fix_ime.dll 为 _wire_fix_ime.dll 失败")
                 return False
 
         self.dll_handle = kernel32.LoadLibraryW(dll_path)

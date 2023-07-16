@@ -54,7 +54,6 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 //  标记  程序外功能
 
 typedef void CompositionCallback(void *wm_pointer, int event, wchar_t *text, int pos);
-typedef void ButtonPressCallback(void *wm_pointer);
 typedef void LostFocusCallback(void *wm_pointer);
 typedef void WindowDestoryCallback(void *wm_pointer);
 
@@ -62,7 +61,6 @@ typedef void WindowDestoryCallback(void *wm_pointer);
 extern __declspec(dllexport) bool use_fix_ime_input(
     bool enable,
     CompositionCallback composition_callback_,
-    ButtonPressCallback button_press_callback_,
     LostFocusCallback lost_focus_callback_,
     WindowDestoryCallback windown_destory_callback_);
 

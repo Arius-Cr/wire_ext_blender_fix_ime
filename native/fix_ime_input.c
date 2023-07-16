@@ -193,9 +193,6 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     USHORT key = raw.data.keyboard.VKey;
     // BYTE state[256] = {0};
     // GetKeyboardState((PBYTE)state);
-    // bool ctrl = state[VK_CONTROL] & 0x80;
-    // bool shift = state[VK_SHIFT] & 0x80;
-    // bool alt = state[VK_MENU] & 0x80;
     memset(key_states, 0, 256 * sizeof(BYTE));
     GetKeyboardState((PBYTE)key_states);
     bool ctrl = key_states[VK_CONTROL] & 0x80;
@@ -203,6 +200,14 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     bool alt = key_states[VK_MENU] & 0x80;
     unsigned int msg = raw.data.keyboard.Message;
     bool key_down = !(raw.data.keyboard.Flags & RI_KEY_BREAK) && msg != WM_KEYUP && msg != WM_SYSKEYUP;
+
+    wchar_t key_name[256] = L"??";
+    if (D_IME)
+    {
+        bool extended = raw.data.keyboard.Flags & (RI_KEY_E0 | RI_KEY_E1);
+        GetKeyNameTextW(MAKELPARAM(0, (extended ? KF_EXTENDED : 0) | (raw.data.keyboard.MakeCode & 0xff)),
+                        (LPWSTR)&key_name, 256);
+    }
 
     bool block = true;
     if (!himc_composition)
@@ -214,7 +219,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
          */
         if (raw.data.keyboard.ExtraInformation == myHIMC_INPUT_PASS)
         {
-            DEBUGH(D_IME, "WM_INPUT 放行（%s-来自回放）：%hx", key_down ? "按下" : "释放", key);
+            DEBUGH(D_IME, "WM_INPUT 放行（%s-来自回放）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
             block = false;
         }
         else if (!((key >= '0' && key <= '9') ||
@@ -224,7 +229,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                    (key >= VK_OEM_4 && key <= VK_OEM_7) ||
                    (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR)))
         {
-            DEBUGH(D_IME, "WM_INPUT 放行（%s-非字符键）：%hx", key_down ? "按下" : "释放", key);
+            DEBUGH(D_IME, "WM_INPUT 放行（%s-非字符键）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
             block = false;
             /**
              * #define VK_NUMPAD0        0x60
@@ -266,7 +271,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     }
     if (block)
     {
-        DEBUGH(D_IME, "WM_INPUT 屏蔽（%s-插件接管）：%hx", key_down ? "按下" : "释放", key);
+        DEBUGH(D_IME, "WM_INPUT 屏蔽（%s-插件接管）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
         return true;
     }
     return false;
@@ -296,7 +301,12 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
             LPARAM extra_info = GetMessageExtraInfo();
             if (extra_info != myHIMC_INPUT_PASS)
             {
-                DEBUGI(D_IME, "WM_KEYDOWN 回放：%x", key);
+                if (D_IME)
+                {
+                    wchar_t key_name[256] = L"??";
+                    GetKeyNameTextW(lParam, (LPWSTR)&key_name, 256);
+                    DEBUGI(D_IME, "WM_KEYDOWN 回放：\"%ls\" (%x)", key_name, key);
+                }
                 keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), 0, myHIMC_INPUT_PASS);
             }
             else
@@ -324,7 +334,12 @@ extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 LPARAM extra_info = GetMessageExtraInfo();
                 if (extra_info != myHIMC_INPUT_PASS)
                 {
-                    DEBUGI(D_IME, "WM_KEYUP 回放：%x", key);
+                    if (D_IME)
+                    {
+                        wchar_t key_name[256] = L"??";
+                        GetKeyNameTextW(lParam, (LPWSTR)&key_name, 256);
+                        DEBUGI(D_IME, "WM_KEYUP 回放：\"%ls\" (%x)", key_name, key);
+                    }
                     // 和 KEY_DOWN 的唯一不同在于第三个参数为 KEYEVENTF_KEYUP
                     keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), KEYEVENTF_KEYUP, myHIMC_INPUT_PASS);
                 }

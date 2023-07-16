@@ -37,7 +37,7 @@ extern __declspec(dllexport) bool init()
     process_id = GetProcessId(process_handle);
     thread_id = GetCurrentThreadId();
 
-    DEBUGI(1, "process_id: %x, thread_id: %x", process_id, thread_id);
+    DEBUGI(1, "process_id: %X, thread_id: %X", process_id, thread_id);
 
     return true;
 }

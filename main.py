@@ -1197,6 +1197,11 @@ def register() -> None:
     if DEBUG_BUILD:
         printx(CCFY, f"\n===== {__package__} start =====")
 
+    if mark.mark_debug:
+        printx(CCBY, "加载调试信息：")
+        for _name in mark.mark_debug_names:
+            printx(f"  {CCFA}{_name}{CCZ0}：{getattr(mark, _name)}")
+
     bpy.utils.register_class(WIRE_FIX_IME_Preferences)
     bpy.utils.register_class(WIRE_FIX_IME_OT_timer_resolve)
     bpy.utils.register_class(WIRE_FIX_IME_OT_state_updater)

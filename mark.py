@@ -22,8 +22,10 @@ class _Mark():
         self.DEBUG_UPDATER_1: bool = False
         self.DEBUG_UPDATER_2: bool = False
 
+        self.mark_debug = mark_debug
+        self.mark_debug_names: list[str] = []
+
         if mark_debug:
-            print("加载调试信息：")
             mark_debug_keys = dir(mark_debug)
             for _name in dir(self):
                 if _name.startswith("__"):
@@ -31,7 +33,7 @@ class _Mark():
                 if _name in mark_debug_keys:
                     _value = getattr(mark_debug, _name)
                     setattr(self, _name, _value)
-                    print("%s: %s" % (_name, _value))
+                    self.mark_debug_names.append(_name)
 
 
 mark = _Mark()

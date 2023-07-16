@@ -11,9 +11,9 @@ bl_info = {
     'description': "修复 Blender 中和 IME 相关的一些问题",
     'blender': (3, 0, 0),
     'version': (2, 0, 0),
-    '_pre_release': 'beta.4',
+    '_pre_release': 'beta.5',
     'location': "",
-    'warning': "beta.4（测试版）",
+    'warning': "beta.5（测试版）",
     'category': 'User Interface',
 }
 

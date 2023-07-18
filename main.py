@@ -742,7 +742,7 @@ class Manager():
         return ctx
 
 class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
-    bl_idname = 'wire_fix_ime.startup'
+    bl_idname = 'wire_fix_ime.timer_resolve'
     bl_label = "消息处理器"
     bl_description = "由 wire_fix_ime 插件在内部使用"
     bl_options = set()
@@ -751,7 +751,11 @@ class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
     def poll(clss, context: bpy.types.Context) -> bool:
         if not use_fix_ime_input_is_valid:
             return False
-        if context.window not in managers:
+        if (window := context.window) not in managers:
+            return False
+        # 当鼠标被捕获，则不要结束任何操作，因为操作结束时会导致鼠标位置重置。
+        # 还没运行的操作不要运行，已经运行的操作不要结束。
+        if native.window_is_mouse_capture(window.as_pointer()):
             return False
         return True
 
@@ -821,6 +825,8 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
         self.updater_step_timer: bpy.types.Timer = None
 
         self.key_pressed: bool = False
+
+        self.waitting_for_end_message_printed: bool = False  # 仅用于调试信息的输出
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         self.start_time = time.time_ns()
@@ -897,14 +903,26 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
 
         if time.time_ns() - self.start_time >= 5000 * 1000000:  # 5.000s
 
-            self.close('TAKE_TURNS')
+            if self.updater_end_timer:
+                wm.event_timer_remove(self.updater_end_timer)
+                self.updater_end_timer = None
 
-            manager.updater_take_turns = True
+            # 注意 ：如果鼠标已经被捕获，则不要结束操作，继续等待，否则会导致鼠标位置被重置
+            if not native.window_is_mouse_capture(context.window.as_pointer()):
 
-            # 注意 ：间隔必须大于 0.010s
-            self.manager.updater_start_timer = wm.event_timer_add(0.050, window=manager.window)
+                self.close('TAKE_TURNS')
 
-            return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+                manager.updater_take_turns = True
+
+                # 注意 ：间隔必须大于 0.010s
+                self.manager.updater_start_timer = wm.event_timer_add(0.050, window=manager.window)
+
+                return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+
+            else:
+                if not self.waitting_for_end_message_printed:
+                    self.waitting_for_end_message_printed = True
+                    printx(CCBY, f"等待鼠标释放")
 
         return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
 

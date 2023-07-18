@@ -546,3 +546,21 @@ extern __declspec(dllexport) bool window_is_active(void *wm_pointer)
 
     return false;
 }
+
+extern __declspec(dllexport) bool window_is_mouse_capture(void *wm_pointer)
+{
+    if (wm_pointer == NULL)
+    {
+        return false;
+    }
+    WindowData *window = get_window_by_wm(wm_pointer);
+    if (window)
+    {
+        HWND window_mouse_capture = GetCapture();
+        if (window_mouse_capture != NULL)
+        {
+            return window_mouse_capture == window->handle;
+        }
+    }
+    return false;
+}

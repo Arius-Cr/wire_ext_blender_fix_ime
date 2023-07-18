@@ -59,4 +59,6 @@ extern __declspec(dllexport) bool window_associate_pointer(void *pointer);
 
 extern __declspec(dllexport) bool window_is_active(void *pointer);
 
+extern __declspec(dllexport) bool window_is_mouse_capture(void *pointer);
+
 #endif

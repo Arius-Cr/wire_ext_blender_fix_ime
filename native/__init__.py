@@ -49,6 +49,9 @@ class _hook:
         self.dll.window_is_active.argtypes = [ctypes.c_void_p]
         self.dll.window_is_active.restype = ctypes.c_bool
 
+        self.dll.window_is_mouse_capture.argtypes = [ctypes.c_void_p]
+        self.dll.window_is_mouse_capture.restype = ctypes.c_bool
+
     def use_hook_debug(self, enable: int) -> None:
         return self.dll.use_hook_debug(enable)
 
@@ -63,6 +66,9 @@ class _hook:
 
     def window_is_active(self, pointer: int) -> None:
         return self.dll.window_is_active(pointer)
+
+    def window_is_mouse_capture(self, wm_pointer: int) -> bool:
+        return self.dll.window_is_mouse_capture(wm_pointer)
 
 class _fix_ime:
     def _dll_init__fix_ime(self):

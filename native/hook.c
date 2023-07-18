@@ -514,16 +514,22 @@ extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
     {
         DEBUGI(D_HOK, CCBA "窗口关联 [%p]: %p (gw), %p (wm)" CCZ0, window->handle, gw_pointer, wm_pointer);
         window->wm_pointer = wm_pointer;
+        return true;
     }
-    else
+    else if (!invoke_after_enum)
     {
         EnumWindows(EnumWindowsProc_new, (LPARAM)gw_pointer);
         invoke_after_enum = true;
-        window_associate_pointer(wm_pointer);
+        bool success = window_associate(wm_pointer);
         invoke_after_enum = false;
+        if (!success)
+        {
+            DEBUGI(D_HOK, CCBA "窗口关联失败: %p (wm), %p (gw)" CCZ0, wm_pointer, gw_pointer);
+        }
+        return success;
     }
 
-    return true;
+    return false;
 }
 
 extern __declspec(dllexport) bool window_is_active(void *wm_pointer)

@@ -905,7 +905,8 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
 
             if self.updater_end_timer:
                 wm.event_timer_remove(self.updater_end_timer)
-                self.updater_end_timer = None
+                # 确保之后必然可以结束。将 step_timer 和 end_timer 的逻辑分离是故意设计的，改动一方不会影响另一方。
+                self.updater_end_timer = wm.event_timer_add(0.050, window=manager.window)
 
             # 注意 ：如果鼠标已经被捕获，则不要结束操作，继续等待，否则会导致鼠标位置被重置
             if not native.window_is_mouse_capture(context.window.as_pointer()):

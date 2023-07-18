@@ -763,7 +763,7 @@ class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
                 printx(f"捕获 {CCFA}updater_start_timer{CCZ0}：{event.type}")
             context.window_manager.event_timer_remove(manager.updater_start_timer)
             manager.updater_start_timer = None
-            bpy.ops.wire_fix_ime.state_checker('INVOKE_DEFAULT')
+            bpy.ops.wire_fix_ime.state_updater('INVOKE_DEFAULT', False)
 
         if manager.handler_start_timer:
             if DEBUG:
@@ -791,10 +791,10 @@ class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
                 km.keymap_items.remove(kmi)
 
 class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
-    bl_idname = 'wire_fix_ime.state_checker'
+    bl_idname = 'wire_fix_ime.state_updater'
     bl_label = "状态更新器"
     bl_description = "由 wire_fix_ime 插件在内部使用"
-    bl_options = set()
+    bl_options = {'GRAB_CURSOR'}
 
     @ classmethod
     def poll(clss, context: bpy.types.Context) -> bool:
@@ -1023,8 +1023,8 @@ class WIRE_FIX_IME_OT_input_handler(bpy.types.Operator):
             return ret
 
         # TODO ：TIMER 类消息要放行吗？按官方手册的指引，应该不用放行...
-        
-        return {'RUNNING_MODAL'} # 进行文字输入时，屏蔽其它按键
+
+        return {'RUNNING_MODAL'}  # 进行文字输入时，屏蔽其它按键
 
     def process(self, context: bpy.types.Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         last_event = self.manager.process_event()

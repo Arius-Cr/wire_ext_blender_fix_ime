@@ -520,7 +520,7 @@ extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
     {
         EnumWindows(EnumWindowsProc_new, (LPARAM)gw_pointer);
         invoke_after_enum = true;
-        bool success = window_associate(wm_pointer);
+        bool success = window_associate_pointer(wm_pointer);
         invoke_after_enum = false;
         if (!success)
         {

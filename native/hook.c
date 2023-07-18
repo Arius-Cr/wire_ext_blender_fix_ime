@@ -22,8 +22,8 @@
 
 bool window_wrap(HWND hWnd);
 bool window_unwrap(HWND hWnd);
-BOOL CALLBACK EnumWindowsProc_first(HWND hWnd, LPARAM lParam);
-BOOL CALLBACK EnumWindowsProc_new(HWND hWnd, LPARAM lParam);
+BOOL CALLBACK EnumThreadWindowsProc_first(HWND hWnd, LPARAM lParam);
+BOOL CALLBACK EnumThreadWindowsProc_new(HWND hWnd, LPARAM lParam);
 LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
 bool window_wrap(HWND hWnd)
@@ -114,34 +114,22 @@ bool window_unwrap(HWND hWnd)
     return false;
 }
 
-BOOL CALLBACK EnumWindowsProc_first(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK EnumThreadWindowsProc_first(HWND hWnd, LPARAM lParam)
 {
-    DWORD window_processid = 0;
-    GetWindowThreadProcessId(hWnd, &window_processid);
-    if (window_processid == process_id)
-    {
-        window_wrap(hWnd);
-    }
+    window_wrap(hWnd);
     return TRUE;
 }
 
-BOOL CALLBACK EnumWindowsProc_new(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK EnumThreadWindowsProc_new(HWND hWnd, LPARAM lParam)
 {
-    DWORD window_processid = 0;
-    GetWindowThreadProcessId(hWnd, &window_processid);
-    if (window_processid == process_id)
+    void *gw_pointer = (void *)lParam;
+    void *user_data = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+    if (user_data == gw_pointer)
     {
-        void *gw_pointer = (void *)lParam;
-        void *user_data = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-        if (user_data == gw_pointer)
-        {
-            if (window_wrap(hWnd))
-            {
-                return false; // 已找到窗口，停止枚举
-            }
-        }
+        window_wrap(hWnd);
+        return FALSE; // 已找到窗口，停止枚举
     }
-    return true;
+    return TRUE;
 }
 
 LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
@@ -438,10 +426,10 @@ extern __declspec(dllexport) bool use_hook(bool enable)
 
         // 初始化窗口数据
         DEBUGI(D_HOK, "初始化数据...");
-        result_b = EnumWindows(EnumWindowsProc_first, (LPARAM)NULL);
+        result_b = EnumThreadWindows(thread_id, EnumThreadWindowsProc_first, (LPARAM)NULL);
         if (!result_b)
         {
-            DEBUGI(D_HOK, "初始化数据...失败：EnumWindows");
+            DEBUGI(D_HOK, "初始化数据...失败：EnumThreadWindows");
 
             DEBUGI(D_HOK, "hook startup...failed");
 
@@ -518,7 +506,7 @@ extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
     }
     else if (!invoke_after_enum)
     {
-        EnumWindows(EnumWindowsProc_new, (LPARAM)gw_pointer);
+        EnumThreadWindows(thread_id, EnumThreadWindowsProc_new, (LPARAM)gw_pointer);
         invoke_after_enum = true;
         bool success = window_associate_pointer(wm_pointer);
         invoke_after_enum = false;

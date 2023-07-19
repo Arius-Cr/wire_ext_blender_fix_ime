@@ -4,6 +4,7 @@ import ctypes
 import ctypes.wintypes as wintypes
 
 from ..mark import mark
+from ..printx import *
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -15,72 +16,88 @@ kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
 
 # 参数：窗口WM指针，合成事件，合成文本，光标位置
 CompositionCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
+# 参数：窗口WM指针
 LostFocusCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
+# 参数：窗口WM指针
 WindowDestoryCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 
 class _main:
     def _dll_init__main(self):
         self.dll.use_debug.argtypes = [ctypes.c_int]
-        self.dll.use_debug.restype = None
+        self.dll.use_debug.restype = ctypes.c_bool
 
         self.dll.init.argtypes = []
-        self.dll.init.restype = None
+        self.dll.init.restype = ctypes.c_bool
 
-    def use_debug(self, level: int) -> None:
+    def use_debug(self, level: int) -> bool:
         return self.dll.use_debug(level)
 
-    def init(self) -> None:
+    def init(self) -> bool:
         return self.dll.init()
 
 class _hook:
     def __init__(self) -> None:
-        self.is_hook_startup = False
+        self.is_use_hook = False
 
     def _dll_init__hook(self):
         self.dll.use_hook_debug.argtypes = [ctypes.c_bool]
-        self.dll.use_hook_debug.restype = None
+        self.dll.use_hook_debug.restype = ctypes.c_bool
 
         self.dll.use_hook.argtypes = [ctypes.c_bool]
         self.dll.use_hook.restype = ctypes.c_bool
 
-        self.dll.window_associate_pointer.argtypes = [ctypes.c_void_p]
-        self.dll.window_associate_pointer.restype = ctypes.c_bool
+        self.dll.window_associate.argtypes = [ctypes.c_void_p]
+        self.dll.window_associate.restype = ctypes.c_bool
 
         self.dll.window_is_active.argtypes = [ctypes.c_void_p]
         self.dll.window_is_active.restype = ctypes.c_bool
 
-    def use_hook_debug(self, enable: int) -> None:
+        self.dll.window_is_mouse_capture.argtypes = [ctypes.c_void_p]
+        self.dll.window_is_mouse_capture.restype = ctypes.c_bool
+
+    def use_hook_debug(self, enable: int) -> bool:
         return self.dll.use_hook_debug(enable)
 
     def use_hook(self, enable: bool) -> bool:
-        result = self.dll.use_hook(enable)
-        if result == True:
-            self.is_hook_startup = enable
-        return result
+        self.is_use_hook = self.dll.use_hook(enable)
+        return self.is_use_hook
 
-    def window_associate_pointer(self, pointer: int) -> None:
-        return self.dll.window_associate_pointer(pointer)
+    def window_associate(self, wm_pointer: int) -> bool:
+        return self.dll.window_associate(wm_pointer)
 
-    def window_is_active(self, pointer: int) -> None:
-        return self.dll.window_is_active(pointer)
+    def window_is_active(self, wm_pointer: int) -> bool:
+        return self.dll.window_is_active(wm_pointer)
+
+    def window_is_mouse_capture(self, wm_pointer: int) -> bool:
+        return self.dll.window_is_mouse_capture(wm_pointer)
 
 class _fix_ime:
     def _dll_init__fix_ime(self):
         self.dll.use_fix_ime_debug.argtypes = [ctypes.c_bool]
-        self.dll.use_fix_ime_debug.restype = None
+        self.dll.use_fix_ime_debug.restype = ctypes.c_bool
 
-    def use_fix_ime_debug(self, enable: bool) -> None:
+    def use_fix_ime_debug(self, enable: bool) -> bool:
         return self.dll.use_fix_ime_debug(enable)
 
 class _fix_ime_state:
+    def __init__(self) -> None:
+        self.is_use_fix_ime_state: bool = False
+
     def _dll_init__fix_ime_state(self):
         self.dll.use_fix_ime_state.argtypes = [ctypes.c_bool]
         self.dll.use_fix_ime_state.restype = ctypes.c_bool
 
     def use_fix_ime_state(self, enable: bool) -> bool:
-        return self.dll.use_fix_ime_state(enable)
+        self.is_use_fix_ime_state = self.dll.use_fix_ime_state(enable)
+        return self.is_use_fix_ime_state
 
 class _fix_ime_input:
+    def __init__(self) -> None:
+        self.is_use_fix_ime_input: bool = False
+        self._composition_callback: ctypes._FuncPointer = None
+        self._kill_focus_callback: ctypes._FuncPointer = None
+        self._window_destory_callback: ctypes._FuncPointer = None
+
     def _dll_init__fix_ime_input(self):
         self.dll.use_fix_ime_input.argtypes = [ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
         self.dll.use_fix_ime_input.restype = ctypes.c_bool
@@ -100,16 +117,11 @@ class _fix_ime_input:
         self.dll.candidate_window_position_update_console.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
         self.dll.candidate_window_position_update_console.restype = ctypes.c_bool
 
-        self._composition_callback: ctypes._FuncPointer = None
-        self._kill_focus_callback: ctypes._FuncPointer = None
-        self._window_destory_callback: ctypes._FuncPointer = None
-
     def use_fix_ime_input(self, enable: bool,
         composition_callback: Union[Callable[[int, int, str, int], None], None] = None,
         kill_focus_callback: Union[Callable[[int], None], None] = None,
         window_destory_callback: Union[Callable[[int], None], None] = None,
     ) -> bool:
-
         if enable:
             if not composition_callback:
                 raise Exception("缺少 composition_event_handler 参数")
@@ -128,10 +140,11 @@ class _fix_ime_input:
             self._kill_focus_callback = None
             self._window_destory_callback = None
 
-        return self.dll.use_fix_ime_input(enable,
+        self.is_use_fix_ime_input = self.dll.use_fix_ime_input(enable,
             self._composition_callback,
             self._kill_focus_callback,
             self._window_destory_callback,)
+        return self.is_use_fix_ime_input
 
     def ime_input_enable(self, wm_pinter: int) -> bool:
         return self.dll.ime_input_enable(wm_pinter)
@@ -157,35 +170,31 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         _fix_ime_input.__init__(self)
         self.dll: ctypes.CDLL = None
         self.dll_handle = None
-        self.dll_loaded = False
         pass
 
     def dll_load(self) -> bool:
         dir = os.path.dirname(os.path.realpath(__file__))
-        dll_path = os.path.join(dir, 'wire_fix_ime.dll')
-        if mark.DEBUG_BUILD:
-            # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
-            dll_dest = os.path.join(dir, '_wire_fix_ime.dll')
-            try:
-                os.system('copy "%s" "%s" > nul' % (dll_path, dll_dest))
-                os.system('copy "%s" "%s" > nul' % (dll_path.replace(".dll", '.pdb'), dll_dest.replace(".dll", '.pdb')))
-                dll_path = dll_dest
-            except:
-                print("复制 wire_fix_ime.dll 为 _wire_fix_ime.dll 失败")
-                return False
+        dll_name = __package__.split('.')[0]
+        # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
+        for _ext in ['.dll', '.pdb']:
+            _src = os.path.join(dir, f'{dll_name}{_ext}')
+            _dest = os.path.join(dir, f'_{dll_name}{_ext}')
+            if os.path.exists(_src):
+                try:
+                    os.system('copy "%s" "%s" > nul' % (_src, _dest))
+                except:
+                    printx(CCBR, f"复制 {dll_name}{_ext} 到 _{dll_name}{_ext} 失败")
 
-        self.dll_handle = kernel32.LoadLibraryW(dll_path)
+        self.dll_handle = kernel32.LoadLibraryW(os.path.join(dir, f'_{dll_name}.dll'))
 
         if self.dll_handle is not None:
             if mark.DEBUG:
-                print("加载 DLL 完成")
+                printx("加载 DLL 完成")
         else:
-            print("加载 DLL 失败")
+            printx(CCBR, "加载 DLL 失败")
             return False
 
         self.dll = ctypes.CDLL("", handle=self.dll_handle)
-
-        self.dll_loaded = True
 
         self._dll_init__main()
         self._dll_init__hook()
@@ -200,9 +209,9 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
 
         if kernel32.FreeLibrary(self.dll_handle):
             if mark.DEBUG:
-                print("卸载 DLL 完成")
+                printx("卸载 DLL 完成")
         else:
-            print("卸载 DLL 失败")
+            printx(CCBR, "卸载 DLL 失败")
             return False
 
         del self.dll
@@ -210,7 +219,6 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
 
         self.dll = None
         self.dll_handle = None
-        self.dll_loaded = False
         return True
 
 

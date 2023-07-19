@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import sys
 import os
 import time
+import traceback
 
 import bpy
 import bpy.types
@@ -15,6 +16,8 @@ DEBUG = mark.DEBUG
 DEBUG_UPDATER_1 = mark.DEBUG_UPDATER_1
 # 状态更新器-步进定时器 相关的调试信息
 DEBUG_UPDATER_2 = mark.DEBUG_UPDATER_2
+# 标题栏状态图标重绘
+DEBUG_HEADER_REDRAW = mark.DEBUG_HEADER_REDRAW
 
 from .printx import *
 
@@ -48,9 +51,14 @@ if DEBUG_BUILD:
     以避免输入法状态和当前状态不匹配。
     然后状态更新器运行 5s 后关闭，等待 0.050s，然后重新启动（设置 updater_start_timer）。
     重新启动由 WIRE_FIX_IME_OT_timer_resolve 完成。
+
     这样做是为了让 Blender 的自动保存功能能够顺利执行。
     Blender 的自动保存功能在任何窗口存在任何模态操作时都不会执行，然后以 0.010s 的频率不断重试。
     状态更新器以模态方式运行，关闭时就不存在模态操作了，然后 0.050s 的间隔足够让自动保存通过。
+
+    当鼠标正在被捕获时（譬如拖动调整数值、调整颜色或者使用移动模态操作等），
+    如果状态更新器正好需要轮换，则状态更新器结束时会导致鼠标位置重置，
+    此时状态更新器的轮换会延迟，直到鼠标被释放为止。
 
     在任何时候都需要重新检查状态，不能仅限于 MOUSEMOVE，
     譬如执行撤销后，可能会从编辑模式退回到物体模式，此时不会触发 MOUSEMOVE，
@@ -368,6 +376,7 @@ class Manager():
         self.ime_enabled = False
 
         self.editor_type: EditorType = None
+        self.prev_area = None
         self.area = None
         self.region = None
         self.space = None
@@ -392,7 +401,7 @@ class Manager():
         self.wm_pointer = window.as_pointer()
 
         # 将窗口指针和窗口句柄绑定
-        native.window_associate_pointer(self.wm_pointer)
+        native.window_associate(self.wm_pointer)
 
         if DEBUG:
             printx(CCFG, "管理器启动 (现有: %d)：%X (wm)" % (
@@ -504,6 +513,7 @@ class Manager():
                 native.ime_input_enable(self.wm_pointer)
                 self.ime_enabled = True
                 self.editor_type = editor_type
+                self.prev_area = self.area
                 self.area = area
                 self.region = region
                 self.space = space
@@ -511,6 +521,7 @@ class Manager():
                 self.op_delete = None
                 self.op_move = None
                 self.op_delete = None
+                self.update_icon_state()
 
                 if DEBUG:
                     printx(CCFP, "启动后更新光标位置")
@@ -533,6 +544,7 @@ class Manager():
                 native.ime_input_disable(self.wm_pointer)
                 self.ime_enabled = False
                 self.editor_type = None
+                self.prev_area = self.area
                 self.area = None
                 self.region = None
                 self.space = None
@@ -540,6 +552,52 @@ class Manager():
                 self.op_delete = None
                 self.op_move = None
                 self.op_delete = None
+                self.update_icon_state()
+        pass
+
+    def update_icon_state(self):
+        prefs = get_prefs(bpy.context)
+        use_text_editor = prefs.use_header_extend_text_editor
+        use_console = prefs.use_header_extend_console
+        if use_text_editor or use_console:
+            prev_area = self.prev_area
+            area = self.area
+            try:
+                if prev_area:
+                    if use_text_editor and prev_area.type == 'TEXT_EDITOR':
+                        for region in prev_area.regions:
+                            if region.type == 'HEADER':
+                                if DEBUG and DEBUG_HEADER_REDRAW:
+                                    printx(CCFY, "prev_area TEXT_EDITOR tag_redraw()")
+                                region.tag_redraw()
+                                break
+                    if use_console and prev_area.type == 'CONSOLE':
+                        for region in prev_area.regions:
+                            if region.type == 'HEADER':
+                                if DEBUG and DEBUG_HEADER_REDRAW:
+                                    printx(CCFY, "prev_area Console tag_redraw()")
+                                region.tag_redraw()
+                                break
+            except:
+                # 有可能 prev_area 已经销毁
+                if DEBUG and DEBUG_HEADER_REDRAW:
+                    traceback.print_exc()
+                pass
+            if area:
+                if use_text_editor and area.type == 'TEXT_EDITOR':
+                    for region in area.regions:
+                        if region.type == 'HEADER':
+                            if DEBUG and DEBUG_HEADER_REDRAW:
+                                printx(CCFY, "area TEXT_EDITOR tag_redraw()")
+                            region.tag_redraw()
+                            break
+                if use_console and area.type == 'CONSOLE':
+                    for region in area.regions:
+                        if region.type == 'HEADER':
+                            if DEBUG and DEBUG_HEADER_REDRAW:
+                                printx(CCFY, "area Console tag_redraw()")
+                            region.tag_redraw()
+                            break
         pass
 
     @staticmethod
@@ -560,6 +618,7 @@ class Manager():
                 native.ime_input_disable(manager.wm_pointer)
                 manager.ime_enabled = False
                 manager.editor_type = None
+                manager.prev_area = manager.area
                 manager.area = None
                 manager.region = None
                 manager.space = None
@@ -567,6 +626,7 @@ class Manager():
                 manager.op_delete = None
                 manager.op_move = None
                 manager.op_delete = None
+                manager.update_icon_state()
             bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
 
     @staticmethod
@@ -602,7 +662,6 @@ class Manager():
 
         # 收到开始消息，并且当前没有处理文本输入，则注册定时器
         if event == 'START' and not manager.handler:
-            # manager.register_start_timer()
             manager.register_handler_start_timer()
 
         # 收到其它消息，则注册一个定时器，以便在没有输入消息时也能触发 handler 的 modal 函数
@@ -742,7 +801,7 @@ class Manager():
         return ctx
 
 class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
-    bl_idname = 'wire_fix_ime.startup'
+    bl_idname = 'wire_fix_ime.timer_resolve'
     bl_label = "消息处理器"
     bl_description = "由 wire_fix_ime 插件在内部使用"
     bl_options = set()
@@ -751,7 +810,11 @@ class WIRE_FIX_IME_OT_timer_resolve(bpy.types.Operator):
     def poll(clss, context: bpy.types.Context) -> bool:
         if not use_fix_ime_input_is_valid:
             return False
-        if context.window not in managers:
+        if (window := context.window) not in managers:
+            return False
+        # 当鼠标被捕获，则不要结束任何操作，因为操作结束时会导致鼠标位置重置。
+        # 还没运行的操作不要运行，已经运行的操作不要结束。
+        if native.window_is_mouse_capture(window.as_pointer()):
             return False
         return True
 
@@ -821,6 +884,8 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
         self.updater_step_timer: bpy.types.Timer = None
 
         self.key_pressed: bool = False
+
+        self.waitting_for_end_message_printed: bool = False  # 仅用于调试信息的输出
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         self.start_time = time.time_ns()
@@ -897,14 +962,27 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
 
         if time.time_ns() - self.start_time >= 5000 * 1000000:  # 5.000s
 
-            self.close('TAKE_TURNS')
+            if self.updater_end_timer:
+                wm.event_timer_remove(self.updater_end_timer)
+                # 确保之后必然可以结束。将 step_timer 和 end_timer 的逻辑分离是故意设计的，改动一方不会影响另一方。
+                self.updater_end_timer = wm.event_timer_add(0.050, window=manager.window)
 
-            manager.updater_take_turns = True
+            # 注意 ：如果鼠标已经被捕获，则不要结束操作，继续等待，否则会导致鼠标位置被重置
+            if not native.window_is_mouse_capture(context.window.as_pointer()):
 
-            # 注意 ：间隔必须大于 0.010s
-            self.manager.updater_start_timer = wm.event_timer_add(0.050, window=manager.window)
+                self.close('TAKE_TURNS')
 
-            return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+                manager.updater_take_turns = True
+
+                # 注意 ：间隔必须大于 0.010s
+                self.manager.updater_start_timer = wm.event_timer_add(0.050, window=manager.window)
+
+                return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+
+            else:
+                if not self.waitting_for_end_message_printed:
+                    self.waitting_for_end_message_printed = True
+                    printx(CCBY, f"等待鼠标释放")
 
         return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
 
@@ -1179,6 +1257,12 @@ def header_extend_draw_func(self: bpy.types.Header, context: bpy.types.Context) 
     row = layout.row()
     row.active = active
 
+    if DEBUG and DEBUG_HEADER_REDRAW:
+        if context.space_data.type == 'TEXT_EDITOR':
+            printx('TEXT_EDITOR 重绘')
+        elif context.space_data.type == 'CONSOLE':
+            printx('CONSOLE 重绘')
+
     icon = 'PROP_OFF'
     if active and switcher:
         manager: Manager = None
@@ -1235,7 +1319,7 @@ def register() -> None:
     pass
 
 def unregister() -> None:
-    if native.dll_loaded:
+    if native.dll:
 
         native.use_hook(False)
 

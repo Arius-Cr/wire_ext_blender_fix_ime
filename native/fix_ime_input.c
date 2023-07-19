@@ -58,7 +58,7 @@
  */
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  文件内功能
+//  标记  私有
 
 bool himc_composition_start = false; // 是否已经处于合成流程开始阶段，用于判断是否触发 himc_input_start
 
@@ -107,7 +107,7 @@ void window_ime_text_update(HWND hwnd, HIMC himc, DWORD type)
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序内功能
+//  标记  公共
 
 extern bool data_use_fix_ime_input = false;
 
@@ -124,7 +124,7 @@ extern void fix_ime_input_WM_xBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LP
     if (himc_composition)
     {
         // 取消所有未完成的合成
-        DEBUGI(D_IME, "强制取消文字合成（鼠标按键）：%p", hWnd);
+        printx(D_IME, "强制取消文字合成（鼠标按键）：%p", hWnd);
         HIMC himc = ImmGetContext(hWnd);
         if (himc != NULL)
         {
@@ -146,7 +146,7 @@ extern void fix_ime_input_WM_xBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LP
             HIMC himc = ImmGetContext(hWnd);
             if (himc != NULL)
             {
-                DEBUGH(D_IME, "临时暂停输入法");
+                printx(D_IME, CCFA "临时暂停输入法");
                 himc_block_shift_mouse_button = true;
                 ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
                 ImmReleaseContext(hWnd, himc);
@@ -160,7 +160,7 @@ extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
     if (himc_composition)
     {
         // 取消所有未完成的合成
-        DEBUGI(D_IME, "强制取消文字合成（焦点丢失）：%p", hWnd);
+        printx(D_IME, "强制取消文字合成（焦点丢失）：%p", hWnd);
         HIMC himc = ImmGetContext(hWnd);
         if (himc != NULL)
         {
@@ -219,7 +219,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
          */
         if (raw.data.keyboard.ExtraInformation == myHIMC_INPUT_PASS)
         {
-            DEBUGH(D_IME, "WM_INPUT 放行（%s-来自回放）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
+            printx(D_IME, CCFA "WM_INPUT 放行（%s-来自回放）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
             block = false;
         }
         else if (!((key >= '0' && key <= '9') ||
@@ -229,7 +229,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                    (key >= VK_OEM_4 && key <= VK_OEM_7) ||
                    (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR)))
         {
-            DEBUGH(D_IME, "WM_INPUT 放行（%s-非字符键）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
+            printx(D_IME, CCFA "WM_INPUT 放行（%s-非字符键）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
             block = false;
             /**
              * #define VK_NUMPAD0        0x60
@@ -271,7 +271,7 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
     }
     if (block)
     {
-        DEBUGH(D_IME, "WM_INPUT 屏蔽（%s-插件接管）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
+        printx(D_IME, CCFA "WM_INPUT 屏蔽（%s-插件接管）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
         return true;
     }
     return false;
@@ -305,13 +305,13 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
                 {
                     wchar_t key_name[256] = L"??";
                     GetKeyNameTextW(lParam, (LPWSTR)&key_name, 256);
-                    DEBUGI(D_IME, "WM_KEYDOWN 回放：\"%ls\" (%x)", key_name, key);
+                    printx(D_IME, "WM_KEYDOWN 回放：\"%ls\" (%x)", key_name, key);
                 }
                 keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), 0, myHIMC_INPUT_PASS);
             }
             else
             {
-                DEBUGI(D_IME, "WM_KEYDOWN 回放...完成");
+                printx(D_IME, "WM_KEYDOWN 回放...完成");
             }
         }
     }
@@ -338,21 +338,21 @@ extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                     {
                         wchar_t key_name[256] = L"??";
                         GetKeyNameTextW(lParam, (LPWSTR)&key_name, 256);
-                        DEBUGI(D_IME, "WM_KEYUP 回放：\"%ls\" (%x)", key_name, key);
+                        printx(D_IME, "WM_KEYUP 回放：\"%ls\" (%x)", key_name, key);
                     }
                     // 和 KEY_DOWN 的唯一不同在于第三个参数为 KEYEVENTF_KEYUP
                     keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), KEYEVENTF_KEYUP, myHIMC_INPUT_PASS);
                 }
                 else
                 {
-                    DEBUGI(D_IME, "WM_KEYUP 回放...完成");
+                    printx(D_IME, "WM_KEYUP 回放...完成");
                 }
             }
         }
 
         if (himc_block_shift_mouse_button && key == VK_SHIFT)
         {
-            DEBUGH(D_IME, "恢复输入法");
+            printx(D_IME, CCFA "恢复输入法");
             himc_block_shift_mouse_button = false;
             ImmAssociateContextEx(hWnd, NULL, IACE_DEFAULT);
         }
@@ -369,7 +369,7 @@ extern void fix_ime_input_WM_IME_SETCONTEXT(HWND hWnd, UINT uMsg, WPARAM wParam,
 
 extern void fix_ime_input_WM_IME_STARTCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
-    DEBUGI(D_IME, "WM_IME_STARTCOMPOSITION");
+    printx(D_IME, "WM_IME_STARTCOMPOSITION");
 
     himc_composition = true;
 
@@ -380,7 +380,7 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
 {
     WORD chDBCS = (WORD)wParam;
     BOOL fFlags = (BOOL)lParam;
-    DEBUGI(D_IME, "WM_IME_COMPOSITION, fFlags: %x", fFlags);
+    printx(D_IME, "WM_IME_COMPOSITION, fFlags: %x", fFlags);
     if (fFlags & GCS_COMPSTR)
     {
         if (himc_composition_start)
@@ -393,7 +393,7 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
                 himc_composition_start = false;
                 if (composition_callback)
                 {
-                    // DEBUGI(D_IME, "myHIMC_INPUT_START");
+                    // printx(D_IME, "myHIMC_INPUT_START");
                     composition_callback(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
                 }
             }
@@ -408,7 +408,7 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
                 himc_composition_start = false;
                 if (composition_callback)
                 {
-                    // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
+                    // printx(D_IME, "myHIMC_INPUT_UPDATE");
                     composition_callback(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
                 }
             }
@@ -426,7 +426,7 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
             himc_composition_start = false;
             if (composition_callback)
             {
-                // DEBUGI(D_IME, "myHIMC_INPUT_UPDATE");
+                // printx(D_IME, "myHIMC_INPUT_UPDATE");
                 composition_callback(window->wm_pointer, CET_UPDATE, himc_text, himc_text_caret_pos);
             }
         }
@@ -435,7 +435,7 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
 
 extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
-    DEBUGI(D_IME, "WM_IME_ENDCOMPOSITION");
+    printx(D_IME, "WM_IME_ENDCOMPOSITION");
 
     if (himc_composition_start)
     {
@@ -452,8 +452,8 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
              **/
             if (composition_callback)
             {
-                // DEBUGI(D_IME, "myHIMC_INPUT_START");
-                // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
+                // printx(D_IME, "myHIMC_INPUT_START");
+                // printx(D_IME, "myHIMC_INPUT_FINISH");
                 composition_callback(window->wm_pointer, CET_START, himc_text, himc_text_caret_pos);
                 composition_callback(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
             }
@@ -468,7 +468,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
         {
             if (composition_callback)
             {
-                // DEBUGI(D_IME, "myHIMC_INPUT_FINISH");
+                // printx(D_IME, "myHIMC_INPUT_FINISH");
                 composition_callback(window->wm_pointer, CET_FINISH, himc_text, himc_text_caret_pos);
             }
         }
@@ -476,7 +476,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
         {
             if (composition_callback)
             {
-                // DEBUGI(D_IME, "myHIMC_INPUT_CNACEL");
+                // printx(D_IME, "myHIMC_INPUT_CNACEL");
                 composition_callback(window->wm_pointer, CET_CANCEL, &himc_text_empty, 0);
             }
         }
@@ -486,7 +486,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序外功能
+//  标记  导出
 
 extern __declspec(dllexport) bool use_fix_ime_input(
     bool enable,
@@ -494,7 +494,7 @@ extern __declspec(dllexport) bool use_fix_ime_input(
     LostFocusCallback lost_focus_callback_,
     WindowDestoryCallback windown_destory_callback_)
 {
-    DEBUGH(D_IME, "use_fix_ime_input: %s", enable ? "True" : "False");
+    printx(D_IME, CCFA "use_fix_ime_input: %s", enable ? "True" : "False");
 
     HRESULT result_h = S_OK;
     BOOL result_b = TRUE;
@@ -520,7 +520,7 @@ extern __declspec(dllexport) bool use_fix_ime_input(
 
     data_use_fix_ime_input = enable;
 
-    return true;
+    return data_use_fix_ime_input;
 }
 
 extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
@@ -542,7 +542,7 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
     HIMC himc = ImmGetContext(hwnd);
     if (himc == NULL || himc_enabled == false)
     {
-        DEBUGI(D_IME, "ime_input_enable");
+        printx(D_IME, "ime_input_enable");
 
         himc_enabled = true;
         himc_composition = false;
@@ -553,7 +553,7 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
     }
     if (himc != NULL)
         ImmReleaseContext(hwnd, himc);
-    return true;
+    return himc_enabled;
 }
 
 extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer)
@@ -573,7 +573,7 @@ extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer)
     HIMC himc = ImmGetContext(hwnd);
     if (himc != NULL || himc_enabled == true)
     {
-        DEBUGI(D_IME, "ime_input_disable");
+        printx(D_IME, "ime_input_disable");
 
         himc_enabled = false;
 
@@ -589,7 +589,7 @@ extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer)
     }
     if (himc != NULL)
         ImmReleaseContext(hwnd, himc);
-    return true;
+    return himc_enabled;
 }
 
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p, bool show_caret)

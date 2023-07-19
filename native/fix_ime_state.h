@@ -12,7 +12,7 @@
 #include "utils.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序内功能
+//  标记  公共
 
 extern bool data_use_fix_ime_state;
 
@@ -23,7 +23,7 @@ extern void fix_ime_state_with_mouse_event(HWND hWnd, UINT uMsg, WPARAM wParam, 
 extern void fix_ime_state_with_key_event(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序外功能
+//  标记  导出
 
 extern __declspec(dllexport) bool use_fix_ime_state(bool enable);
 

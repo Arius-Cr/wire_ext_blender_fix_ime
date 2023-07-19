@@ -8,10 +8,10 @@
 #include "main.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  文件内功能
+//  标记  私有
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序内功能
+//  标记  公共
 
 extern bool data_use_debug = false;
 
@@ -20,13 +20,13 @@ extern DWORD process_id = 0;
 extern DWORD thread_id = 0;
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序外功能
+//  标记  导出
 
 extern __declspec(dllexport) bool use_debug(bool enable)
 {
     data_use_debug = enable;
 
-    return true;
+    return data_use_debug;
 }
 
 extern __declspec(dllexport) bool init()
@@ -37,7 +37,7 @@ extern __declspec(dllexport) bool init()
     process_id = GetProcessId(process_handle);
     thread_id = GetCurrentThreadId();
 
-    DEBUGI(1, "process_id: %X, thread_id: %X", process_id, thread_id);
+    printx(D_DLL, "process_id: %X, thread_id: %X", process_id, thread_id);
 
     return true;
 }

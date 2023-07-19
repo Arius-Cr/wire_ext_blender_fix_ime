@@ -27,37 +27,16 @@
 #define CCBP "\033[1;37;45m" // 白字，紫底
 #define CCBA "\033[1;37;46m" // 白字，青底
 
+#define D_DLL true
+#define D_ERR true
+
 // 输出普通信息
-#define DEBUGI(condition, message, ...)                   \
-    {                                                     \
-        if (data_use_debug && condition)                  \
-        {                                                 \
-            printf("INFO: " message "\n", ##__VA_ARGS__); \
-        }                                                 \
-    }
-
-// 输出提示信息
-#define DEBUGH(condition, message, ...)                        \
-    {                                                          \
-        if (data_use_debug && condition)                       \
-        {                                                      \
-            printf(CCFA "HIT : " message CCZL, ##__VA_ARGS__); \
-        }                                                      \
-    }
-
-// 输出警告信息
-#define DEBUGW(condition, message, ...)                        \
-    {                                                          \
-        if (data_use_debug && condition)                       \
-        {                                                      \
-            printf(CCFY "WARN: " message CCZL, ##__VA_ARGS__); \
-        }                                                      \
-    }
-
-// 输出错误信息
-#define ERRORP(message, ...)                               \
-    {                                                      \
-        printf(CCFR "ERR : " message CCZL, ##__VA_ARGS__); \
+#define printx(condition, message, ...)                  \
+    {                                                    \
+        if (data_use_debug && condition)                 \
+        {                                                \
+            printf("DLL: " message CCZL, ##__VA_ARGS__); \
+        }                                                \
     }
 
 void setup_console_encoding();

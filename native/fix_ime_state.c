@@ -12,7 +12,7 @@
 #include "fix_ime_state.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序内功能
+//  标记  公共
 
 extern bool data_use_fix_ime_state = false;
 
@@ -21,7 +21,7 @@ extern void fix_ime_state_with_mouse_event(HWND hWnd, UINT uMsg, WPARAM wParam, 
     HIMC himc = ImmGetContext(hWnd);
     if (himc != NULL)
     {
-        DEBUGH(D_IME, "自动管理输入法状态（鼠标）: %d", uMsg);
+        printx(D_IME, CCFA "自动管理输入法状态（鼠标）: %d", uMsg);
         ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
         ImmReleaseContext(hWnd, himc);
     }
@@ -35,7 +35,7 @@ extern void fix_ime_state_with_key_event(HWND hWnd, UINT uMsg, WPARAM wParam, LP
         HIMC himc = ImmGetContext(hWnd);
         if (himc != NULL)
         {
-            DEBUGH(D_IME, "自动管理输入法状态（键盘）: %hd", vkCode);
+            printx(D_IME, CCFA "自动管理输入法状态（键盘）: %hd", vkCode);
             ImmAssociateContextEx(hWnd, NULL, IACE_IGNORENOCONTEXT);
             ImmReleaseContext(hWnd, himc);
         }
@@ -43,13 +43,13 @@ extern void fix_ime_state_with_key_event(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序外功能
+//  标记  导出
 
 extern __declspec(dllexport) bool use_fix_ime_state(bool enable)
 {
-    DEBUGH(D_IME, "use_fix_ime_state: %s", enable ? "True" : "False");
+    printx(D_IME, CCFA "use_fix_ime_state: %s", enable ? "True" : "False");
 
     data_use_fix_ime_state = enable;
 
-    return true; // 返回的是否执行成功
+    return data_use_fix_ime_state;
 }

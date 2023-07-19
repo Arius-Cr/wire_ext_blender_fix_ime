@@ -18,116 +18,130 @@
 #include "hook.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  文件内功能
+//  标记  私有
 
+bool window_wrap_check(HWND hWnd);
 bool window_wrap(HWND hWnd);
 bool window_unwrap(HWND hWnd);
-BOOL CALLBACK EnumThreadWindowsProc_first(HWND hWnd, LPARAM lParam);
-BOOL CALLBACK EnumThreadWindowsProc_new(HWND hWnd, LPARAM lParam);
+BOOL CALLBACK EnumThreadWndProc_init(HWND hWnd, LPARAM lParam);
+BOOL CALLBACK EnumThreadWndProc_associate(HWND hWnd, LPARAM lParam);
 LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
-bool window_wrap(HWND hWnd)
+bool window_wrap_check(HWND hWnd)
 {
-    // 安装子类化窗口过程（仅针对 Blender 窗口）
+    // 检查目标窗口是否可以捕获
+
+    WindowData *window = get_window_by_handle(hWnd);
+    if (window)
+    {
+        // 已捕获，无需再捕获
+        return false;
+    }
 
     WCHAR class_name[100] = {0};
     GetClassName(hWnd, (LPWSTR)&class_name, 100);
-    if (lstrcmp((LPWSTR)&class_name, TEXT("GHOST_WindowClass")) == 0)
+    if (lstrcmp((LPWSTR)&class_name, TEXT("GHOST_WindowClass")) != 0)
     {
-        WindowData *window = NULL;
-        window = (WindowData *)malloc(sizeof(WindowData));
-        memset(window, 0, sizeof(WindowData));
+        // 仅捕获 Blender 自身创建的窗口（主窗口、从窗口）
+        return false;
+    }
 
-        window->handle = hWnd;
+    return true;
+}
 
+bool window_wrap(HWND hWnd)
+{
+    /**
+     * 捕获窗口（使用窗口子类化机制）。
+     */
+
+    //  注意 ：调用前，必须先调用 window_wrap_check 检查窗口是否可以捕获
+
+    WindowData *window = (WindowData *)malloc(sizeof(WindowData));
+    memset(window, 0, sizeof(WindowData));
+
+    if (SetWindowSubclass(hWnd, Subclassproc, (UINT_PTR)hWnd, (DWORD_PTR)window))
+    {
         if (D_HOK)
         {
             WCHAR _class_name[100] = {0};
             GetClassName(hWnd, (LPWSTR)&_class_name, 100);
-            DEBUGH(D_HOK, "捕获窗口：%p [窗口类名称：%ls]", hWnd, &_class_name);
+            printx(D_HOK, "捕获窗口：%p [窗口类名称：%ls]", hWnd, &_class_name);
             GetWindowText(hWnd, (LPWSTR)&_class_name, 100);
-            DEBUGI(D_HOK, "窗口名称：\"%ls\"", &_class_name);
+            printx(D_HOK, "窗口名称：\"%ls\"", &_class_name);
+            printx(D_HOK, "GW 指针：%p", window->gw_pointer);
         }
 
-        /**
-         * source\blender\windowmanager\intern\wm_window.c
-         *      wm_window_ghostwindow_add()
-         * intern\ghost\intern\GHOST_WindowWin32.cpp
-         *      GHOST_WindowWin32::GHOST_WindowWin32()
-         * 官方将自己的 GHOST_WindowWin32 对象的指针存储到窗口的用户数据中，
-         * 而 Window 对象的第一个成员为 GHOST_WindowWin32 对象的指针，
-         * 因此可以根据这些获取到指针和窗口的对应关系。
-         * 注意：刚创建的窗口无法获取该数据，需要在 WM_SHOWWINDOW 时获取
-         **/
+        window->handle = hWnd;
+
         window->gw_pointer = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-        DEBUGH(D_HOK, "GW 指针：%p", window->gw_pointer);
 
-        BOOL result_b = SetWindowSubclass(hWnd, Subclassproc, (UINT_PTR)hWnd, (DWORD_PTR)window);
-        if (!result_b)
-        {
-            ERRORP("捕获窗口失败：SetWindowSubclass");
-            free(window);
-        }
-        else
-        {
-            window_datas_add(window);
-            return true;
-        }
+        window_datas_add(window);
+
+        return true;
+    }
+    else
+    {
+        printx(D_ERR, CCBR "捕获窗口失败：%p (hw)", hWnd);
+
+        free(window);
+
+        return false;
     }
     return false;
 }
 
 bool window_unwrap(HWND hWnd)
 {
-    // 卸载子类化窗口过程
+    // 释放窗口
 
-    WindowData *window = NULL;
-    bool found = false;
-    while (window_datas_for_each(&window) != NULL)
+    WindowData *window = get_window_by_handle(hWnd);
+    if (window)
     {
-        if (window->handle == hWnd)
+        if (RemoveWindowSubclass(hWnd, Subclassproc, (UINT_PTR)hWnd))
         {
-            found = true;
-            break;
+            if (D_HOK)
+            {
+                WCHAR _class_name[100] = {0};
+                GetClassName(hWnd, (LPWSTR)&_class_name, 100);
+                printx(D_HOK, "释放窗口：%p [窗口类名称：%ls]", hWnd, &_class_name);
+                GetWindowText(hWnd, (LPWSTR)&_class_name, 100);
+                printx(D_HOK, "窗口名称：\"%ls\"", &_class_name);
+            }
         }
-    }
-    if (found)
-    {
-        if (D_HOK)
+        else
         {
-            WCHAR _class_name[100] = {0};
-            GetClassName(hWnd, (LPWSTR)&_class_name, 100);
-            DEBUGH(D_HOK, "释放窗口：%p [窗口类名称：%ls]", hWnd, &_class_name);
-            GetWindowText(hWnd, (LPWSTR)&_class_name, 100);
-            DEBUGI(D_HOK, "窗口名称：\"%ls\"", &_class_name);
-        }
-
-        BOOL result_b = RemoveWindowSubclass(hWnd, Subclassproc, (UINT_PTR)hWnd);
-        if (!result_b)
-        {
-            ERRORP("释放窗口失败：RemoveWindowSubclass");
+            printx(D_ERR, CCBR "释放窗口失败：%p (hw)", hWnd);
         }
 
         window_datas_remove(window); // 无论怎样都移除窗口数据
+
         return true;
     }
+
     return false;
 }
 
-BOOL CALLBACK EnumThreadWindowsProc_first(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK EnumThreadWndProc_init(HWND hWnd, LPARAM lParam)
 {
-    window_wrap(hWnd);
+    if (window_wrap_check(hWnd))
+    {
+        printx(D_HOK, "从 EnumThreadWndProc_init 捕获窗口");
+        window_wrap(hWnd);
+    }
     return TRUE;
 }
 
-BOOL CALLBACK EnumThreadWindowsProc_new(HWND hWnd, LPARAM lParam)
+BOOL CALLBACK EnumThreadWndProc_associate(HWND hWnd, LPARAM lParam)
 {
-    void *gw_pointer = (void *)lParam;
-    void *user_data = (void *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-    if (user_data == gw_pointer)
+    if ((void *)GetWindowLongPtrW(hWnd, GWLP_USERDATA) == (void *)lParam)
     {
-        window_wrap(hWnd);
-        return FALSE; // 已找到窗口，停止枚举
+        if (window_wrap_check(hWnd))
+        {
+            printx(D_HOK, "从 EnumThreadWndProc_associate 捕获窗口");
+            window_wrap(hWnd);
+        }
+        return FALSE; // 已找到窗口，停止枚举，捕获是否成功不重要
     }
     return TRUE;
 }
@@ -232,7 +246,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
     {
         // 目前没用
         // DWORD command = (DWORD)wParam;
-        // DEBUGI(D_IME, "WM_IME_NOTIFY：%x", command);
+        // printx(D_IME, "WM_IME_NOTIFY：%x", command);
         break;
     }
     case WM_IME_SETCONTEXT:
@@ -240,7 +254,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         // 目前没用
         // BOOL fSet = (BOOL)wParam;
         // DWORD iShow = (DWORD)lParam;
-        // DEBUGI(D_IME, "WM_IME_SETCONTEXT: %s, %x", fSet ? "True" : "False", iShow);
+        // printx(D_IME, "WM_IME_SETCONTEXT: %s, %x", fSet ? "True" : "False", iShow);
         break;
     }
     case WM_IME_STARTCOMPOSITION:
@@ -301,7 +315,7 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序内功能
+//  标记  公共
 
 extern bool data_use_hook_debug = true;
 
@@ -393,6 +407,32 @@ extern bool window_datas_clean()
     return true;
 }
 
+extern WindowData *get_window_by_handle(HWND handle)
+{
+    WindowData *window = NULL;
+    while (window_datas_for_each(&window) != NULL)
+    {
+        if (window->handle == handle)
+        {
+            return window;
+        }
+    }
+    return NULL;
+}
+
+extern WindowData *get_window_by_gw(void *gw_pointer)
+{
+    WindowData *window = NULL;
+    while (window_datas_for_each(&window) != NULL)
+    {
+        if (window->gw_pointer == gw_pointer)
+        {
+            return window;
+        }
+    }
+    return NULL;
+}
+
 extern WindowData *get_window_by_wm(void *wm_pointer)
 {
     WindowData *window = NULL;
@@ -406,50 +446,49 @@ extern WindowData *get_window_by_wm(void *wm_pointer)
     return NULL;
 }
 
+extern inline void *get_gw_pointer(void *wm_pointer)
+{
+    /**
+     * 参考：
+     * source\blender\makesdna\DNA_windowmanager_types.h
+     *      typedef struct wmWindow
+     */
+    return (void *)*((size_t *)wm_pointer + 2);
+}
+
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序外功能
+//  标记  导出
 
 extern __declspec(dllexport) bool use_hook_debug(bool enable)
 {
     data_use_hook_debug = enable;
 
-    return true; // 返回的是否执行成功
+    return data_use_hook_debug;
 }
 
 extern __declspec(dllexport) bool use_hook(bool enable)
 {
     if (enable)
     {
-        DEBUGI(D_HOK, "hook startup...");
+        printx(D_HOK, "hook startup...");
 
         HRESULT result_b;
 
-        // 初始化窗口数据
-        DEBUGI(D_HOK, "初始化数据...");
-        result_b = EnumThreadWindows(thread_id, EnumThreadWindowsProc_first, (LPARAM)NULL);
-        if (!result_b)
-        {
-            DEBUGI(D_HOK, "初始化数据...失败：EnumThreadWindows");
-
-            DEBUGI(D_HOK, "hook startup...failed");
-
-            return false;
-        }
-        DEBUGI(D_HOK, "初始化数据...完成");
+        // 捕获已经存在的窗口
+        printx(D_ERR, "捕获窗口...");
+        EnumThreadWindows(thread_id, EnumThreadWndProc_init, (LPARAM)NULL);
 
         data_use_hook = true;
 
-        DEBUGI(D_HOK, "hook startup...finish");
-
-        return true;
+        printx(D_HOK, "hook startup...finish");
     }
     else
     {
         bool failed = false;
 
-        DEBUGI(D_HOK, "hook shutdown...");
+        printx(D_HOK, "hook shutdown...");
 
-        DEBUGI(D_HOK, "清理数据...[窗口个数：%d]", window_datas_head.count);
+        printx(D_HOK, "释放窗口...[窗口个数：%d]", window_datas_head.count);
 
         WindowData *window = NULL;
         while (window_datas_head.count != 0)
@@ -461,17 +500,15 @@ extern __declspec(dllexport) bool use_hook(bool enable)
 
         window_datas_clean();
 
-        DEBUGI(D_HOK, "清理数据...完成");
-
         data_use_hook = false;
 
-        DEBUGI(D_HOK, "hook shutdown...finish");
-
-        return true;
+        printx(D_HOK, "hook shutdown...finish");
     }
+
+    return data_use_hook;
 }
 
-extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
+extern __declspec(dllexport) bool window_associate(void *wm_pointer)
 {
     static bool invoke_after_enum = false;
 
@@ -480,39 +517,26 @@ extern __declspec(dllexport) bool window_associate_pointer(void *wm_pointer)
         return false;
     }
 
-    /**
-     * 参考：
-     * source\blender\makesdna\DNA_windowmanager_types.h
-     *      typedef struct wmWindow
-     */
-    void *gw_pointer = (void *)*((size_t *)wm_pointer + 2);
+    // 必须使用 gw_pointer，因为窗口捕获时只能获取 gw_pointer，其 wm_pointer 必然为 NULL
+    void *gw_pointer = get_gw_pointer(wm_pointer);
 
-    WindowData *window = NULL;
-    bool found = false;
-    while (window_datas_for_each(&window) != NULL)
-    {
-        if (window->gw_pointer == gw_pointer)
-        {
-            found = true;
-            break;
-        }
-    }
+    WindowData *window = get_window_by_gw(gw_pointer);
 
-    if (found)
+    if (window)
     {
-        DEBUGI(D_HOK, CCBA "窗口关联 [%p]: %p (gw), %p (wm)" CCZ0, window->handle, gw_pointer, wm_pointer);
         window->wm_pointer = wm_pointer;
+        printx(D_HOK, CCBA "窗口关联 [%p (HWND)]: %p (wm), %p (gw)", window->handle, wm_pointer, gw_pointer);
         return true;
     }
     else if (!invoke_after_enum)
     {
-        EnumThreadWindows(thread_id, EnumThreadWindowsProc_new, (LPARAM)gw_pointer);
+        EnumThreadWindows(thread_id, EnumThreadWndProc_associate, (LPARAM)gw_pointer);
         invoke_after_enum = true;
-        bool success = window_associate_pointer(wm_pointer);
+        bool success = window_associate(wm_pointer);
         invoke_after_enum = false;
         if (!success)
         {
-            DEBUGI(D_HOK, CCBA "窗口关联失败: %p (wm), %p (gw)" CCZ0, wm_pointer, gw_pointer);
+            printx(D_HOK, CCBR "窗口关联失败: %p (wm), %p (gw)", wm_pointer, gw_pointer);
         }
         return success;
     }
@@ -526,24 +550,11 @@ extern __declspec(dllexport) bool window_is_active(void *wm_pointer)
     {
         return false;
     }
-
-    WindowData *window = NULL;
-    bool found = false;
-    while (window_datas_for_each(&window) != NULL)
+    WindowData *window = get_window_by_wm(wm_pointer);
+    if (window)
     {
-        // 这里直接使用 wm_pointer，因为必然在 window_associate_pointer 中关联过
-        if (window->wm_pointer == wm_pointer)
-        {
-            found = true;
-            break;
-        }
+        return (window->handle == GetActiveWindow());
     }
-
-    if (found)
-    {
-        return (GetActiveWindow() == window->handle);
-    }
-
     return false;
 }
 
@@ -556,11 +567,7 @@ extern __declspec(dllexport) bool window_is_mouse_capture(void *wm_pointer)
     WindowData *window = get_window_by_wm(wm_pointer);
     if (window)
     {
-        HWND window_mouse_capture = GetCapture();
-        if (window_mouse_capture != NULL)
-        {
-            return window_mouse_capture == window->handle;
-        }
+        return (window->handle == GetCapture());
     }
     return false;
 }

@@ -16,7 +16,7 @@
 #include "hook.h"
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序内功能
+//  标记  公共
 
 extern bool data_use_fix_ime_input; // 用户是否启用【修复输入法输入】特性
 
@@ -51,7 +51,7 @@ extern void fix_ime_input_WM_IME_COMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam
 extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-//  标记  程序外功能
+//  标记  导出
 
 typedef void CompositionCallback(void *wm_pointer, int event, wchar_t *text, int pos);
 typedef void LostFocusCallback(void *wm_pointer);

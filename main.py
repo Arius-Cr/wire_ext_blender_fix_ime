@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import sys
 import os
 import time
+import traceback
 
 import bpy
 import bpy.types
@@ -15,6 +16,8 @@ DEBUG = mark.DEBUG
 DEBUG_UPDATER_1 = mark.DEBUG_UPDATER_1
 # 状态更新器-步进定时器 相关的调试信息
 DEBUG_UPDATER_2 = mark.DEBUG_UPDATER_2
+# 标题栏状态图标重绘
+DEBUG_HEADER_REDRAW = mark.DEBUG_HEADER_REDRAW
 
 from .printx import *
 
@@ -368,6 +371,7 @@ class Manager():
         self.ime_enabled = False
 
         self.editor_type: EditorType = None
+        self.prev_area = None
         self.area = None
         self.region = None
         self.space = None
@@ -504,6 +508,7 @@ class Manager():
                 native.ime_input_enable(self.wm_pointer)
                 self.ime_enabled = True
                 self.editor_type = editor_type
+                self.prev_area = self.area
                 self.area = area
                 self.region = region
                 self.space = space
@@ -511,6 +516,7 @@ class Manager():
                 self.op_delete = None
                 self.op_move = None
                 self.op_delete = None
+                self.update_icon_state()
 
                 if DEBUG:
                     printx(CCFP, "启动后更新光标位置")
@@ -533,6 +539,7 @@ class Manager():
                 native.ime_input_disable(self.wm_pointer)
                 self.ime_enabled = False
                 self.editor_type = None
+                self.prev_area = self.area
                 self.area = None
                 self.region = None
                 self.space = None
@@ -540,6 +547,52 @@ class Manager():
                 self.op_delete = None
                 self.op_move = None
                 self.op_delete = None
+                self.update_icon_state()
+        pass
+
+    def update_icon_state(self):
+        prefs = get_prefs(bpy.context)
+        use_text_editor = prefs.use_header_extend_text_editor
+        use_console = prefs.use_header_extend_console
+        if use_text_editor or use_console:
+            prev_area = self.prev_area
+            area = self.area
+            try:
+                if prev_area:
+                    if use_text_editor and prev_area.type == 'TEXT_EDITOR':
+                        for region in prev_area.regions:
+                            if region.type == 'HEADER':
+                                if DEBUG and DEBUG_HEADER_REDRAW:
+                                    printx(CCFY, "prev_area TEXT_EDITOR tag_redraw()")
+                                region.tag_redraw()
+                                break
+                    if use_console and prev_area.type == 'CONSOLE':
+                        for region in prev_area.regions:
+                            if region.type == 'HEADER':
+                                if DEBUG and DEBUG_HEADER_REDRAW:
+                                    printx(CCFY, "prev_area Console tag_redraw()")
+                                region.tag_redraw()
+                                break
+            except:
+                # 有可能 prev_area 已经销毁
+                if DEBUG and DEBUG_HEADER_REDRAW:
+                    traceback.print_exc()
+                pass
+            if area:
+                if use_text_editor and area.type == 'TEXT_EDITOR':
+                    for region in area.regions:
+                        if region.type == 'HEADER':
+                            if DEBUG and DEBUG_HEADER_REDRAW:
+                                printx(CCFY, "area TEXT_EDITOR tag_redraw()")
+                            region.tag_redraw()
+                            break
+                if use_console and area.type == 'CONSOLE':
+                    for region in area.regions:
+                        if region.type == 'HEADER':
+                            if DEBUG and DEBUG_HEADER_REDRAW:
+                                printx(CCFY, "area Console tag_redraw()")
+                            region.tag_redraw()
+                            break
         pass
 
     @staticmethod
@@ -560,6 +613,7 @@ class Manager():
                 native.ime_input_disable(manager.wm_pointer)
                 manager.ime_enabled = False
                 manager.editor_type = None
+                manager.prev_area = manager.area
                 manager.area = None
                 manager.region = None
                 manager.space = None
@@ -567,6 +621,7 @@ class Manager():
                 manager.op_delete = None
                 manager.op_move = None
                 manager.op_delete = None
+                manager.update_icon_state()
             bpy.app.timers.register(_func, first_interval=0.001, persistent=True)
 
     @staticmethod
@@ -1197,6 +1252,12 @@ def header_extend_draw_func(self: bpy.types.Header, context: bpy.types.Context) 
 
     row = layout.row()
     row.active = active
+
+    if DEBUG and DEBUG_HEADER_REDRAW:
+        if context.space_data.type == 'TEXT_EDITOR':
+            printx('TEXT_EDITOR 重绘')
+        elif context.space_data.type == 'CONSOLE':
+            printx('CONSOLE 重绘')
 
     icon = 'PROP_OFF'
     if active and switcher:

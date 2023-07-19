@@ -21,6 +21,7 @@ class _Mark():
 
         self.DEBUG_UPDATER_1: bool = False
         self.DEBUG_UPDATER_2: bool = False
+        self.DEBUG_HEADER_REDRAW: bool = False
 
         self.mark_debug = mark_debug
         self.mark_debug_names: list[str] = []

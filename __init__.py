@@ -14,6 +14,8 @@ bl_info = {
     '_pre_release': 'beta.6',
     'location': "",
     'warning': "beta.6（测试版）",
+    'doc_url': "https://github.com/Arius-Cr/wire_ext_blender_fix_ime",
+    'support': 'COMMUNITY',
     'category': 'User Interface',
 }
 

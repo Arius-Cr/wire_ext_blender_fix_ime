@@ -26,6 +26,11 @@ def register():
     if sys.platform != 'win32':
         raise Exception("本插件仅支持 Windows 平台")
     
+    import bpy
+    if bpy.app.background:
+        print(f'{__package__} 在 Blender 处于后台（--background）模式时不生效')
+        return
+
     global _mark, _main
     # Blender 会自动重新加载新的 __init__.py，但是不会重新加载其它模块。
     # 因此需要 import_module 和 卸载时删除插件中的其它模块 来实现刷新。
@@ -35,6 +40,10 @@ def register():
     pass
 
 def unregister():
+    import bpy
+    if bpy.app.background:
+        return
+    
     _main.unregister()
 
     addon_sub_modules_prefix = __package__ + '.'

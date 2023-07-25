@@ -857,7 +857,7 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
     bl_idname = 'wire_fix_ime.state_updater'
     bl_label = "状态更新器"
     bl_description = "由 wire_fix_ime 插件在内部使用"
-    bl_options = {'GRAB_CURSOR'}
+    bl_options = set()
 
     @ classmethod
     def poll(clss, context: bpy.types.Context) -> bool:
@@ -977,7 +977,7 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
                 # 注意 ：间隔必须大于 0.010s
                 self.manager.updater_start_timer = wm.event_timer_add(0.050, window=manager.window)
 
-                return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+                return {'RUNNING_MODAL', 'PASS_THROUGH', 'INTERFACE'}
 
             else:
                 if not self.waitting_for_end_message_printed:

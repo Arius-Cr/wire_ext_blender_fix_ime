@@ -17,6 +17,8 @@ kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
 # 参数：窗口WM指针，合成事件，合成文本，光标位置
 CompositionCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
 # 参数：窗口WM指针
+ButtonDownCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
+# 参数：窗口WM指针
 LostFocusCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 # 参数：窗口WM指针
 WindowDestoryCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
@@ -95,6 +97,7 @@ class _fix_ime_input:
     def __init__(self) -> None:
         self.is_use_fix_ime_input: bool = False
         self._composition_callback: ctypes._FuncPointer = None
+        self._button_down_callback: ctypes._FuncPointer = None
         self._kill_focus_callback: ctypes._FuncPointer = None
         self._window_destory_callback: ctypes._FuncPointer = None
 
@@ -119,12 +122,16 @@ class _fix_ime_input:
 
     def use_fix_ime_input(self, enable: bool,
         composition_callback: Union[Callable[[int, int, str, int], None], None] = None,
+        button_down_callback: Union[Callable[[int], None], None] = None,
         kill_focus_callback: Union[Callable[[int], None], None] = None,
         window_destory_callback: Union[Callable[[int], None], None] = None,
     ) -> bool:
         if enable:
             if not composition_callback:
                 raise Exception("缺少 composition_event_handler 参数")
+            
+            if not button_down_callback:
+                raise Exception("缺少 button_down_callback 参数")
 
             if not kill_focus_callback:
                 raise Exception("缺少 kill_focus_callback 参数")
@@ -133,15 +140,18 @@ class _fix_ime_input:
                 raise Exception("缺少 window_destory_callback 参数")
 
             self._composition_callback = CompositionCallback(composition_callback)
+            self._button_down_callback = ButtonDownCallback(button_down_callback)
             self._kill_focus_callback = LostFocusCallback(kill_focus_callback)
             self._window_destory_callback = WindowDestoryCallback(window_destory_callback)
         else:
             self._composition_callback = None
+            self._button_down_callback = None
             self._kill_focus_callback = None
             self._window_destory_callback = None
 
         self.is_use_fix_ime_input = self.dll.use_fix_ime_input(enable,
             self._composition_callback,
+            self._button_down_callback,
             self._kill_focus_callback,
             self._window_destory_callback,)
         return self.is_use_fix_ime_input

@@ -63,6 +63,7 @@
 bool himc_composition_start = false; // 是否已经处于合成流程开始阶段，用于判断是否触发 himc_input_start
 
 CompositionCallback *composition_callback = NULL;
+ButtonDownCallback *button_down_callback = NULL;
 LostFocusCallback *lost_focus_callback = NULL;
 WindowDestoryCallback *windown_destory_callback = NULL;
 
@@ -119,7 +120,32 @@ extern bool himc_composition = false;
 
 extern bool himc_block_shift_mouse_button = false;
 
-extern void fix_ime_input_WM_xBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
+extern void fix_ime_input_WM_BUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
+{
+    if (uMsg == WM_KEYDOWN)
+    {
+        USHORT key = wParam;
+        if (key == VK_SHIFT || key == VK_CONTROL)
+        {
+            return;
+        }
+    }
+    else if (uMsg == WM_SYSKEYDOWN)
+    {
+        USHORT key = wParam;
+        if (key == VK_MENU)
+        {
+            return;
+        }
+    }
+
+    if (button_down_callback)
+    {
+        button_down_callback(window->wm_pointer);
+    }
+}
+
+extern void fix_ime_input_WM_MOUSEBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
     if (himc_composition)
     {
@@ -491,6 +517,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 extern __declspec(dllexport) bool use_fix_ime_input(
     bool enable,
     CompositionCallback composition_callback_,
+    ButtonDownCallback button_down_callback_,
     LostFocusCallback lost_focus_callback_,
     WindowDestoryCallback windown_destory_callback_)
 {
@@ -502,6 +529,7 @@ extern __declspec(dllexport) bool use_fix_ime_input(
     if (enable)
     {
         composition_callback = composition_callback_;
+        button_down_callback = button_down_callback_;
         lost_focus_callback = lost_focus_callback_;
         windown_destory_callback = windown_destory_callback_;
 
@@ -514,6 +542,7 @@ extern __declspec(dllexport) bool use_fix_ime_input(
     else
     {
         composition_callback = NULL;
+        button_down_callback = NULL;
         lost_focus_callback = NULL;
         windown_destory_callback = NULL;
     }

@@ -840,6 +840,8 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
 
     @classmethod
     def add_key_map_item(clss) -> None:
+        if DEBUG:
+            printx("设置快捷键")
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(
             'Screen Editing', space_type='EMPTY', region_type='WINDOW')
         km.keymap_items.new(clss.bl_idname, type='MOUSEMOVE', value='ANY')
@@ -848,6 +850,8 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
 
     @classmethod
     def remove_key_map_item(clss) -> None:
+        if DEBUG:
+            printx("卸载快捷键")
         km = bpy.context.window_manager.keyconfigs.addon.keymaps.new(
             'Screen Editing', space_type='EMPTY', region_type='WINDOW')
         for _kmi in reversed(km.keymap_items):

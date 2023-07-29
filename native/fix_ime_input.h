@@ -28,7 +28,9 @@ extern bool himc_composition; // 是否已经处于合成流程
 
 extern bool himc_block_shift_mouse_button; // 表示 Shift + 鼠标按键时临时停用输入法
 
-extern void fix_ime_input_WM_xBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
+extern void fix_ime_input_WM_BUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
+
+extern void fix_ime_input_WM_MOUSEBUTTONDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
 
 extern void fix_ime_input_WM_KILLFOCUS(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window);
 
@@ -54,6 +56,7 @@ extern void fix_ime_input_WM_IME_ENDCOMPOSITION(HWND hWnd, UINT uMsg, WPARAM wPa
 //  标记  导出
 
 typedef void CompositionCallback(void *wm_pointer, int event, wchar_t *text, int pos);
+typedef void ButtonDownCallback(void *wm_pointer);
 typedef void LostFocusCallback(void *wm_pointer);
 typedef void WindowDestoryCallback(void *wm_pointer);
 
@@ -61,6 +64,7 @@ typedef void WindowDestoryCallback(void *wm_pointer);
 extern __declspec(dllexport) bool use_fix_ime_input(
     bool enable,
     CompositionCallback composition_callback_,
+    ButtonDownCallback button_down_callback_,
     LostFocusCallback lost_focus_callback_,
     WindowDestoryCallback windown_destory_callback_);
 

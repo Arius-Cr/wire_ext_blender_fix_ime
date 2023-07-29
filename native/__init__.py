@@ -2,6 +2,8 @@ from typing import Literal, Union, Callable
 import os
 import ctypes
 import ctypes.wintypes as wintypes
+from pathlib import Path
+import shutil
 
 from ..mark import mark
 from ..printx import *
@@ -16,6 +18,8 @@ kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
 
 # 参数：窗口WM指针，合成事件，合成文本，光标位置
 CompositionCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
+# 参数：窗口WM指针
+ButtonDownCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 # 参数：窗口WM指针
 LostFocusCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
 # 参数：窗口WM指针
@@ -95,6 +99,7 @@ class _fix_ime_input:
     def __init__(self) -> None:
         self.is_use_fix_ime_input: bool = False
         self._composition_callback: ctypes._FuncPointer = None
+        self._button_down_callback: ctypes._FuncPointer = None
         self._kill_focus_callback: ctypes._FuncPointer = None
         self._window_destory_callback: ctypes._FuncPointer = None
 
@@ -119,12 +124,16 @@ class _fix_ime_input:
 
     def use_fix_ime_input(self, enable: bool,
         composition_callback: Union[Callable[[int, int, str, int], None], None] = None,
+        button_down_callback: Union[Callable[[int], None], None] = None,
         kill_focus_callback: Union[Callable[[int], None], None] = None,
         window_destory_callback: Union[Callable[[int], None], None] = None,
     ) -> bool:
         if enable:
             if not composition_callback:
                 raise Exception("缺少 composition_event_handler 参数")
+
+            if not button_down_callback:
+                raise Exception("缺少 button_down_callback 参数")
 
             if not kill_focus_callback:
                 raise Exception("缺少 kill_focus_callback 参数")
@@ -133,15 +142,18 @@ class _fix_ime_input:
                 raise Exception("缺少 window_destory_callback 参数")
 
             self._composition_callback = CompositionCallback(composition_callback)
+            self._button_down_callback = ButtonDownCallback(button_down_callback)
             self._kill_focus_callback = LostFocusCallback(kill_focus_callback)
             self._window_destory_callback = WindowDestoryCallback(window_destory_callback)
         else:
             self._composition_callback = None
+            self._button_down_callback = None
             self._kill_focus_callback = None
             self._window_destory_callback = None
 
         self.is_use_fix_ime_input = self.dll.use_fix_ime_input(enable,
             self._composition_callback,
+            self._button_down_callback,
             self._kill_focus_callback,
             self._window_destory_callback,)
         return self.is_use_fix_ime_input
@@ -173,17 +185,19 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         pass
 
     def dll_load(self) -> bool:
-        dir = os.path.dirname(os.path.realpath(__file__))
+        dir = Path(os.path.realpath(__file__)).parent
         dll_name = __package__.split('.')[0]
         # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
         for _ext in ['.dll', '.pdb']:
-            _src = os.path.join(dir, f'{dll_name}{_ext}')
-            _dest = os.path.join(dir, f'_{dll_name}{_ext}')
-            if os.path.exists(_src):
+            _src_name = f'{dll_name}{_ext}'
+            _dst_name = '_' + _src_name
+            _src = dir.joinpath(_src_name)
+            _dst = dir.joinpath(_dst_name)
+            if _src.exists() and (not _dst.exists() or _dst.stat().st_mtime < _src.stat().st_mtime):
                 try:
-                    os.system('copy "%s" "%s" > nul' % (_src, _dest))
+                    shutil.copyfile(_src, _dst)
                 except:
-                    printx(CCBR, f"复制 {dll_name}{_ext} 到 _{dll_name}{_ext} 失败")
+                    printx(CCBR, f"复制 {_src_name} 到 {_dst_name} 失败")
 
         self.dll_handle = kernel32.LoadLibraryW(os.path.join(dir, f'_{dll_name}.dll'))
 

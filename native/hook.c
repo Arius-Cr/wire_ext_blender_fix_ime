@@ -171,9 +171,14 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
     {
         if (data_use_fix_ime_input) // 已经启用【使用输入法输入文字】特性
         {
+            if (uMsg >= WM_LBUTTONDOWN) // 仅客户区鼠标消息
+            {
+                fix_ime_input_WM_BUTTONDOWN(hWnd, uMsg, wParam, lParam, window);
+            }
+
             if (himc_enabled) // 已经在区块中启用输入法
             {
-                fix_ime_input_WM_xBUTTONDOWN(hWnd, uMsg, wParam, lParam, window);
+                fix_ime_input_WM_MOUSEBUTTONDOWN(hWnd, uMsg, wParam, lParam, window);
             }
             else if (data_use_fix_ime_state && (uMsg == WM_LBUTTONDOWN || uMsg == WM_RBUTTONDOWN))
             {
@@ -212,10 +217,20 @@ LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PT
         }
         break;
     }
+    case WM_SYSKEYDOWN:
+    {
+        if (data_use_fix_ime_input)
+        {
+            fix_ime_input_WM_BUTTONDOWN(hWnd, uMsg, wParam, lParam, window);
+        }
+        break;
+    }
     case WM_KEYDOWN:
     {
         if (data_use_fix_ime_input)
         {
+            fix_ime_input_WM_BUTTONDOWN(hWnd, uMsg, wParam, lParam, window);
+
             if (himc_enabled)
             {
                 fix_ime_input_WM_KEYDOWN(hWnd, uMsg, wParam, lParam, window);

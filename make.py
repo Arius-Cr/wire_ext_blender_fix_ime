@@ -28,11 +28,6 @@ def make():
 
     parser = argparse.ArgumentParser(
         prog="make", description="生成工具")
-    parser.add_argument('-v', '--vsdev', type=str, required=True,
-        help="VsDevCmd.bat 文件的路径，"
-        "如：C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/Tools/VsDevCmd.bat")
-    parser.add_argument('-b', '--blender-dir', type=str, required=True,
-        help="Blender 目录，用于 link、run 命令")
 
     subparsers = parser.add_subparsers(help="", dest="verbo")
 
@@ -40,13 +35,21 @@ def make():
         parents=[parser_parent])
     subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
         help="配置")
+    subparser.add_argument('--vsdev', type=str, required=True,
+        help="VsDevCmd.bat 文件的路径（用于 build 命令），"
+        "如：C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/Tools/VsDevCmd.bat")
+
     subparser = subparsers.add_parser('link', parents=[parser_parent],
         help="链接到 Blender 的 addons 目录")
     subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
         help="配置")
+    subparser.add_argument('--blender-dir', type=str, required=True,
+        help="Blender 目录")
 
     subparser = subparsers.add_parser('run', parents=[parser_parent],
         help="运行 Blender")
+    subparser.add_argument('--blender-dir', type=str, required=True,
+        help="Blender 目录")
 
     subparser = subparsers.add_parser('clean', parents=[parser_parent],
         help="清理")
@@ -54,7 +57,7 @@ def make():
     subparser = subparsers.add_parser('pack', parents=[parser_parent],
         help="打包")
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     try:
 
@@ -112,7 +115,7 @@ def build(args):
 
     if not path_vsdevcmd.exists():
         printx("找不到：%s" % path_vsdevcmd)
-        printx("请在 make.py 中将 path_vsdevcmd 设为当前系统所用版本")
+        printx("请使用 --vsdev 选项指定 VsDevCmd.bat 的路径")
 
     else:
         path_vsxproj = prj_dir.joinpath("native", "main.vcxproj")
@@ -171,15 +174,8 @@ def build(args):
         (['printx.py'], []),
         (['native', '__init__.py'], []),
         #
-        (['doc', 'images', 'state_icon_1.jpg'], []),
-        (['doc', 'images', 'state_icon_2.jpg'], []),
-        (['doc', 'images', 'state_icon_3.jpg'], []),
-        (['doc', 'zh-Hans', 'Development.md'], []),
-        (['doc', 'zh-Hans', 'Index.md'], []),
-        (['doc', 'zh-Hans', 'Usage.md'], []),
-        #
         (['LICENSE'], []),
-        (['README.md'], []),
+        (['README_package.md'], ['README.md']),
     ]
 
     if args.config == 'debug':
@@ -205,18 +201,18 @@ def build(args):
         if _src_exists:
             if _src_path.is_file():
                 if not _dst_exists or _dst_path.stat().st_mtime < _src_path.stat().st_mtime:
-                    printx("复制文件：%s" % str(_src))
+                    printx(CCFA, "复制文件：%s" % str(_src))
 
                     # Blender 3.0（Python 3.9）不支持该特性
                     if _src_path.name.endswith(".py"):
-                        _file = open(_src_path, 'r', encoding='utf-8')
-                        _count = 0
-                        for _line in _file:
-                            _count += 1
-                            if "|" in _line:
-                                printx(CCFR, "可能使用了\"A|B\"形式的类型注解")
-                                printx(CCFR, "文件：%s : %d" % (_src_path, _count))
-                                return
+                        with open(_src_path, 'r', encoding='utf-8') as _file:
+                            _count = 0
+                            for _line in _file:
+                                _count += 1
+                                if "|" in _line:
+                                    printx(CCFR, "可能使用了\"A|B\"形式的类型注解")
+                                    printx(CCFR, "文件：%s : %d" % (_src_path, _count))
+                                    return
 
                     os.makedirs(_dst_path.parent, exist_ok=True)
                     shutil.copyfile(_src_path, _dst_path)
@@ -307,15 +303,13 @@ def pack(args):
     try:
 
         import zipfile
-        from . xrelease import bl_info  # 不要在 __init__.py 中引用 bpy
+        from . xrelease import bl_info  # 不要在 __init__.py 中直接引用 bpy
 
-        version = '%s.%s.%s' % bl_info['version']
+        version = '.'.join(map(str, (_version := bl_info['version'])[:3]))
+        if len(_version) > 3:
+            version += "_" + '.'.join(map(str, _version[3:]))
 
-        pre_release = ""
-        if '_pre_release' in bl_info:
-            pre_release = "_" + bl_info['_pre_release']
-
-        file_name = f'{addon_full_name}_v{version}{pre_release}.zip'
+        file_name = f'{addon_full_name}_v{version}.zip'
 
         if (file_path := prj_dir.joinpath(file_name)).exists():
             os.remove(file_path)
@@ -338,4 +332,5 @@ def pack(args):
         printx("打包失败")
 
 
-make()
+if __name__ == '__main__':
+    make()

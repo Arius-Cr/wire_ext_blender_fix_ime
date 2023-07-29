@@ -5,11 +5,6 @@ try:  # mark_debug.py 不受版本管理，在本地目录自由改动
 except:
     mark_debug = None
 
-# 似乎在 Python 2.9 中，不同模块导入的相同模块都是不同的模块实例，
-# 可以通过 id() 看到地址的不同，而 Python 2.10 中，是相同的模块实例，
-# 所以在 2.9 中 mark.py 中的数值型变量无法在多个模块中流通，
-# 只能将这些变量包在一个引用型对象里面。
-
 class _Mark():
     def __init__(self) -> None:
 
@@ -19,9 +14,19 @@ class _Mark():
         # 生成类型是否为 Debug，否则为 Release
         self.DEBUG_BUILD: bool = False
 
+        # 状态更新器 状态更新时 相关的调试信息
         self.DEBUG_UPDATER_1: bool = False
+
+        # 状态更新器 步进计时器 相关的调试信息
         self.DEBUG_UPDATER_2: bool = False
+
+        # 更新候选窗口位置时 相关的调试信息
+        self.DEBUG_CANDIDATE_POS: bool = False
+
+        # 标题栏状态图标重绘 相关的调试信息
         self.DEBUG_HEADER_REDRAW: bool = False
+
+        # -----
 
         self.mark_debug = mark_debug
         self.mark_debug_names: list[str] = []

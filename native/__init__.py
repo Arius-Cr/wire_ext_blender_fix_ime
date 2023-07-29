@@ -2,6 +2,8 @@ from typing import Literal, Union, Callable
 import os
 import ctypes
 import ctypes.wintypes as wintypes
+from pathlib import Path
+import shutil
 
 from ..mark import mark
 from ..printx import *
@@ -129,7 +131,7 @@ class _fix_ime_input:
         if enable:
             if not composition_callback:
                 raise Exception("缺少 composition_event_handler 参数")
-            
+
             if not button_down_callback:
                 raise Exception("缺少 button_down_callback 参数")
 
@@ -183,17 +185,19 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         pass
 
     def dll_load(self) -> bool:
-        dir = os.path.dirname(os.path.realpath(__file__))
+        dir = Path(os.path.realpath(__file__)).parent
         dll_name = __package__.split('.')[0]
         # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
         for _ext in ['.dll', '.pdb']:
-            _src = os.path.join(dir, f'{dll_name}{_ext}')
-            _dest = os.path.join(dir, f'_{dll_name}{_ext}')
-            if os.path.exists(_src):
+            _src_name = f'{dll_name}{_ext}'
+            _dst_name = '_' + _src_name
+            _src = dir.joinpath(_src_name)
+            _dst = dir.joinpath(_dst_name)
+            if _src.exists() and (not _dst.exists() or _dst.stat().st_mtime < _src.stat().st_mtime):
                 try:
-                    os.system('copy "%s" "%s" > nul' % (_src, _dest))
+                    shutil.copyfile(_src, _dst)
                 except:
-                    printx(CCBR, f"复制 {dll_name}{_ext} 到 _{dll_name}{_ext} 失败")
+                    printx(CCBR, f"复制 {_src_name} 到 {_dst_name} 失败")
 
         self.dll_handle = kernel32.LoadLibraryW(os.path.join(dir, f'_{dll_name}.dll'))
 

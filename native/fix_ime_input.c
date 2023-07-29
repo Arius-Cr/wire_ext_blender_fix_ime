@@ -15,47 +15,7 @@
 #include "fix_ime_state.h"
 #include "fix_ime_input.h"
 
-/**作用机制：
- * 正常的输入法处理流程：
- *     事件发生顺序：WM_INPUT -> WM_KEYDOWN -> WM_IME_STARTCOMPOSITION -> WM_IME_COMPOSITION -> WM_IME_ENDCOMPOSITION
- *     当启用输入法时，WM_KEYDOWN 和 WM_KEYUP 的 wParam 如果为 VK_PROCESSKEY，表示按按键由输入法处理，程序应该无视该按键，
- *     转而关注 WM_IME_XXX 等消息来获取用户的文字输入，否则程序按自己逻辑处理 KEY_DOWN 即可。
- *     输入法在 WM_INPUT 之后 WM_KEYDOWN 之前介入按键处理，因此在 WM_INPUT 时程序无法得知该按键是否会被输入法处理。
- * 现况：
- *     Blender 通过 WM_INPUT 来处理按键和输入，
- *     但输入法的输入消息在该事件之后发生，因此 Blender 无法得知该按键是输入法处理还是自己需要处理，
- *     而 Blender 采用的解决方法是硬编码，即如果输入法处于非英文输入状态，则认为某些按键必定被输入法处理，
- *     但按键是否被输入法处理是输入法自身逻辑决定的，
- *     因此硬编码的内容和具体的某款输入法的处理逻辑不同的话，就会导致问题。
- *     此外，在文本物体的编辑模式、文本编辑器、控制台中 Blender 不启用输入法。
- * 策略：
- *     通过脚本检查当前鼠标是否在 【文本物体的编辑模式】、【脚本编辑器】、【控制台】 三种状态的任一状态中，
- *     如果是，则脚本主动启用 【自定义输入流程】（ime_input_enable），否则停用该流程（ime_input_disable）。
- *     启用该流程后，插件会完全接管窗口对按键的处理。
- *     定义：
- *         默认处于【普通状态】（himc_composition 为 false）
- *         当 WM_IME_STARTCOMPOSITION 发生时，进入【合成状态】；
- *         当 WM_IME_ENDCOMPOSITION 结束后，回到普通状态。
- *     在普通状态中：
- *         在 WM_INPUT 中，以下情况会调用 Blender 原来的窗口处理过程（放行），否则直接调用 DefWndProc（拦截）：
- *             1、ExtraInformation 为 myHIMC_INPUT_PASS。
- *                myHIMC_INPUT_PASS 为自设的标记，用来标记该按键是否应该被拦截，只有重放的按键具有该标记。
- *             2、控制按键。反过来的意思就是拦截所有文字按键。
- *         即在普通状态中，WM_INPUT 只能处理被重放的按键或控制按键。
- *         在 WM_KEYDOWN 和 WM_KEYUP 中，如果 wParam != VK_PROCESSKEY，则通过 keybd_event() 重放按键，
- *         此时，按键的 ExtraInformation 被设为 myHIMC_INPUT_PASS，
- *         则该按键在 WM_INPUT 中不会被拦截，同时在 WM_KEYDOWN 也不会再重放一次（否则会无限重放）。
- *         这是在普通状态，也就是输入法启用但是输入法不处理这些按键（例如英文输入模式）的时候的处理流程。
- *         如果 WM_KEYDOWN 和 WM_KEYUP 中，wParam == VK_PROCESSKEY，则不重放按键，
- *         接下来必然进入合成状态，由合成状态的流程处理文字输入。
- *     在合成状态中：
- *         在 WM_IME_STARTCOMPOSITION、WM_IME_COMPOSITION、WM_IME_ENDCOMPOSITION 中，
- *         可以获取输入法的整个文字处理阶段和正在处理的文本及文本中光标的位置，
- *         阶段分为四个：START、UPDATE、FINISH、CANCEL。
- *         当进入某个阶段，获取合成文本和合成文本中光标位置后，
- *         将数据通过 use_fix_ime_input() 时传入的回调函数发送给脚本侧的代码，
- *         由脚本侧的代码通过 bpy.ops.insert 之类的操作将合成文本显示到界面中。
- */
+/* 工作机制请参考开发指南中的说明 */
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  私有

@@ -307,6 +307,11 @@ use_temp_override: bool = False
 
 use_fix_ime_input_is_valid: bool = False  # 参考：use_fix_ime_input_update
 
+ns_to_ms: int = 1000000
+ns_to_s: int = 1000000000
+updater_step_f: float = 0.050  # s
+updater_step_i: int = updater_step_f * ns_to_s  # 1s = 1 000 ms 000 μs 000 ns
+
 managers: dict[bpy.types.Window, 'Manager'] = {}
 
 class Manager():
@@ -451,22 +456,24 @@ class Manager():
             if not self.ime_enabled or space != self.space:
                 if DEBUG:
                     printx(CCBP, "在区块中启用输入法：%s" % space.type)
-                native.ime_input_enable(self.wm_pointer)
-                self.ime_enabled = True
-                self.editor_type = editor_type
-                self.prev_area = self.area
-                self.area = area
-                self.region = region
-                self.space = space
-                self.op_insert = None  # 延迟到 event_process 中再初始化
-                self.op_delete = None
-                self.op_move = None
-                self.op_delete = None
-                self.update_icon_state()
-
-                if DEBUG:
-                    printx(CCFP, "启动后更新光标位置")
-                update_candidate_window_pos(self)
+                if native.ime_input_enable(self.wm_pointer):
+                    self.ime_enabled = True
+                    self.editor_type = editor_type
+                    self.prev_area = self.area
+                    self.area = area
+                    self.region = region
+                    self.space = space
+                    self.op_insert = None  # 延迟到 event_process 中再初始化
+                    self.op_delete = None
+                    self.op_move = None
+                    self.op_delete = None
+                    self.update_icon_state()
+                    if DEBUG:
+                        printx(CCFP, "启动后更新光标位置")
+                    update_candidate_window_pos(self)
+                else:
+                    if DEBUG:
+                        printx(CCBR, "启用输入法失败")
 
             elif self.updater_key_pressed:
                 self.updater_key_pressed = False
@@ -478,18 +485,21 @@ class Manager():
             if self.ime_enabled:
                 if DEBUG:
                     printx(CCBB, "在区块中停用输入法")
-                native.ime_input_disable(self.wm_pointer)
-                self.ime_enabled = False
-                self.editor_type = None
-                self.prev_area = self.area
-                self.area = None
-                self.region = None
-                self.space = None
-                self.op_insert = None
-                self.op_delete = None
-                self.op_move = None
-                self.op_delete = None
-                self.update_icon_state()
+                if not native.ime_input_disable(self.wm_pointer):  # 返回的是 ime_enabled 的值并不是执行是否成功
+                    self.ime_enabled = False
+                    self.editor_type = None
+                    self.prev_area = self.area
+                    self.area = None
+                    self.region = None
+                    self.space = None
+                    self.op_insert = None
+                    self.op_delete = None
+                    self.op_move = None
+                    self.op_delete = None
+                    self.update_icon_state()
+                else:
+                    if DEBUG:
+                        printx(CCBR, "停用输入法失败")
         pass
 
     def update_icon_state(self):
@@ -537,16 +547,20 @@ class Manager():
                             break
         pass
 
-    def register_updater_step_timer(self) -> None:
+    def register_updater_step_timer(self) -> Union[float, None]:
         if self.updater_step_timer:
             return
         if (native.window_is_active(self.wm_pointer) and
+            not native.is_input_box_active(self.wm_pointer) and
             not native.window_is_mouse_capture(self.wm_pointer) and
-            not self.handler):
-            if DEBUG and DEBUG_UPDATER_2:
-                printx(f"设置 {CCFA}updater_step_timer{CCZ0}")
+            not self.handler and not self.handler_start_timer):
             wm = bpy.context.window_manager
-            self.updater_step_timer = wm.event_timer_add(0.050, window=self.window)
+            span = (self.updater_prev_step_time + updater_step_i - time.time_ns()) / ns_to_s + 0.001
+            if span <= 0.001:
+                span = 0.001
+            self.updater_step_timer = wm.event_timer_add(span, window=self.window)
+            return span
+        return
 
     def unregister_updater_step_timer(self) -> None:
         if not self.updater_step_timer:
@@ -565,7 +579,9 @@ class Manager():
         if not manager:
             return
         manager.updater_key_pressed = True
-        manager.register_updater_step_timer()
+        _span_s = manager.register_updater_step_timer()
+        if DEBUG and DEBUG_UPDATER_2 and _span_s is not None:
+            printx(f"{CCFG}设置{CCZ0} updater_step_timer：BUTTON_DOWN_CALLBACK, 间隔：{_span_s * 1000:.0f}ms")
 
     @staticmethod
     def kill_focus_callback(wm_pointer: int) -> None:
@@ -750,7 +766,7 @@ class Manager():
             if DEBUG:
                 if start or update or finish:
                     printx("当前文本 (长度：%d，光标：%d):" % (self.length - 2, pos), CCBY + text + CCZ0)
-                
+
                 _span = time.perf_counter_ns() - _time
                 printx(f"{CCFY}输入消息处理耗时: {round(_span/1000000, 3): >8.3f}ms{CCZ0}")
 
@@ -786,6 +802,7 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         window = context.window
+        event_type = event.type  # 当消息为 'TIMER' 时取消了相关的定时器，会导致消息立即变为 'NONE'
 
         if window not in managers:
             window = context.window
@@ -793,44 +810,83 @@ class WIRE_FIX_IME_OT_state_updater(bpy.types.Operator):
             manager.start(context)
         manager = managers[window]
 
-        # 在用户激活输入框时，原则上这里的功能无需执行。
-        # 但由于 TIMER 消息的特殊性，这里依然会被触发，
-        # 并且由于无法获取用户是否激活了输入框，
-        # 因此无法对这种情况进行排除，
-        # 但好消息是不排除也没有任何影响。
+        # 注意 ：在输入框激活时，不应该进行状态更新操作。
+        # 使用模态操作不监听 'TIMER' 时不存在这个问题，因为输入框会阻挡 'TIMER' 之外的事件的传递，
+        # 但使用模态操作会导致自动保存失效，使用轮换式模态操作会导致鼠标捕捉和工具提示异常，
+        # 因此无法使用模态操作，所以需要自行确保在输入框激活后，不更新状态。
+        # 目前唯一会在输入框激活后触发状态更新的途径有两个：
+        #   - button_donw_callback（对应鼠标和键盘按键）
+        #   - TIMER 消息
+        # 其中，button_donw_callback 在 DLL 一侧通过 himc_custom 来判断当前输入框的激活状态。
+        # 在插件这侧也可以通过 native.is_input_box_active 来判断。
 
-        if DEBUG and DEBUG_UPDATER_1:
-            manager.updater_skip_message += 1
+        # 注意 ：需要严格过滤 'TIMER' 消息，否则在以下情况会出现问题：
+        # 激活属性视图标题栏的搜索框，将鼠标移动到文本物体处于编辑状态的3D视图中，
+        # 输入文字后，面板筛选会以动画的形式进行，此时会触发多个 'TIMER' 消息，
+        # 而这些 'TIMER' 消息会导致状态更新，
+        # 由于鼠标在符合条件的3D视图中，所以会进入自定义的输入法消息处理流程，
+        # 阻挡了搜索框中的输入。
 
-        if manager.updater_step_timer:
+        if event_type == 'TIMER':
+            is_step_timer = (manager.updater_step_timer and manager.updater_step_timer.time_delta)
+            is_start_timer = (manager.handler_start_timer and manager.handler_start_timer.time_delta)
+            if not (is_step_timer or is_start_timer):
+                if DEBUG and DEBUG_UPDATER_2:
+                    printx("无关的 TIMER 消息")
+                return {'CANCELLED', 'PASS_THROUGH', 'INTERFACE'}
+        else:  # 非 'TIMER' 消息，则必定为 False
+            is_step_timer = False
+            is_start_timer = False
+
+        if is_step_timer:
             if DEBUG and DEBUG_UPDATER_2:
-                printx(f"捕获 {CCFB}updater_step_timer{CCZ0}：{event.type}")
+                printx(f"{CCFB}捕获{CCZ0} updater_step_timer：{event_type}")
             manager.unregister_updater_step_timer()
 
         if (native.window_is_active(manager.wm_pointer) and
+            not native.is_input_box_active(manager.wm_pointer) and
             not native.window_is_mouse_capture(manager.wm_pointer) and
             not manager.handler and not manager.handler_start_timer):
 
             span_step = (_now := time.time_ns()) - manager.updater_prev_step_time
-            if span_step >= 50 * 1000000:  # 0.050s
+            if span_step >= updater_step_i:
                 manager.updater_prev_step_time = _now
+
                 if DEBUG and DEBUG_UPDATER_1:
                     _time = time.perf_counter_ns()
-                manager.update_ime_state(context, event)
-                if DEBUG and DEBUG_UPDATER_1:
-                    _span = time.perf_counter_ns() - _time
-                    printx(f"{CCFY}状态更新（间隔: {round(span_step/1000000, 3): >8.3f}ms，"
-                        f"跳过: {manager.updater_skip_message: >2d}）{CCZ0}"
-                        f"更新用时：{round(_span/1000000, 3):.3f}ms，{event.type}")
-                    manager.updater_skip_message = 0
-            else:
-                if DEBUG and DEBUG_UPDATER_2:
-                    printx(f"设置 updater_step_timer：{event.type}")
-                manager.register_updater_step_timer()
 
-        if manager.handler_start_timer:
+                manager.update_ime_state(context, event)
+
+                if DEBUG:
+                    if DEBUG_UPDATER_1:
+                        _span = time.perf_counter_ns() - _time
+                        printx(f"{CCFY}状态更新（间隔: {round(span_step / ns_to_ms, 3): >8.3f}ms，"
+                            f"跳过: {manager.updater_skip_message: >2d}）{CCZ0}"
+                            f"更新用时：{round(_span / ns_to_ms, 3):.3f}ms，{event_type}")
+                    manager.updater_skip_message = 0
+
+                if manager.updater_step_timer:
+                    if DEBUG and DEBUG_UPDATER_2:
+                        printx(f"{CCFR}取消{CCZ0} updater_step_timer：{event_type}")
+                    manager.unregister_updater_step_timer()
+
+            else:
+                if DEBUG:
+                    manager.updater_skip_message += 1
+                    if DEBUG_UPDATER_2:
+                        print(f"跳过消息({manager.updater_skip_message}): {event_type}")
+
+                # 在更新间隔内的消息，更新操作统一延迟到之后的 'TIMER' 消息
+                if not manager.updater_step_timer:
+                    _span_s = manager.register_updater_step_timer()
+                    if DEBUG and DEBUG_UPDATER_2:
+                        printx(f"{CCFG}设置{CCZ0} updater_step_timer：{event_type}, 间隔：{_span_s * 1000:.0f}ms")
+
+        # -----
+
+        if is_start_timer:
             if DEBUG:
-                printx(f"捕获 {CCFA}handler_start_timer{CCZ0}：{event.type}")
+                printx(f"捕获 {CCFA}handler_start_timer{CCZ0}：{event_type}")
             context.window_manager.event_timer_remove(manager.handler_start_timer)
             manager.handler_start_timer = None
             # 注意 ：必须加 UNDO = True，否则标点的输入会无法撤销
@@ -894,6 +950,7 @@ class WIRE_FIX_IME_OT_input_handler(bpy.types.Operator):
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         wm = context.window_manager
         manager = self.manager
+        event_type = event.type
 
         # 通过选项关闭状态更新器时，无法主动关闭模态操作，因此通过设置标记让其自行在某个时机结束。
         if not self.valid:
@@ -902,7 +959,7 @@ class WIRE_FIX_IME_OT_input_handler(bpy.types.Operator):
 
         if manager.handler_update_timer:
             if DEBUG:
-                printx(f"捕获 {CCFA}handler_update_timer{CCZ0}：{event.type}")
+                printx(f"捕获 {CCFA}handler_update_timer{CCZ0}：{event_type}")
             wm.event_timer_remove(manager.handler_update_timer)
             manager.handler_update_timer = None
 

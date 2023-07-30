@@ -81,4 +81,7 @@ extern __declspec(dllexport) bool candidate_window_position_update_text_editor(v
 
 extern __declspec(dllexport) bool candidate_window_position_update_console(void *wm_pointer, int l, int t, int r, int b, bool show_caret);
 
+// 返回当前窗口中是否有输入框处于激活状态
+extern __declspec(dllexport) bool is_input_box_active(void *wm_pointer);
+
 #endif

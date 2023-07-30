@@ -113,6 +113,9 @@ class _fix_ime_input:
         self.dll.ime_input_disable.argtypes = [ctypes.c_void_p]
         self.dll.ime_input_disable.restype = ctypes.c_bool
 
+        self.dll.is_input_box_active.argtypes = [ctypes.c_void_p]
+        self.dll.is_input_box_active.restype = ctypes.c_bool
+
         self.dll.candidate_window_position_update_font_edit.argtypes = [ctypes.c_void_p, ctypes.c_float]
         self.dll.candidate_window_position_update_font_edit.restype = ctypes.c_bool
 
@@ -163,6 +166,9 @@ class _fix_ime_input:
 
     def ime_input_disable(self, wm_pinter: int) -> bool:
         return self.dll.ime_input_disable(wm_pinter)
+    
+    def is_input_box_active(self, wm_pinter: int) -> bool:
+        return self.dll.is_input_box_active(wm_pinter)
 
     def candidate_window_position_update_font_edit(self, wm_pinter: int, p: float, show_caret: bool) -> bool:
         return self.dll.candidate_window_position_update_font_edit(wm_pinter, p, show_caret)

@@ -67,12 +67,34 @@ void window_ime_text_update(HWND hwnd, HIMC himc, DWORD type)
     }
 }
 
+bool is_input_box_active_core(WindowData *window)
+{
+    // 注意 ：从 Blender 的源码来看，数值输入框激活时不会启动 IME，
+    // 但是实际运行 Blender，数值输入框激活时，也会启动IME。
+    // 查找了一下，原因是绘制控件时，调用的 ui_but_ime_reposition 导致的，
+    // 如果之后 Blender 修复了这个 BUG，则当前的判断方法就不可靠了。
+    // 到时，针对新版本的 Blender 可能需要通过 wm_pointer 获取内部数据来判断，
+    // 但是对于旧版本保持当前方法，
+    // 否则需要编译 3.0.0 之后的所有版本来确定偏移量，工程量巨大。
+
+    bool ret = false;
+    HIMC himc = ImmGetContext(window->handle);
+    if (himc && himc != himc_custom)
+    {
+        // himc 为默认 himc 时，表示 Blender 的输入框正处于输入状态
+        ret = true;
+    }
+    if (himc)
+        ImmReleaseContext(window->handle, himc);
+    return ret;
+}
+
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 //  标记  公共
 
 extern bool data_use_fix_ime_input = false;
 
-extern HIMC himc_custom = NULL; // 现在没有用，似乎用默认的上下文就可以了
+extern HIMC himc_custom = NULL; // 主要用于判断 Blender 是否处于输入框激活状态
 
 extern bool himc_enabled = false;
 
@@ -493,11 +515,11 @@ extern __declspec(dllexport) bool use_fix_ime_input(
         lost_focus_callback = lost_focus_callback_;
         windown_destory_callback = windown_destory_callback_;
 
-        // if (himc_custom == NULL)
-        // {
-        //     himc_custom = ImmCreateContext();
-        //     ImmSetConversionStatus(himc_custom, IME_CMODE_ALPHANUMERIC, IME_SMODE_NONE);
-        // }
+        if (!himc_custom)
+        {
+            himc_custom = ImmCreateContext();
+            ImmSetConversionStatus(himc_custom, IME_CMODE_ALPHANUMERIC, IME_SMODE_NONE);
+        }
     }
     else
     {
@@ -505,6 +527,12 @@ extern __declspec(dllexport) bool use_fix_ime_input(
         button_down_callback = NULL;
         lost_focus_callback = NULL;
         windown_destory_callback = NULL;
+
+        if (himc_custom)
+        {
+            ImmDestroyContext(himc_custom);
+            himc_custom = NULL;
+        }
     }
 
     data_use_fix_ime_input = enable;
@@ -537,8 +565,14 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
         himc_composition = false;
         himc_block_shift_mouse_button = false;
 
+        DWORD conversion, sentence;
         ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
-        // ImmAssociateContext(hwnd, himc_custom);
+        HIMC himc_default = ImmGetContext(hwnd);
+        ImmGetConversionStatus(himc_default, &conversion, &sentence);
+        ImmReleaseContext(hwnd, himc_default);
+        ImmSetConversionStatus(himc_custom, conversion, sentence);
+
+        ImmAssociateContext(hwnd, himc_custom);
     }
     if (himc != NULL)
         ImmReleaseContext(hwnd, himc);
@@ -574,11 +608,27 @@ extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer)
             himc_text_length = 0;
         }
 
+        DWORD conversion, sentence;
+        ImmGetConversionStatus(himc_custom, &conversion, &sentence);
+        ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
+        HIMC himc_default = ImmGetContext(hwnd);
+        ImmSetConversionStatus(himc_default, conversion, sentence);
+        ImmReleaseContext(hwnd, himc_default);
+
         ImmAssociateContextEx(hwnd, NULL, IACE_IGNORENOCONTEXT);
     }
     if (himc != NULL)
         ImmReleaseContext(hwnd, himc);
     return himc_enabled;
+}
+
+extern __declspec(dllexport) bool is_input_box_active(void *wm_pointer)
+{
+    WindowData *window = get_window_by_wm(wm_pointer);
+    if (!window)
+        return false;
+
+    return is_input_box_active_core(window);
 }
 
 extern __declspec(dllexport) bool candidate_window_position_update_font_edit(void *wm_pointer, float p, bool show_caret)
@@ -587,10 +637,13 @@ extern __declspec(dllexport) bool candidate_window_position_update_font_edit(voi
         return false;
 
     WindowData *window = get_window_by_wm(wm_pointer);
-    if (window == NULL)
+    if (!window)
         return false;
 
     HWND hwnd = window->handle;
+    HIMC himc = ImmGetContext(hwnd);
+    if (!himc)
+        return false;
 
     /**
      * 本函数用于更新候选窗口的位置。
@@ -622,7 +675,6 @@ extern __declspec(dllexport) bool candidate_window_position_update_font_edit(voi
     ScreenToClient(hwnd, &lt);
     ScreenToClient(hwnd, &rb);
 
-    HIMC himc = ImmGetContext(hwnd);
     CANDIDATEFORM candidate_form = {0};
     candidate_form.dwIndex = 0;
     candidate_form.dwStyle = CFS_CANDIDATEPOS;
@@ -652,12 +704,14 @@ extern __declspec(dllexport) bool candidate_window_position_update_text_editor(v
         return false;
 
     WindowData *window = get_window_by_wm(wm_pointer);
-    if (window == NULL)
+    if (!window)
         return false;
 
     HWND hwnd = window->handle;
-
     HIMC himc = ImmGetContext(hwnd);
+    if (!himc)
+        return false;
+
     CANDIDATEFORM candidate_form = {0};
     candidate_form.dwIndex = 0;
     candidate_form.dwStyle = CFS_CANDIDATEPOS;
@@ -683,12 +737,14 @@ extern __declspec(dllexport) bool candidate_window_position_update_console(void 
         return false;
 
     WindowData *window = get_window_by_wm(wm_pointer);
-    if (window == NULL)
+    if (!window)
         return false;
 
     HWND hwnd = window->handle;
-
     HIMC himc = ImmGetContext(hwnd);
+    if (!himc)
+        return false;
+
     CANDIDATEFORM candidate_form = {0};
     candidate_form.dwIndex = 0;
     candidate_form.dwStyle = CFS_EXCLUDE;

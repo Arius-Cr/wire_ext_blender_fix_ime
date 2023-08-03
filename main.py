@@ -995,6 +995,9 @@ class WIRE_FIX_IME_OT_input_handler(bpy.types.Operator):
                 if DEBUG:
                     printx(CCBR, "等待下一轮进行处理，剩余消息：", len(self.manager.input_events))
                 self.manager.register_handler_start_timer()
+            else:
+                # 输入结束后需要手动更新一下状态
+                bpy.ops.wire_fix_ime.state_updater('INVOKE_DEFAULT')
 
             return {'FINISHED'} if last_event == 'FINISH' else {'CANCELLED'}
 

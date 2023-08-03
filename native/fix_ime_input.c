@@ -518,7 +518,6 @@ extern __declspec(dllexport) bool use_fix_ime_input(
         if (!himc_custom)
         {
             himc_custom = ImmCreateContext();
-            ImmSetConversionStatus(himc_custom, IME_CMODE_ALPHANUMERIC, IME_SMODE_NONE);
         }
     }
     else
@@ -569,9 +568,10 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
         ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
         HIMC himc_default = ImmGetContext(hwnd);
         ImmGetConversionStatus(himc_default, &conversion, &sentence);
-        ImmReleaseContext(hwnd, himc_default);
         ImmSetConversionStatus(himc_custom, conversion, sentence);
-
+        ImmSetOpenStatus(himc_custom, true); // 通知IME，否则设置的状态有时需要按几次转换模式的按键（如Shift）才会生效。
+        ImmReleaseContext(hwnd, himc_default);
+        
         ImmAssociateContext(hwnd, himc_custom);
     }
     if (himc != NULL)
@@ -613,9 +613,11 @@ extern __declspec(dllexport) bool ime_input_disable(void *wm_pointer)
         ImmAssociateContextEx(hwnd, NULL, IACE_DEFAULT);
         HIMC himc_default = ImmGetContext(hwnd);
         ImmSetConversionStatus(himc_default, conversion, sentence);
+        ImmSetOpenStatus(himc_default, true); // 通知IME，否则设置的状态有时需要按几次转换模式的按键（如Shift）才会生效。
         ImmReleaseContext(hwnd, himc_default);
 
-        ImmAssociateContextEx(hwnd, NULL, IACE_IGNORENOCONTEXT);
+        // ImmAssociateContextEx(hwnd, NULL, IACE_IGNORENOCONTEXT);
+        ImmAssociateContext(hwnd, NULL);
     }
     if (himc != NULL)
         ImmReleaseContext(hwnd, himc);

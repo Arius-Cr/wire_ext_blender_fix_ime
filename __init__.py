@@ -13,10 +13,13 @@ bl_info = {
     'version': (2, 0, 0),
     # 'version': (2, 0, 0, 'beta', 6),
     # 'warning': "测试版",
-    'doc_url': 'https://github.com/Arius-Cr/wire_ext_blender_fix_ime',
-    'support': 'COMMUNITY',
-    'category': 'User Interface',
     'location': "",
+    'support': 'COMMUNITY',
+    'category': 'Interface',
+    'doc_url': 'https://github.com/Arius-Cr/wire_ext_blender_fix_ime',
+    'tracker_url': 'https://github.com/Arius-Cr/wire_ext_blender_fix_ime/issues',
+    # 自定义属性
+    'release_url': 'https://github.com/Arius-Cr/wire_ext_blender_fix_ime/releases',
 }
 
 _mark = None

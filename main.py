@@ -256,6 +256,17 @@ class WIRE_FIX_IME_Preferences(bpy.types.AddonPreferences):
         rowr.separator(factor=1.5)
         rowr.label(text="平时不要开启调试，会影响性能")
 
+        from . import bl_info
+        if 'release_url' in bl_info:
+            column.separator()
+            split = column.split(factor=split_factor)
+            rowl = split.row()
+            rowl.alignment = 'RIGHT'
+            rowl.label(text="版本更新")
+            rowr = split.row()
+            op = rowr.operator('wm.url_open', text="插件发布页", icon='URL')
+            op.url = bl_info['release_url']
+
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 

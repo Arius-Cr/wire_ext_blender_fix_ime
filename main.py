@@ -997,7 +997,7 @@ class WIRE_FIX_IME_OT_input_handler(bpy.types.Operator):
                 self.manager.register_handler_start_timer()
             else:
                 # 输入结束后需要手动更新一下状态
-                bpy.ops.wire_fix_ime.state_updater('INVOKE_DEFAULT')
+                self.manager.register_updater_step_timer()
 
             return {'FINISHED'} if last_event == 'FINISH' else {'CANCELLED'}
 

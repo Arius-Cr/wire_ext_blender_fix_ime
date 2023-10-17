@@ -341,12 +341,14 @@ def pack(args):
 
         with zipfile.ZipFile(file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(dir, arcname=addon_name)
-            for root, dirs, files in os.walk(dir):
-                if os.path.basename(root) == '__pycache__':
+            for _dir, dirs, files in os.walk(dir):
+                if os.path.basename(_dir) == '__pycache__':
                     continue
-                for fn in files:
+                for file in files:
+                    if file == '_wire_fix_ime.dll':
+                        continue
                     zipf.write(
-                        fp := os.path.join(root, fn),
+                        fp := os.path.join(_dir, file),
                         arcname=addon_name + '/' + os.path.relpath(fp, dir)
                     )
 

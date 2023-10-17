@@ -10,7 +10,7 @@ bl_info = {
     'author': "阿弩斯(Arius)",
     'description': "修复 Blender 中和 IME 相关的一些问题",
     'blender': (3, 0, 0),
-    'version': (2, 0, 0),
+    'version': (2, 0, 1),
     # 'version': (2, 0, 0, 'beta', 6),
     # 'warning': "测试版",
     'location': "",

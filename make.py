@@ -24,6 +24,13 @@ addon_full_name = 'wire_ext_blender_fix_ime'
 prj_dir = Path(__file__).parent
 
 def make():
+    def boo(v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return False if v.lower() in ['false', 'off'] else True
+        return True
+
     parser_parent = argparse.ArgumentParser(add_help=False)
 
     parser = argparse.ArgumentParser(
@@ -43,13 +50,17 @@ def make():
         help="链接到 Blender 的 addons 目录")
     subparser.add_argument('-c', '--config', choices=['debug', 'release'], default='debug', required=False,
         help="配置")
-    subparser.add_argument('--blender-dir', type=str, required=True,
-        help="Blender 目录")
+    subparser.add_argument('--blender-addon-dir', type=str, required=True,
+        help="Blender 插件目录")
 
     subparser = subparsers.add_parser('run', parents=[parser_parent],
         help="运行 Blender")
     subparser.add_argument('--blender-dir', type=str, required=True,
         help="Blender 目录")
+    subparser.add_argument('--blender-user-dir', type=str, required=False, default=None,
+        help="Blender 用户目录")
+    subparser.add_argument('--use_wt', type=boo, required=False, default=False,
+        help="使用 Windows Terminal")
 
     subparser = subparsers.add_parser('clean', parents=[parser_parent],
         help="清理")
@@ -150,6 +161,7 @@ def build(args):
             props.append('OutDir={}\\'.format(path_out_dir))
 
             cmd = [
+                'chcp', '65001', '&&',
                 'call', path_vsdevcmd, '&&',
                 'msbuild.exe', path_vsxproj, '-property:' + ";".join(props)
             ]
@@ -228,24 +240,11 @@ def build(args):
 
 def link(args):
 
-    blender_dir = Path(args.blender_dir)
+    blender_addon_dir = Path(args.blender_addon_dir).resolve()
+    if not blender_addon_dir.exists():
+        os.makedirs(blender_addon_dir, exist_ok=True)
 
-    exe_path = blender_dir.joinpath("Blender.exe")
-
-    if not exe_path.exists():
-        printx("找不到：", exe_path)
-        return
-
-    version: tuple[int, int, int] = None
-
-    _rs = os.popen(f'"{exe_path}" -v')
-    if _match := re.match(r'Blender (\d+).(\d+).(\d+)', _rs.readline()):
-        version = (_match[1], _match[2], _match[3])
-    else:
-        printx(_err := "无法获取版本信息")
-        raise Exception(_err)
-
-    dst = blender_dir.joinpath('%s.%s' % version[0:2], 'scripts', 'addons', addon_name)
+    dst = blender_addon_dir.joinpath(addon_name)
 
     if os.path.lexists(dst):
         printx("删除旧链接")
@@ -270,11 +269,37 @@ def run(args):
     if not exe_path.exists():
         printx("找不到：", exe_path)
         return
-
-    cmd = [exe_path]
-    p = subprocess.Popen(cmd, shell=True)
-    (output, err) = p.communicate()
-    p_status = p.wait()
+    
+    version: tuple[int, int, int] = None
+    _rs = os.popen(f'"{exe_path}" -v')
+    if _match := re.match(r'Blender (\d+).(\d+).(\d+)', _rs.readline()):
+        version = (int(_match[1]), int(_match[2]), int(_match[3]))
+    else:
+        printx(_err := "无法获取版本信息")
+        raise Exception(_err)
+    
+    blender_user_dir: Path = None
+    if args.blender_user_dir:
+        blender_user_dir = Path(args.blender_user_dir).resolve()
+        if not blender_user_dir.exists():
+            os.makedirs(blender_user_dir, exist_ok=True)
+        _config = blender_user_dir.joinpath("config")
+        if not _config.exists():
+            os.makedirs(_config, exist_ok=True)
+        _datafiles = blender_user_dir.joinpath("datafiles")
+        _scripts = blender_user_dir.joinpath("scripts")
+        if version >= (3, 4, 0):
+            os.environ['BLENDER_USER_RESOURCES'] = str(blender_user_dir).replace('\\', '/')
+        else:
+            os.environ['BLENDER_USER_CONFIG'] = str(_config).replace('\\', '/')
+            os.environ['BLENDER_USER_DATAFILES'] = str(_datafiles).replace('\\', '/')
+            os.environ['BLENDER_USER_SCRIPTS'] = str(_scripts).replace('\\', '/')
+            
+    if args.use_wt:
+        cmd = ['wt', exe_path]
+    else:
+        cmd = [exe_path]
+    subprocess.Popen(cmd, cwd=blender_dir)
 
 def clean(args):
     if (_dir := prj_dir.joinpath('xbuild')).exists():

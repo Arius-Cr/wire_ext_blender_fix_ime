@@ -8,6 +8,8 @@
 
 - [使用输入法输入文字](#使用输入法输入文字)
 
+- [3.6.2 版非重复型快捷键失效问题](#362-版非重复型快捷键失效问题)
+
 # 生成
 
 1. 安装 [Python](https://www.python.org/) 3.x
@@ -257,3 +259,25 @@ Blender(v3.5.0) 中对输入法消息的处理机制：
        - 如果之前处理过组内的输入法消息，则删除之前消息插入过的文本。
 
        - 将合成文本插入到光标的位置，并且正确设置合成文本中光标的位置。
+
+# 3.6.2 版非重复型快捷键失效问题
+
+该问题源于以下修改（commit hash: 8191b152ecf）
+
+    Fix #109525: Improved Win32 Repeat Key Filtering
+
+    Allows Win32 key repeat filtering to support multiple simultaneously
+    repeating keys, as can happen with modifiers. Removes
+    m_keycode_last_repeat_key and instead checks current down status.
+
+    Pull Request: https://projects.blender.org/blender/blender/pulls/109991
+
+Blender 在 3.6.2 版中修改了按键重复的判断机制，从自己建立机制来判断改为使用系统的机制来判断。
+
+这个修改导致了启用了本插件后，某些没有启用**重复**的按键映射项不会被触发（譬如复制：Ctrl + C），但启用了重复的按键映射项依然能够被触发（譬如粘贴：Ctlr + V）。
+
+## 解决
+
+通过在回放按键时多加一条按键消息来取消按键的按下状态，即可使得回放的按键处于非重复状态。
+
+而重复产生的按键消息，无需多加一条按键消息，保持默认即可。

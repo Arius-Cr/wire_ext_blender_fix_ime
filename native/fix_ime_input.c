@@ -37,6 +37,9 @@ enum Composition_Event_Type
 
 #define myHIMC_INPUT_PASS 0x77697265 // 按键能否通过 WM_INPUT 的标记
 
+// dwExtraInfo 等于该标记的按键必定被拦截且抛弃，用于解决 Blender 3.6.2 版后出现的按键失效问题。
+#define myHIMC_INPUT_BLOCK 0x77697266
+
 wchar_t *himc_text = NULL;      // 当前的合成字串
 wchar_t himc_text_empty = '\0'; // 空白字符串，用于表示没有合成文本
 int himc_text_size = 0;         // 当前的合成字串字节大小
@@ -44,6 +47,8 @@ int himc_text_length = 0;       // 当前的合成字串字符数量，不含零
 int himc_text_caret_pos = 0;    // 当前的合成字串中光标的位置
 
 BYTE key_states[256] = {0}; // 在 WM_INPUT 中用于接收 GetKeyboardState() 的输出
+
+INPUT playback_key_events[2];
 
 void window_ime_text_update(HWND hwnd, HIMC himc, DWORD type)
 {
@@ -223,12 +228,18 @@ extern bool fix_ime_input_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
         /**
          * 普通状态（非合成状态）：
          * 1、如果是回放的按键则直接通过
-         * 2、否则，控制按键才允许通过（输入法应该不会拦截任何控制按键）。
+         * 2、如果是拦截的按键则直接跳过
+         * 3、否则，控制按键才允许通过（输入法应该不会拦截任何控制按键）。
          */
         if (raw.data.keyboard.ExtraInformation == myHIMC_INPUT_PASS)
         {
             printx(D_IME, CCFA "WM_INPUT 放行（%s-来自回放）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
             block = false;
+        }
+        if (raw.data.keyboard.ExtraInformation == myHIMC_INPUT_BLOCK)
+        {
+            printx(D_IME, CCFP "WM_INPUT 拦截（%s-来自回放）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
+            return true; // 直接跳过
         }
         else if (!((key >= '0' && key <= '9') ||
                    (key >= 'A' && key <= 'Z') ||
@@ -307,7 +318,7 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
             (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
         {
             LPARAM extra_info = GetMessageExtraInfo();
-            if (extra_info != myHIMC_INPUT_PASS)
+            if (extra_info != myHIMC_INPUT_PASS && extra_info != myHIMC_INPUT_BLOCK)
             {
                 if (D_IME)
                 {
@@ -315,7 +326,28 @@ extern void fix_ime_input_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
                     GetKeyNameTextW(lParam, (LPWSTR)&key_name, 256);
                     printx(D_IME, "WM_KEYDOWN 回放：\"%ls\" (%x)", key_name, key);
                 }
-                keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), 0, myHIMC_INPUT_PASS);
+                // keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), 0, myHIMC_INPUT_PASS);
+
+                // 如果当前按键不是重复的按键，则需要发送两个按键消息：
+                // 第一个消息为第二个消息进行铺垫，使得第二个消息产生时，按键处于没有按下的状态
+                // 第二个消息为正常的按键消息
+                int events_count = 1;
+                if (HIBYTE(GetKeyState(key)) != 0) // 当前按键事件非重复
+                {
+                    playback_key_events[0].type = INPUT_KEYBOARD;
+                    playback_key_events[0].ki.wVk = key;
+                    playback_key_events[0].ki.wScan = MapVirtualKey(key, MAPVK_VK_TO_VSC);
+                    playback_key_events[0].ki.dwFlags = KEYEVENTF_KEYUP;
+                    playback_key_events[0].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                    events_count = 2;
+                    printx(D_IME, "WM_KEYDOWN 中断重复状态");
+                }
+                playback_key_events[events_count - 1].type = INPUT_KEYBOARD;
+                playback_key_events[events_count - 1].ki.wVk = key;
+                playback_key_events[events_count - 1].ki.wScan = MapVirtualKey(key, MAPVK_VK_TO_VSC);
+                playback_key_events[events_count - 1].ki.dwFlags = 0;
+                playback_key_events[events_count - 1].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+                SendInput(events_count, (PINPUT)&playback_key_events, sizeof(INPUT));
             }
             else
             {
@@ -340,7 +372,7 @@ extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                 (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
             {
                 LPARAM extra_info = GetMessageExtraInfo();
-                if (extra_info != myHIMC_INPUT_PASS)
+                if (extra_info != myHIMC_INPUT_PASS && extra_info != myHIMC_INPUT_BLOCK)
                 {
                     if (D_IME)
                     {
@@ -349,7 +381,14 @@ extern void fix_ime_input_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
                         printx(D_IME, "WM_KEYUP 回放：\"%ls\" (%x)", key_name, key);
                     }
                     // 和 KEY_DOWN 的唯一不同在于第三个参数为 KEYEVENTF_KEYUP
-                    keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), KEYEVENTF_KEYUP, myHIMC_INPUT_PASS);
+                    // keybd_event(wParam, MapVirtualKey(key, MAPVK_VK_TO_VSC), KEYEVENTF_KEYUP, myHIMC_INPUT_PASS);
+
+                    playback_key_events[0].type = INPUT_KEYBOARD;
+                    playback_key_events[0].ki.wVk = key;
+                    playback_key_events[0].ki.wScan = MapVirtualKey(key, MAPVK_VK_TO_VSC);
+                    playback_key_events[0].ki.dwFlags = KEYEVENTF_KEYUP;
+                    playback_key_events[0].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+                    SendInput(1, (PINPUT)&playback_key_events, sizeof(INPUT));
                 }
                 else
                 {
@@ -571,7 +610,7 @@ extern __declspec(dllexport) bool ime_input_enable(void *wm_pointer)
         ImmSetConversionStatus(himc_custom, conversion, sentence);
         ImmSetOpenStatus(himc_custom, true); // 通知IME，否则设置的状态有时需要按几次转换模式的按键（如Shift）才会生效。
         ImmReleaseContext(hwnd, himc_default);
-        
+
         ImmAssociateContext(hwnd, himc_custom);
     }
     if (himc != NULL)

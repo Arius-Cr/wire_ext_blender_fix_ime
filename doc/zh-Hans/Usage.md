@@ -16,7 +16,7 @@
 
 > **注意**：该插件仅适用于 Windows 版的 Blender。
 
-> 支持 Blender 3.0.0 - 3.6.1，更新的版本或许也支持。
+> 支持 Blender 3.0.0 - 3.6.4，更新的版本或许也支持。
 
 1. 在 [发布](https://github.com/Arius-Cr/wire_ext_blender_fix_ime/releases) 页面下载最新版的插件（.zip）。
 

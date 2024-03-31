@@ -4,7 +4,7 @@
 
 **下载**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime/releases)、[百度网盘](https://pan.baidu.com/s/1H9DxkAdmBJXLhl5Aj29Q6Q?pwd=q4e5)
 
-**视频**：[BiliBili](about:blank)
+**视频**：[BiliBili](https://www.bilibili.com/video/BV1Jj42197YQ)
 
 目录：
 

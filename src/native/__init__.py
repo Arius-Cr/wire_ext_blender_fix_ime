@@ -1,12 +1,14 @@
+import typing
 from typing import Literal, Union, Callable
 import os
 import ctypes
+import ctypes as ct
 import ctypes.wintypes as wintypes
 from pathlib import Path
 import shutil
 
-from ..mark import mark
-from ..printx import *
+from ..debug.mark import mark
+from ..utils.printx import *
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -16,14 +18,53 @@ kernel32.LoadLibraryW.restype = ctypes.wintypes.HMODULE
 kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
 kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
 
-# 参数：窗口WM指针，合成事件，合成文本，光标位置
-CompositionCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
-# 参数：窗口WM指针
-ButtonDownCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
-# 参数：窗口WM指针
-LostFocusCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
-# 参数：窗口WM指针
-WindowDestoryCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p)
+# 参数：wm_pointer, FIEV, data
+AddonEventCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p)
+
+IMEInvoker = Literal['NONE', 'FIELD', 'VIEW_3D', 'TEXT_EDITOR', 'CONSOLE']
+IMEInvokerMaps = {
+    0: 'NONE',
+    1: 'FIELD',
+    2: 'VIEW_3D',
+    3: 'TEXT_EDITOR',
+    4: 'CONSOLE',
+    'NONE': 0,
+    'FIELD': 1,
+    'VIEW_3D': 2,
+    'TEXT_EDITOR': 3,
+    'CONSOLE': 4,
+}
+
+IMEInvoker = Literal['NONE', 'FIELD', 'VIEW_3D', 'TEXT_EDITOR', 'CONSOLE']
+
+FIEV_NONE = 0
+FIEV_COMP_START = 1
+FIEV_COMP_INPUT = 2
+FIEV_COMP_END = 3
+FIEV_BUTTON_DOWN = 4
+FIEV_LOST_FOCUS = 5
+FIEV_WINDOW_DESTORY = 6
+FIEVMaps = {
+    0: 'NONE',
+    1: 'COMP_START',
+    2: 'COMP_INPUT',
+    3: 'COMP_END',
+    4: 'BUTTON_DOWN',
+    5: 'LOST_FOCUS',
+    6: 'WINDOW_DESTORY',
+}
+
+class IMEData:
+    def __init__(self) -> None:
+        self.composite_str: str = None
+        self.composite_len_b: int = None
+        self.composite_len_c: int = None
+        self.composite_cur_i: int = None
+        self.composite_sta_i: int = None
+        self.composite_end_i: int = None
+        self.result_str: str = None
+        self.result_len_b: int = None
+        self.result_len_c: int = None
 
 class _main:
     def _dll_init__main(self):
@@ -36,22 +77,80 @@ class _main:
     def use_debug(self, level: int) -> bool:
         return self.dll.use_debug(level)
 
-    def init(self) -> bool:
-        return self.dll.init()
+    def init(self, ver_m: int, ver_s: int, ver_r: int) -> bool:
+        return self.dll.init(ver_m, ver_s, ver_r)
 
-class _hook:
+
+class _blender:
+    def _dll_init__blender(self):
+        self.dll.wmWindow_is_but_active.argtypes = [ctypes.c_void_p]
+        self.dll.wmWindow_is_but_active.restype = ctypes.c_bool
+
+        self.dll.wmWindow_is_pop_active.argtypes = [ctypes.c_void_p]
+        self.dll.wmWindow_is_pop_active.restype = ctypes.c_bool
+
+        self.dll.wmWindow_active_screen_get.argtypes = [ctypes.c_void_p]
+        self.dll.wmWindow_active_screen_get.restype = ctypes.c_void_p
+
+        self.dll.wmWindow_active_region_get.argtypes = [ctypes.c_void_p]
+        self.dll.wmWindow_active_region_get.restype = ctypes.c_void_p
+
+        self.dll.SpaceText_lheight_px_get.argtypes = [ctypes.c_void_p]
+        self.dll.SpaceText_lheight_px_get.restype = ctypes.c_int
+
+        self.dll.SpaceText_cwidth_px_get.argtypes = [ctypes.c_void_p]
+        self.dll.SpaceText_cwidth_px_get.restype = ctypes.c_int
+
+        self.dll.SpaceText_line_number_display_digits_get.argtypes = [ctypes.c_void_p]
+        self.dll.SpaceText_line_number_display_digits_get.restype = ctypes.c_int
+
+    def wmWindow_is_but_active(self, wm_pointer: int) -> bool:
+        return self.dll.wmWindow_is_but_active(wm_pointer)
+
+    def wmWindow_is_pop_active(self, wm_pointer: int) -> bool:
+        return self.dll.wmWindow_is_pop_active(wm_pointer)
+
+    def wmWindow_active_screen_get(self, wm_pointer: int) -> int:
+        return self.dll.wmWindow_active_screen_get(wm_pointer)
+
+    def wmWindow_active_region_get(self, wm_pointer: int) -> int:
+        return self.dll.wmWindow_active_region_get(wm_pointer)
+
+    def SpaceText_lheight_px_get(self, SpaceText_pointer: int) -> int:
+        return self.dll.SpaceText_lheight_px_get(SpaceText_pointer)
+
+    def SpaceText_cwidth_px_get(self, SpaceText_pointer: int) -> int:
+        return self.dll.SpaceText_cwidth_px_get(SpaceText_pointer)
+
+    def SpaceText_line_number_display_digits_get(self, SpaceText_pointer: int) -> int:
+        return self.dll.SpaceText_line_number_display_digits_get(SpaceText_pointer)
+
+class _fix_ime:
     def __init__(self) -> None:
-        self.is_use_hook = False
+        self._use_fix_ime = False
+        self._event_callback: ctypes._FuncPointer = None
 
-    def _dll_init__hook(self):
-        self.dll.use_hook_debug.argtypes = [ctypes.c_bool]
-        self.dll.use_hook_debug.restype = ctypes.c_bool
+    def _dll_init__fix_ime(self):
+        self.dll.use_fix_ime_debug.argtypes = [ctypes.c_bool]
+        self.dll.use_fix_ime_debug.restype = ctypes.c_bool
 
-        self.dll.use_hook.argtypes = [ctypes.c_bool]
-        self.dll.use_hook.restype = ctypes.c_bool
+        self.dll.use_fix_ime.argtypes = [ctypes.c_bool, ctypes.c_void_p]
+        self.dll.use_fix_ime.restype = ctypes.c_bool
 
-        self.dll.window_associate.argtypes = [ctypes.c_void_p]
-        self.dll.window_associate.restype = ctypes.c_bool
+        self.dll.use_fix_ime_for_field.argtypes = [ctypes.c_bool]
+        self.dll.use_fix_ime_for_field.restype = None
+
+        self.dll.use_fix_ime_for_space.argtypes = [ctypes.c_bool]
+        self.dll.use_fix_ime_for_space.restype = None
+
+        self.dll.use_fix_direct_input_caps_lock.argtypes = [ctypes.c_bool]
+        self.dll.use_fix_direct_input_caps_lock.restype = None
+
+        self.dll.use_fix_direct_input_all.argtypes = [ctypes.c_bool]
+        self.dll.use_fix_direct_input_all.restype = None
+
+        self.dll.hook_window.argtypes = [ctypes.c_void_p]
+        self.dll.hook_window.restype = ctypes.c_bool
 
         self.dll.window_is_active.argtypes = [ctypes.c_void_p]
         self.dll.window_is_active.restype = ctypes.c_bool
@@ -59,15 +158,54 @@ class _hook:
         self.dll.window_is_mouse_capture.argtypes = [ctypes.c_void_p]
         self.dll.window_is_mouse_capture.restype = ctypes.c_bool
 
-    def use_hook_debug(self, enable: int) -> bool:
-        return self.dll.use_hook_debug(enable)
+        self.dll.ime_invoker_get.argtypes = [ctypes.c_void_p]
+        self.dll.ime_invoker_get.restype = ctypes.c_int
 
-    def use_hook(self, enable: bool) -> bool:
-        self.is_use_hook = self.dll.use_hook(enable)
-        return self.is_use_hook
+        self.dll.ime_is_enabled.argtypes = [ctypes.c_void_p]
+        self.dll.ime_is_enabled.restype = ctypes.c_bool
 
-    def window_associate(self, wm_pointer: int) -> bool:
-        return self.dll.window_associate(wm_pointer)
+        self.dll.ime_enable.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self.dll.ime_enable.restype = ctypes.c_bool
+
+        self.dll.ime_disable.argtypes = [ctypes.c_void_p]
+        self.dll.ime_disable.restype = ctypes.c_bool
+
+        self.dll.ime_move_candidate_window.argtypes = [ctypes.c_void_p,
+                                                       ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                                       ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                                       ctypes.c_bool]
+        self.dll.ime_move_candidate_window.restype = ctypes.c_bool
+
+    def use_fix_ime_debug(self, enable: int) -> bool:
+        return self.dll.use_fix_ime_debug(enable)
+
+    def use_fix_ime(self, enable: bool,
+                    event_callback: Union[Callable[[int, int, int], None], None] = None) -> bool:
+        if enable:
+            if not event_callback:
+                raise Exception("缺少 composition_event_handler 参数")
+            self._event_callback = AddonEventCallback(event_callback)
+        else:
+            self._event_callback = None
+
+        self._use_fix_ime = self.dll.use_fix_ime(enable,
+            self._event_callback)
+        return self._use_fix_ime
+
+    def use_fix_ime_for_field(self, enable: bool):
+        self.dll.use_fix_ime_for_field(enable)
+
+    def use_fix_ime_for_space(self, enable: bool):
+        self.dll.use_fix_ime_for_space(enable)
+
+    def use_fix_direct_input_caps_lock(self, enable: bool):
+        self.dll.use_fix_direct_input_caps_lock(enable)
+
+    def use_fix_direct_input_all(self, enable: bool):
+        self.dll.use_fix_direct_input_all(enable)
+
+    def hook_window(self, wm_pointer: int) -> bool:
+        return self.dll.hook_window(wm_pointer)
 
     def window_is_active(self, wm_pointer: int) -> bool:
         return self.dll.window_is_active(wm_pointer)
@@ -75,117 +213,64 @@ class _hook:
     def window_is_mouse_capture(self, wm_pointer: int) -> bool:
         return self.dll.window_is_mouse_capture(wm_pointer)
 
-class _fix_ime:
-    def _dll_init__fix_ime(self):
-        self.dll.use_fix_ime_debug.argtypes = [ctypes.c_bool]
-        self.dll.use_fix_ime_debug.restype = ctypes.c_bool
+    def ime_invoker_get(self, wm_pointer: int) -> IMEInvoker:
+        return IMEInvokerMaps[self.dll.ime_invoker_get(wm_pointer)]
 
-    def use_fix_ime_debug(self, enable: bool) -> bool:
-        return self.dll.use_fix_ime_debug(enable)
+    def ime_is_enabled(self, wm_pointer: int) -> bool:
+        return self.dll.ime_is_enabled(wm_pointer)
 
-class _fix_ime_state:
-    def __init__(self) -> None:
-        self.is_use_fix_ime_state: bool = False
+    def ime_enable(self, wm_pinter: int, invoker: IMEInvoker) -> bool:
+        ret = self.dll.ime_enable(wm_pinter, IMEInvokerMaps[invoker])
+        return ret
 
-    def _dll_init__fix_ime_state(self):
-        self.dll.use_fix_ime_state.argtypes = [ctypes.c_bool]
-        self.dll.use_fix_ime_state.restype = ctypes.c_bool
+    def ime_disable(self, wm_pinter: int) -> bool:
+        ret = self.dll.ime_disable(wm_pinter)
+        return ret
 
-    def use_fix_ime_state(self, enable: bool) -> bool:
-        self.is_use_fix_ime_state = self.dll.use_fix_ime_state(enable)
-        return self.is_use_fix_ime_state
+    def ime_move_candidate_window(self, wm_pinter: int,
+        c_l: int, c_t: int, c_w: int, c_h: int,
+        e_l: int, e_t: int, e_w: int, e_h: int, show_caret: bool) -> bool:
+        return self.dll.ime_move_candidate_window(wm_pinter,
+            c_l, c_t, c_w, c_h,
+            e_l, e_t, e_w, e_h, show_caret)
 
-class _fix_ime_input:
-    def __init__(self) -> None:
-        self.is_use_fix_ime_input: bool = False
-        self._composition_callback: ctypes._FuncPointer = None
-        self._button_down_callback: ctypes._FuncPointer = None
-        self._kill_focus_callback: ctypes._FuncPointer = None
-        self._window_destory_callback: ctypes._FuncPointer = None
+    def get_ime_data(self, addr: int) -> IMEData:
+        ime_data = IMEData()
 
-    def _dll_init__fix_ime_input(self):
-        self.dll.use_fix_ime_input.argtypes = [ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
-        self.dll.use_fix_ime_input.restype = ctypes.c_bool
+        if ct.c_size_t.from_address(addr).value:
+            ime_data.composite_str = ct.c_wchar_p.from_address(addr).value.encode('utf-8').decode('utf-8')
+        addr += ct.sizeof(ct.c_size_t)
 
-        self.dll.ime_input_enable.argtypes = [ctypes.c_void_p]
-        self.dll.ime_input_enable.restype = ctypes.c_bool
+        ime_data.composite_len_b = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
+        ime_data.composite_len_c = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
+        ime_data.composite_cur_i = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
+        ime_data.composite_sta_i = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
+        ime_data.composite_end_i = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
 
-        self.dll.ime_input_disable.argtypes = [ctypes.c_void_p]
-        self.dll.ime_input_disable.restype = ctypes.c_bool
+        addr += ct.sizeof(ct.c_char) * 4
 
-        self.dll.is_input_box_active.argtypes = [ctypes.c_void_p]
-        self.dll.is_input_box_active.restype = ctypes.c_bool
+        if ct.c_size_t.from_address(addr).value:
+            ime_data.result_str = ct.c_wchar_p.from_address(addr).value.encode('utf-8').decode('utf-8')
+        addr += ct.sizeof(ct.c_size_t)
 
-        self.dll.candidate_window_position_update_font_edit.argtypes = [ctypes.c_void_p, ctypes.c_float]
-        self.dll.candidate_window_position_update_font_edit.restype = ctypes.c_bool
+        ime_data.result_len_b = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
+        ime_data.result_len_c = ct.c_long.from_address(addr).value
+        addr += ct.sizeof(ct.c_long)
 
-        self.dll.candidate_window_position_update_text_editor.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
-        self.dll.candidate_window_position_update_text_editor.restype = ctypes.c_bool
+        return ime_data
 
-        self.dll.candidate_window_position_update_console.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
-        self.dll.candidate_window_position_update_console.restype = ctypes.c_bool
 
-    def use_fix_ime_input(self, enable: bool,
-        composition_callback: Union[Callable[[int, int, str, int], None], None] = None,
-        button_down_callback: Union[Callable[[int], None], None] = None,
-        kill_focus_callback: Union[Callable[[int], None], None] = None,
-        window_destory_callback: Union[Callable[[int], None], None] = None,
-    ) -> bool:
-        if enable:
-            if not composition_callback:
-                raise Exception("缺少 composition_event_handler 参数")
-
-            if not button_down_callback:
-                raise Exception("缺少 button_down_callback 参数")
-
-            if not kill_focus_callback:
-                raise Exception("缺少 kill_focus_callback 参数")
-
-            if not window_destory_callback:
-                raise Exception("缺少 window_destory_callback 参数")
-
-            self._composition_callback = CompositionCallback(composition_callback)
-            self._button_down_callback = ButtonDownCallback(button_down_callback)
-            self._kill_focus_callback = LostFocusCallback(kill_focus_callback)
-            self._window_destory_callback = WindowDestoryCallback(window_destory_callback)
-        else:
-            self._composition_callback = None
-            self._button_down_callback = None
-            self._kill_focus_callback = None
-            self._window_destory_callback = None
-
-        self.is_use_fix_ime_input = self.dll.use_fix_ime_input(enable,
-            self._composition_callback,
-            self._button_down_callback,
-            self._kill_focus_callback,
-            self._window_destory_callback,)
-        return self.is_use_fix_ime_input
-
-    def ime_input_enable(self, wm_pinter: int) -> bool:
-        return self.dll.ime_input_enable(wm_pinter)
-
-    def ime_input_disable(self, wm_pinter: int) -> bool:
-        return self.dll.ime_input_disable(wm_pinter)
-    
-    def is_input_box_active(self, wm_pinter: int) -> bool:
-        return self.dll.is_input_box_active(wm_pinter)
-
-    def candidate_window_position_update_font_edit(self, wm_pinter: int, p: float, show_caret: bool) -> bool:
-        return self.dll.candidate_window_position_update_font_edit(wm_pinter, p, show_caret)
-
-    def candidate_window_position_update_text_editor(self, wm_pinter: int, x: int, y: int, h: int, show_caret: bool) -> bool:
-        return self.dll.candidate_window_position_update_text_editor(wm_pinter, x, y, h, show_caret)
-
-    def candidate_window_position_update_console(self, wm_pinter: int, l: int, t: int, r: int, b: int, show_caret: bool) -> bool:
-        return self.dll.candidate_window_position_update_console(wm_pinter, l, t, r, b, show_caret)
-
-class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
+class Native(_main, _blender, _fix_ime):
     def __init__(self):
         _main.__init__(self)
-        _hook.__init__(self)
+        _blender.__init__(self)
         _fix_ime.__init__(self)
-        _fix_ime_state.__init__(self)
-        _fix_ime_input.__init__(self)
         self.dll: ctypes.CDLL = None
         self.dll_handle = None
         pass
@@ -217,10 +302,8 @@ class Native(_main, _hook, _fix_ime, _fix_ime_state, _fix_ime_input):
         self.dll = ctypes.CDLL("", handle=self.dll_handle)
 
         self._dll_init__main()
-        self._dll_init__hook()
+        self._dll_init__blender()
         self._dll_init__fix_ime()
-        self._dll_init__fix_ime_state()
-        self._dll_init__fix_ime_input()
         return True
 
     def dll_unload(self) -> bool:

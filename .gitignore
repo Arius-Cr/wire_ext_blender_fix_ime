@@ -15,7 +15,7 @@ __pycache__/
 !/make_*.py
 
 # 调试标记
-src/utils/mark_debug.py
+src/debug/mark_locale.py
 
 # 打包时生成的文件
 *.zip

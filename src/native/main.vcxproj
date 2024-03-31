@@ -69,19 +69,15 @@
     </ItemDefinitionGroup>
 
     <ItemGroup>
-        <ClCompile Include="fix_ime_input.c" />
-        <ClCompile Include="fix_ime_state.c" />
-        <ClCompile Include="fix_ime.c" />
-        <ClCompile Include="hook.c" />
+        <ClCompile Include="blender.c" />
+        <ClCompile Include="ime.c" />
         <ClCompile Include="main.c" />
         <ClCompile Include="utils.c" />
     </ItemGroup>
 
     <ItemGroup>
-        <ClInclude Include="fix_ime_input.h" />
-        <ClInclude Include="fix_ime_state.h" />
-        <ClInclude Include="fix_ime.h" />
-        <ClInclude Include="hook.h" />
+        <ClInclude Include="blender.h" />
+        <ClInclude Include="ime.h" />
         <ClInclude Include="main.h" />
         <ClInclude Include="utils.h" />
     </ItemGroup>

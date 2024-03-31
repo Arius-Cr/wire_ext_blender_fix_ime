@@ -6,8 +6,8 @@ import time
 import traceback
 import sys
 
-from .mark import mark
-from .printx import *
+from ..debug.mark import mark
+from ..utils.printx import *
 
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
@@ -173,108 +173,11 @@ def register():
         bpy.utils.register_class(WIRE_FIX_IME_OT_test_insert)
         WIRE_FIX_IME_OT_test_insert.add_key_map_item()
 
-        if WIRE_FIX_IME_OT_test_fix_ime_toggle.__name__ not in dir(bpy.types):
-            # 注册后不卸载
-            bpy.utils.register_class(WIRE_FIX_IME_OT_test_fix_ime_toggle)
-            bpy.utils.register_class(WIRE_FIX_IME_OT_test_fix_ime_reload)
-            bpy.types.STATUSBAR_HT_header.prepend(STATUSBAR_HT_header_draw_func)
-
 def unregister():
     if mark.DEBUG_BUILD:
-        WIRE_FIX_IME_OT_test_insert.add_key_map_item()
+        WIRE_FIX_IME_OT_test_insert.remove_key_map_item()
         bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_insert)
         bpy.types.VIEW3D_MT_edit_font.remove(VIEW3D_MT_edit_font_draw_func)
-        bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_delete_speed_1)
         bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_delete_speed_2)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_test_delete_speed_1)
         bpy.utils.unregister_class(WIRE_FIX_IME_PT_text_editor_info)
-
-# ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-target_name = __package__
-
-class WIRE_FIX_IME_OT_test_fix_ime_reload(bpy.types.Operator):
-    bl_idname = 'wire_fix_ime.test_fix_ime_reload'
-    bl_label = "重启插件"
-    bl_description = "重启插件"
-
-    def execute(self, context: bpy.types.Context):
-        try:
-            bpy.ops.preferences.addon_disable(module=target_name)
-        except:
-            traceback.print_exc()
-            print("\033[1;37;41m插件停用失败：%s\033[0m" % target_name)
-            self.report({"INFO"}, "插件停用失败：%s" % target_name)
-            return {'CANCELLED'}
-
-        try:
-            for name in list(sys.modules.keys()):
-                if name == target_name:
-                    del sys.modules[name]
-                    break
-        except:
-            traceback.print_exc()
-            print("\033[1;37;41m插件删除失败：%s\033[0m" % target_name)
-            self.report({"INFO"}, "插件删除失败：%s" % target_name)
-            return {'CANCELLED'}
-
-        try:
-            bpy.ops.preferences.addon_enable(module=target_name)
-        except:
-            traceback.print_exc()
-            print("\033[1;37;41m插件启用失败：%s\033[0m" % target_name)
-            self.report({"INFO"}, "插件启用失败：%s" % target_name)
-            return {'CANCELLED'}
-
-        for window in bpy.context.window_manager.windows:
-            for area in window.screen.areas:
-                area.tag_redraw()
-
-        return {'FINISHED'}
-
-class WIRE_FIX_IME_OT_test_fix_ime_toggle(bpy.types.Operator):
-    bl_idname = 'wire_fix_ime.test_fix_ime_toggle'
-    bl_label = "启停插件"
-    bl_description = "启停插件"
-
-    def execute(self, context: bpy.types.Context):
-        if target_name in bpy.context.preferences.addons:
-            try:
-                bpy.ops.preferences.addon_disable(module=target_name)
-            except:
-                traceback.print_exc()
-                print("\033[1;37;41m插件停用失败：%s\033[0m" % target_name)
-                self.report({"INFO"}, "插件停用失败：%s" % target_name)
-                return {'CANCELLED'}
-
-            try:
-                for name in list(sys.modules.keys()):
-                    if name == target_name:
-                        del sys.modules[name]
-                        break
-            except:
-                traceback.print_exc()
-                print("\033[1;37;41m插件删除失败：%s\033[0m" % target_name)
-                self.report({"INFO"}, "插件删除失败：%s" % target_name)
-                return {'CANCELLED'}
-
-        else:
-            try:
-                bpy.ops.preferences.addon_enable(module=target_name)
-            except:
-                traceback.print_exc()
-                print("\033[1;37;41m插件启用失败：%s\033[0m" % target_name)
-                self.report({"INFO"}, "插件启用失败：%s" % target_name)
-                return {'CANCELLED'}
-
-            for window in bpy.context.window_manager.windows:
-                for area in window.screen.areas:
-                    area.tag_redraw()
-
-        return {'FINISHED'}
-
-def STATUSBAR_HT_header_draw_func(self: bpy.types.Header, context: bpy.types.Context):
-    layout = self.layout
-    row = layout.row(align=True)
-    row.operator(WIRE_FIX_IME_OT_test_fix_ime_reload.bl_idname, text="", icon='FILE_SCRIPT')
-    row.operator(WIRE_FIX_IME_OT_test_fix_ime_toggle.bl_idname, text="",
-        icon='RADIOBUT_ON' if __package__ in context.preferences.addons else 'RADIOBUT_OFF')

@@ -1,0 +1,18 @@
+注：该类型的长度可以通过 wmWindow_is_but_active() 函数在调试时打印的内容获取，可以不用人工计算和估算。
+
+----- V1
+3.0.0 - 3.1.2
+
+----- V2
+3.2.0 - 3.6.9
+4.0.0 - 4.0.2
+新增 disable_force 成员
+
+----- V3
+4.1.0 - 4.1.0
+新增 draglastvalue、dragstartvalue、menuretval 成员
+
+无影响的改动：
+3.1.0 改动了注释
+3.5.0 从 C 转为 C++
+3.6.0 成员 maxlen 改名为 str_maxncpy

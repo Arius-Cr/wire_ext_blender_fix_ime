@@ -1,35 +1,13 @@
-# wire_fix_ime
+# 输入法助手
 
-**项目链接**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime)
+**仓库**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime)
 
-**文档链接**：[中文](doc/zh-Hans/Index.md)
+**下载**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime/releases)、[百度网盘](https://pan.baidu.com/s/1H9DxkAdmBJXLhl5Aj29Q6Q?pwd=q4e5)
 
-&nbsp;
+**视频**：[BiliBili](about:blank)
 
-**注意：该插件仅适用于 Windows 版的 Blender。**
+该插件能够让 Blender 更好地支持 Windows 平台上的输入法。
 
-&nbsp;
+让你在 Blender 的输入框、文本物体编辑模式、文本编辑器、控制台中，获得良好的输入法使用体验。
 
-通过插件修复 Blender 中，和 IME 相关的一些问题，目前实现的功能包括：
-
-1. **自动管理输入法状态**
-
-    该功能所针对的问题往往会被描述为“快捷键失灵”，或者“快捷键和输入法冲突”等。
-
-    该问题的经典场景就是通过输入法重命名物体的名称，并且按下 Enter 键后，鼠标移动到 3D 视图，按下“G”键移动物体，并没有触发移动操作，而是弹出了输入法的候选窗口。
-
-    本功能可以在用户激活输入控件时自动启用输入法，在用户离开输入控件时自动停用输入法。
-
-2. **使用输入法输入文字**
-
-    允许用户在以下状态时，直接通过输入法输入文字：
-
-    - 3D视图文本物体的编辑模式
-
-    - 文本编辑器
-
-    - 控制台
-
-&nbsp;
-
-详细内容请参考本页顶部列出的 **文档链接**。
+详细介绍请参考帮助文档：[中文](docs/zh-Hans/Index.md)

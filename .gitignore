@@ -5,16 +5,17 @@ __pycache__/
 /xbuild/
 /xdebug/
 /xrelease/
+/xrelease-package/
+/xxx/
+/site-packages/
 
 # 除了 make.py 和 make_*.py 文件，其它 make 开头的文件均为私用文件，不纳入代码管理
 /make*.*
 !/make.py
 !/make_*.py
 
-/mark_debug.py
-
-# 暂记待办事项的文件，为私用文件
-/TODO.markdown
+# 调试标记
+src/debug/mark_locale.py
 
 # 打包时生成的文件
 *.zip

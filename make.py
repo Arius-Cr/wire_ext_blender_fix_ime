@@ -10,11 +10,12 @@ import re
 _dir = os.path.dirname(__file__)
 _dir_dir = os.path.dirname(_dir)
 sys.path.append(_dir_dir)
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'utils'))
 __package__ = os.path.basename(_dir)
 del _dir
 del _dir_dir
 
-from .printx import *
+from .src.utils.printx import *
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -34,9 +35,9 @@ def make():
     parser_parent = argparse.ArgumentParser(add_help=False)
 
     parser = argparse.ArgumentParser(
-        prog="make", description="生成工具")
+        prog='make', description="生成工具")
 
-    subparsers = parser.add_subparsers(help="", dest="verbo")
+    subparsers = parser.add_subparsers(help="", dest='verbo')
 
     subparser = subparsers.add_parser('build', help="生成",
         parents=[parser_parent])
@@ -129,23 +130,23 @@ def build(args):
         printx("请使用 --vsdev 选项指定 VsDevCmd.bat 的路径")
 
     else:
-        path_vsxproj = prj_dir.joinpath("native", "main.vcxproj")
-        path_src_dir = prj_dir.joinpath("native")
-        path_int_dir = int_dir.joinpath("int")
-        path_out_dir = int_dir.joinpath("out")
+        path_vsxproj = prj_dir.joinpath('src', 'native', 'main.vcxproj')
+        path_src_dir = prj_dir.joinpath('src', 'native')
+        path_int_dir = int_dir.joinpath('int')
+        path_out_dir = int_dir.joinpath('out')
 
         need_to_rebuild = True
         if path_out_dir.exists():
 
             mtime_src = 0
             for _name in os.listdir(path_src_dir):
-                if _name.endswith(".py"):
+                if _name.endswith('.py'):
                     continue
                 mtime_src = max(mtime_src, os.path.getmtime(path_src_dir.joinpath(_name)))
 
             mtime_out = 0
             for _name in os.listdir(path_out_dir):
-                if _name.endswith(".py"):
+                if _name.endswith('.py'):
                     continue
                 mtime_out = max(mtime_out, os.path.getmtime(path_out_dir.joinpath(_name)))
 
@@ -180,24 +181,26 @@ def build(args):
     # 复制文件
 
     files = [  # (src, dst)
-        (['__init__.py'], []),
-        (['main.py'], []),
-        (['mark.py'], []),
-        (['printx.py'], []),
-        (['native', '__init__.py'], []),
+        (['src', 'debug', '__init__.py'], ['debug', '__init__.py']),
+        (['src', 'debug', 'mark.py'], ['debug', 'mark.py']),
+        (['src', 'native', '__init__.py'], ['native', '__init__.py']),
+        (['xbuild', args.config, 'out', f'{addon_name}.dll'], ['native', f'{addon_name}.dll']),
+        (['src', 'utils', '__init__.py'], ['utils', '__init__.py']),
+        (['src', 'utils', 'printx.py'], ['utils', 'printx.py']),
+        (['src', '__init__.py'], ['__init__.py']),
+        (['src', 'ime.py'], ['ime.py']),
+        (['src', 'main.py'], ['main.py']),
+        (['src', 'prefs.py'], ['prefs.py']),
         #
         (['LICENSE'], []),
-        (['README_package.md'], ['README.md']),
+        (['docs', 'README_package.md'], ['README.md']),
     ]
 
     if args.config == 'debug':
-        files.append((['mark_debug.py'], []))
-        files.append((['test.py'], []))
-        files.append((['xbuild', 'debug', 'out', 'wire_fix_ime.dll'], ['native', 'wire_fix_ime.dll']))
-        files.append((['xbuild', 'debug', 'out', 'wire_fix_ime.pdb'], ['native', 'wire_fix_ime.pdb']))
-    elif args.config == 'release':
-        files.append((['xbuild', 'release', 'out', 'wire_fix_ime.dll'], ['native', 'wire_fix_ime.dll']))
-
+        files.append((['src', 'debug', 'mark_locale.py'], ['debug', 'mark_locale.py']))
+        files.append((['src', 'dev', '__init__.py'], ['dev', '__init__.py']))
+        files.append((['xbuild', args.config, 'out', f'{addon_name}.pdb'], ['native', f'{addon_name}.pdb']))
+        
     for _src, _dst in files:
         if _src is None:
             continue
@@ -216,12 +219,12 @@ def build(args):
                     printx(CCFA, "复制文件：%s" % str(_src))
 
                     # Blender 3.0（Python 3.9）不支持该特性
-                    if _src_path.name.endswith(".py"):
+                    if _src_path.name.endswith('.py'):
                         with open(_src_path, 'r', encoding='utf-8') as _file:
                             _count = 0
                             for _line in _file:
                                 _count += 1
-                                if "|" in _line:
+                                if '|' in _line:
                                     printx(CCFR, "可能使用了\"A|B\"形式的类型注解")
                                     printx(CCFR, "文件：%s : %d" % (_src_path, _count))
                                     return
@@ -262,14 +265,16 @@ def link(args):
 
 def run(args):
 
+    os.environ['ENHANCE_WINDOWS_IME'] = "YES"
+
     blender_dir = Path(args.blender_dir)
 
-    exe_path = blender_dir.joinpath("Blender.exe")
+    exe_path = blender_dir.joinpath('Blender.exe')
 
     if not exe_path.exists():
         printx("找不到：", exe_path)
         return
-    
+
     version: tuple[int, int, int] = None
     _rs = os.popen(f'"{exe_path}" -v')
     if _match := re.match(r'Blender (\d+).(\d+).(\d+)', _rs.readline()):
@@ -277,24 +282,25 @@ def run(args):
     else:
         printx(_err := "无法获取版本信息")
         raise Exception(_err)
-    
+
     blender_user_dir: Path = None
     if args.blender_user_dir:
         blender_user_dir = Path(args.blender_user_dir).resolve()
         if not blender_user_dir.exists():
             os.makedirs(blender_user_dir, exist_ok=True)
-        _config = blender_user_dir.joinpath("config")
+        _config = blender_user_dir.joinpath('config')
         if not _config.exists():
             os.makedirs(_config, exist_ok=True)
-        _datafiles = blender_user_dir.joinpath("datafiles")
-        _scripts = blender_user_dir.joinpath("scripts")
+        _datafiles = blender_user_dir.joinpath('datafiles')
+        _scripts = blender_user_dir.joinpath('scripts')
         if version >= (3, 4, 0):
             os.environ['BLENDER_USER_RESOURCES'] = str(blender_user_dir).replace('\\', '/')
+            os.environ['BLENDER_SYSTEM_RESOURCES'] = str(blender_user_dir).replace('\\', '/')
         else:
             os.environ['BLENDER_USER_CONFIG'] = str(_config).replace('\\', '/')
             os.environ['BLENDER_USER_DATAFILES'] = str(_datafiles).replace('\\', '/')
             os.environ['BLENDER_USER_SCRIPTS'] = str(_scripts).replace('\\', '/')
-            
+
     if args.use_wt:
         cmd = ['wt', exe_path]
     else:
@@ -328,11 +334,16 @@ def pack(args):
     try:
 
         import zipfile
-        from . xrelease import bl_info  # 不要在 __init__.py 中直接引用 bpy
 
-        version = '.'.join(map(str, (_version := bl_info['version'])[:3]))
-        if len(_version) > 3:
-            version += "_" + '.'.join(map(str, _version[3:]))
+        file = open(str(dir.joinpath('__init__.py')), 'r', encoding='utf-8')
+        file_content = file.read()
+        file.close()
+
+        match = re.search(r"'version'\s*:\s*\((\d+),\s*(\d+),\s*(\d+)\)", file_content, re.I)
+        if not match:
+            raise TypeError("无法从 __init__.py 中读取版本信息")
+
+        version = f"{match.group(1)}.{match.group(2)}.{match.group(3)}"
 
         file_name = f'{addon_full_name}_v{version}.zip'
 
@@ -345,7 +356,7 @@ def pack(args):
                 if os.path.basename(_dir) == '__pycache__':
                     continue
                 for file in files:
-                    if file == '_wire_fix_ime.dll':
+                    if file == f'_{addon_name}.dll':
                         continue
                     zipf.write(
                         fp := os.path.join(_dir, file),

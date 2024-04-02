@@ -3,6 +3,7 @@
 
 __pycache__/
 /xbuild/
+/xdata/
 /xdebug/
 /xrelease/
 /xrelease-package/

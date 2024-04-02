@@ -20,16 +20,19 @@ def register():
     pass
 
 def unregister():
+    from .debug.mark import mark
     from . import main
     main.unregister()
 
     # 删除模块，以便下次加载时能够自动加载最新的模块
     if __package__ in sys.modules:
-        print("del:", __package__)
+        if mark.DEBUG_BUILD:
+            print("del:", __package__)
         del sys.modules[__package__]
     sub_module_prefix = __package__ + '.'
     for m in tuple(sys.modules):
         if m.startswith(sub_module_prefix):
-            print("del:", m)
+            if mark.DEBUG_BUILD:
+                print("del:", m)
             del sys.modules[m]
     pass

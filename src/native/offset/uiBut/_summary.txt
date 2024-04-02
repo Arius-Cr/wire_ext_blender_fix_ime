@@ -1,0 +1,89 @@
+尽管变动非常复杂，但是我们需要的 flag、type、UI_SELECT 等都是简单地，总结如下：
+
+uiBut
+V1 - V5
+V6 - V7：加入了flag2成员，导致 type 成员偏移
+
+UI_SELECT
+V1 - V3
+
+eButType
+V1 - V4
+
+============================================================
+uiBut
+
+----- V1
+3.0.0 - 3.1.0
+
+----- V2
+3.1.1 - 3.1.2
+成员 opcontext 的类型从 short 改为 wmOperatorCallContext (Enum)
+
+----- V3
+3.2.0 - 3.2.2
+新增成员：identity_cmp_func
+成员 pie_dir 的类型从 signed char 改为 RadialDirection (Enum)
+
+----- V4
+3.3.0 - 3.3.12
+删除成员：modifier_key
+
+----- V5
+3.4.0 - 3.6.9
+新增成员：icon_overlay_text
+注：3.5.0 转为 C++
+
+----- V6
+4.0.0 - 4.0.2
+新增成员：flag2
+新增成员：apply_func
+新增成员：tip_label_func
+新增成员：tip_custom_func
+成员 dragtype 的类型从 char 改为 eWM_DragDataType (Enum)
+成员 pushed_state_func 的类型从 uiButPushedStateFunc 改为 std::function<bool(const uiBut &)>
+删除成员：pushed_state_arg
+
+----- V7
+4.1.0 - 4.1.0
+成员 str 的类型从 char * 改为 std::string
+删除成员 strdata
+成员 drawstr 的类型从 char [UI_MAX_DRAW_STR] 改为 std::string
+新增成员 placeholder
+删除成员 a1
+删除成员 a2
+
+============================================================
+UI_SELECT
+
+----- V1
+3.0.0 - 3.1.2
+
+----- V2
+3.2.0 - 3.6.9
+4.0.0 - 4.0.2
+新增枚举 UI_BUT_ACTIVE_OVERRIDE
+注：在 4.0.0 中修改了注释
+
+----- V3
+4.1.0 - 4.1.0
+枚举 UI_ACTIVE 改为 UI_HOVER，值不变
+
+============================================================
+eButType
+
+----- V1
+3.0.0 - 3.0.1
+
+----- V2
+3.1.0 - 3.2.2
+
+----- V3
+3.3.0 - 3.6.9
+枚举 UI_BTYPE_TREEROW 改为 UI_BTYPE_VIEW_ITEM，值不变
+注：3.4.0 中修改了注释
+注：3.5.0 中修改了注释
+
+----- V4
+4.0.0 - 4.1.0
+枚举 UI_BTYPE_PROGRESS_BAR 改为 UI_BTYPE_PROGRESS，值不变

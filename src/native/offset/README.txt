@@ -36,6 +36,9 @@
        对于 uiHandleButtonData，先激活输入框，然后看调试信息即可。
        对于 uiPopupBlockHandle，先右键弹出菜单，然后看调试信息即可。
 
+    最后，实际上如果你能够编译 Blender，只要编译最后的一个正式版，然后修改源码通过 printf 打印偏移量，
+    然后根据数据结构的版本差异，反推之前的版本就可以免于繁琐的计算。
+
 常见数据类型的长度（MSVC 64bit）：
     pointer - 8 字节
     int     - 4 字节
@@ -59,6 +62,7 @@ WorkSpaceLayout
 
 DNA_screen_types.h
 bScreen
+ARegion
 
 -----
 非 DNA 类型
@@ -73,3 +77,9 @@ uiHandleButtonData
 
 interface_intern.h
 uiPopupBlockHandle
+uiBlock
+uiBut
+UI_SELECT
+
+UI_interface.h
+eButType

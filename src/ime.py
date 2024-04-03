@@ -78,6 +78,9 @@ updater_step_f: float = 0.050  # s
 
 updater_step_i: int = updater_step_f * ns_to_s  # 1s = 1 000 ms 000 μs 000 ns
 
+# font_path, font_size, cwidth
+cwidth_cache: list[tuple[str, float, int]] = []
+
 managers: dict[bpy.types.Window, 'Manager'] = {}
 
 
@@ -372,7 +375,7 @@ class Manager():
                 printx(CCBP, "取消更新：浮动窗已开启")
             self.ime_disable()
             return
-        
+
         # 鼠标被捕获时表示正在执行某种操作，此时无需更新
         # 该判断必须放在“弹出菜单”后，因为弹出菜单本身会捕获鼠标
         if native.window_is_mouse_capture(self.wm_pointer):
@@ -799,42 +802,47 @@ class Manager():
 
         lheight, draw_xmin, draw_xmax, draw_ymin, draw_ymax = clss.get_console_draw_params(context)
 
+        # printx(CCFA, "console font_size", space.font_size)
         # printx(CCFA, "console lheight", lheight)
         # printx(CCFA, "console draw_xmin", draw_xmin)
         # printx(CCFA, "console draw_xmax", draw_xmax)
         # printx(CCFA, "console draw_ymin", draw_ymin)
         # printx(CCFA, "console draw_ymax", draw_ymax)
 
-        # 参考官方源码：
-        # textview_font_begin()
-        # textview_draw() 中 tds.cwidth
+        # 参考源码：textview_font_begin()
+
         if context.preferences.view.font_path_ui_mono:
             font_path = context.preferences.view.font_path_ui_mono
         else:
             local = Path(bpy.utils.resource_path('LOCAL'))
             if bpy.app.version >= (3, 4, 0):
-                font_path = local.joinpath('datafiles', 'fonts', 'DejaVuSansMono.woff2')
+                font_path = str(local.joinpath('datafiles', 'fonts', 'DejaVuSansMono.woff2'))
             else:
-                font_path = local.joinpath('datafiles', 'fonts', 'bmonofont-i18n.ttf')
-        font_id = blf.load(str(font_path))
-
-        # printx(CCFA, "font_id", font_id)
-
-        if bpy.app.version >= (4, 0, 0):
-            blf.size(font_id, lheight * 0.8)
+                font_path = str(local.joinpath('datafiles', 'fonts', 'bmonofont-i18n.ttf'))
+        
+        # 参考源码：textview_draw() 中 tds.cwidth
+        if bpy.app.version >= (3, 1, 0):
+            font_size = lheight * 0.8
         else:
-            if bpy.app.version >= (3, 1, 0):
-                blf.size(font_id, lheight * 0.8, 72)
-            else:
-                blf.size(font_id, int(lheight * 0.8), 72)
-        cwidth, _ = blf.dimensions(font_id, '0')
-        cwidth = int(cwidth)
+            font_size = int(lheight * 0.8)
+
+        cwidth: Union[int, None] = None
+        
+        global cwidth_cache
+        for _font_path, _font_size, _cwidth in cwidth_cache:
+            if _font_path == font_path and _font_size == font_size:
+                cwidth = _cwidth
+                break
+        if cwidth is None:
+            cwidth = native.BLF_fixed_width(font_path, font_size)
+            cwidth_cache.append((font_path, font_size, cwidth))
+        
+        if cwidth < 1:  # 获取失败会返回 -1，此时无视失败即可，界面上会看出异常
+            cwidth = 1
 
         # printx(CCFA, "console cwidth", cwidth, scale_factor, cwidth * scale_factor)
-
-        text_str = space.prompt + text.body
-
-        # printx(CCFA, "text_str", text_str)
+        
+        # printx(CCFA, "text_str", space.prompt + text.body)
 
         columns = int((draw_xmax - draw_xmin) / cwidth)
         if columns < 1:
@@ -1367,7 +1375,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         args = self.op_args
 
         if event == 'START':
-            if DEBUG: 
+            if DEBUG:
                 printx(CCFR, "删除选择")
             self.op_delete(*self.op_args, type='SELECTION')
         else:
@@ -1424,7 +1432,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         if event == 'START':
             if (text.select_end_line_index != text.current_line_index or
                 text.select_end_character != text.current_character):
-                if DEBUG: 
+                if DEBUG:
                     printx(CCFR, "删除选择")
                 self.op_insert(*args, text=' ')
                 self.op_delete(*args, type='PREVIOUS_CHARACTER')
@@ -1509,7 +1517,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         if event == 'START':
             space.select_start
             if (space.select_start != space.select_end):
-                if DEBUG: 
+                if DEBUG:
                     printx(CCFR, "删除选择")
                 self.op_insert(*args, text=' ')
                 self.op_delete(*args, type='PREVIOUS_CHARACTER')

@@ -3,6 +3,9 @@
 #include <stdbool.h>
 // Windows
 #include <windows.h>
+// Freetype
+#include <ft2build.h>
+#include FT_FREETYPE_H
 // Self
 #include "main.h"
 #include "utils.h"
@@ -632,6 +635,174 @@ static void blender_data_init_SpaceText()
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+#define MEM_mallocN(size, str) ((void)str, malloc(size))
+#define MEM_callocN(size, str) ((void)str, calloc(size, 1))
+#define MEM_freeN(ptr) free(ptr)
+
+#define STREAM_FILE(stream) (FILE *)(stream->descriptor.pointer)
+
+#define SEEK_SET 0 /* Seek from beginning of file.  */
+#define SEEK_CUR 1 /* Seek from current position.  */
+#define SEEK_END 2 /* Set file pointer to EOF plus "offset" */
+
+static unsigned long ft_ansi_stream_io(FT_Stream stream, unsigned long offset, unsigned char *buffer, unsigned long count)
+{
+
+    if (!count && offset > stream->size)
+    {
+        return 1;
+    }
+
+    FILE *file = STREAM_FILE(stream);
+
+    if (stream->pos != offset)
+    {
+        fseek(file, offset, SEEK_SET);
+    }
+
+    return fread(buffer, 1, count, file);
+}
+
+static void ft_ansi_stream_close(FT_Stream stream)
+{
+    fclose(STREAM_FILE(stream));
+
+    stream->descriptor.pointer = NULL;
+    stream->size = 0;
+    stream->base = 0;
+
+    /* WARNING: this works but be careful!
+     * Checked freetype sources, there isn't any access after closing. */
+    MEM_freeN(stream);
+}
+
+static FT_Library ft_lib = NULL;
+
+// -----
+
+extern __declspec(dllexport) int BLF_fixed_width(wchar_t *font_path, float font_size)
+{
+    if (!ft_lib)
+    {
+        return -1;
+    }
+
+    FT_Error err;
+    FT_Face face;
+
+    printx(D_IME, CCFR "BLF_fixed_width \"%ls\"", font_path);
+
+    // FreeType 似乎只接收 ASCII 路径，所以不能从路径加载字体
+    // err = FT_New_Face(ft_lib, font_path, 0, &face);
+    // 只能从 stream 加载字体
+    // 参考源码：source\blender\blenfont\intern\blf_font_win32_compat.cc
+
+    FT_Stream stream = (FT_Stream)(calloc(sizeof(*stream), 1));
+
+    FILE *file = _wfopen(font_path, L"rb");
+    if (!file)
+    {
+        // 文件打开失败
+        printx(D_IME, CCFR "could not open \"%ls\"", font_path);
+        return -1;
+    }
+
+    fseek(file, 0LL, SEEK_END);
+    stream->size = ftell(file);
+    if (!stream->size)
+    {
+        // 文件大小为零
+        printx(D_IME, CCFR "opened \"%ls\" but zero-sized", font_path);
+        fclose(file);
+        return -1;
+    }
+    fseek(file, 0LL, SEEK_SET);
+
+    stream->pathname.pointer = (void *)font_path;
+    stream->base = 0;
+    stream->pos = 0;
+    stream->descriptor.pointer = file;
+    stream->read = ft_ansi_stream_io;
+    stream->close = ft_ansi_stream_close;
+
+    FT_Open_Args open;
+    open.flags = FT_OPEN_STREAM;
+    open.stream = stream;
+    err = FT_Open_Face(ft_lib, &open, 0, &face);
+    /* no need to free 'stream', its handled by FT_Open_Face if an error occurs */
+    if (err == FT_Err_Unknown_File_Format)
+    {
+        printx(D_IME, CCFR "font format is unsupported: \"%ls\"", font_path);
+        return -1;
+    }
+    else if (err)
+    {
+        printx(D_IME, CCFR "\"%ls\" is broken", font_path);
+        return -1;
+    }
+
+    // 参考源码：blf_ensure_size
+
+    FT_UInt ft_size = (unsigned int)floorf((font_size * 64.0f) + 0.5f);
+    FT_Set_Char_Size(face, 0, ft_size, 72, 72);
+
+    printx(D_IME, CCFR "font_size: %d", font_size);
+    printx(D_IME, CCFR "ft_size: %d", ft_size);
+
+    // 参考源码：blf_glyph_cache_new
+
+    FT_UInt char_index = FT_Get_Char_Index(face, U'0');
+    printx(D_IME, CCFR "char_index: %d", char_index);
+
+    int cwidth = 0;
+
+    if (char_index)
+    {
+        FT_Fixed advance = 0;
+        FT_Get_Advance(face, char_index, FT_LOAD_NO_HINTING, &advance);
+        printx(D_IME, CCFR "advance %lx", advance);
+
+        cwidth = (int)(advance >> 16);
+    }
+    else
+    {
+        cwidth = (int)((face->size->metrics.height / 2) >> 6);
+    }
+
+    if (cwidth < 1)
+    {
+        cwidth = 1;
+    }
+
+    printx(D_IME, CCFR "cwidth %d", cwidth);
+
+    FT_Done_Face(face);
+
+    return cwidth;
+}
+
+static void blender_data_init_blf()
+{
+    FT_Error err;
+    err = FT_Init_FreeType(&ft_lib);
+    if (err)
+    {
+        printx(D_IME, "FreeType init failed");
+        return;
+    }
+}
+
+static void blender_data_uninit_blf()
+{
+    if (ft_lib)
+    {
+        FT_Done_FreeType(ft_lib);
+        ft_lib = NULL;
+    }
+}
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
 extern __declspec(dllexport) void blender_data_init()
 {
     // 无需区分版本
@@ -643,4 +814,11 @@ extern __declspec(dllexport) void blender_data_init()
     blender_data_init_wmWindow();
 
     blender_data_init_SpaceText();
+
+    blender_data_init_blf();
+}
+
+extern __declspec(dllexport) void blender_data_uninit()
+{
+    blender_data_uninit_blf();
 }

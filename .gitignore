@@ -10,6 +10,9 @@ __pycache__/
 /xxx/
 /site-packages/
 
+/src/native/include/
+/src/native/lib/
+
 # 除了 make.py 和 make_*.py 文件，其它 make 开头的文件均为私用文件，不纳入代码管理
 /make*.*
 !/make.py

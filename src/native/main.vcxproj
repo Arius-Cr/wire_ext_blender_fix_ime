@@ -55,6 +55,7 @@
             <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DEBUG;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <ObjectFileName>$(IntDir)</ObjectFileName>
+            <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);include;include\freetype2</AdditionalIncludeDirectories>
         </ClCompile>
         <ResourceCompile>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/rc-task -->
@@ -65,6 +66,8 @@
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/link-task -->
             <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
             <LinkIncremental>True</LinkIncremental>
+            <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);lib</AdditionalLibraryDirectories>
+            <AdditionalDependencies>%(AdditionalDependencies);freetype2ST.lib;brotlicommon-static.lib;brotlidec-static.lib;libz_st.lib</AdditionalDependencies>
         </Link>
     </ItemDefinitionGroup>
 
@@ -84,6 +87,7 @@
 
     <Target Name="Message" BeforeTargets="Build">
         <Message Text="Project File Name = $(TargetName)" />
+        <Message Text="Project Dir = $(MSBuildProjectDirectory)" />
     </Target>
 
     <!-- 🔺 自定内容 -->

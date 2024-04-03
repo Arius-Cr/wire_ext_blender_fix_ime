@@ -26,4 +26,6 @@ extern __declspec(dllexport) bool use_debug(bool enable);
 
 extern __declspec(dllexport) bool init(int ver_m, int ver_s, int ver_r);
 
+extern __declspec(dllexport) bool uninit();
+
 #endif

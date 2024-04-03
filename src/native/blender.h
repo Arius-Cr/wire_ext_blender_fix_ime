@@ -31,6 +31,12 @@ extern __declspec(dllexport) int SpaceText_line_number_display_digits_get(void *
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+extern __declspec(dllexport) int BLF_fixed_width(wchar_t *font_path, float font_size);
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
 extern __declspec(dllexport) void blender_data_init();
+
+extern __declspec(dllexport) void blender_data_uninit();
 
 #endif

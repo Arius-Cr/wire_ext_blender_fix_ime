@@ -122,6 +122,8 @@ def unregister() -> None:
             use_fix_ime_console=False,
         ), bpy.context)
 
+        native.uninit()
+
         native.dll_unload()
 
         # -----

@@ -71,14 +71,20 @@ class _main:
         self.dll.use_debug.argtypes = [ctypes.c_int]
         self.dll.use_debug.restype = ctypes.c_bool
 
-        self.dll.init.argtypes = []
+        self.dll.init.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
         self.dll.init.restype = ctypes.c_bool
+
+        self.dll.uninit.argtypes = []
+        self.dll.uninit.restype = ctypes.c_bool
 
     def use_debug(self, level: int) -> bool:
         return self.dll.use_debug(level)
 
     def init(self, ver_m: int, ver_s: int, ver_r: int) -> bool:
         return self.dll.init(ver_m, ver_s, ver_r)
+
+    def uninit(self) -> bool:
+        return self.dll.uninit()
 
 
 class _blender:
@@ -104,6 +110,9 @@ class _blender:
         self.dll.SpaceText_line_number_display_digits_get.argtypes = [ctypes.c_void_p]
         self.dll.SpaceText_line_number_display_digits_get.restype = ctypes.c_int
 
+        self.dll.BLF_fixed_width.argtypes = [ctypes.c_wchar_p, ctypes.c_float]
+        self.dll.BLF_fixed_width.restype = ctypes.c_int
+
     def wmWindow_is_but_active(self, wm_pointer: int) -> bool:
         return self.dll.wmWindow_is_but_active(wm_pointer)
 
@@ -124,6 +133,9 @@ class _blender:
 
     def SpaceText_line_number_display_digits_get(self, SpaceText_pointer: int) -> int:
         return self.dll.SpaceText_line_number_display_digits_get(SpaceText_pointer)
+
+    def BLF_fixed_width(self, font_path: str, font_size: float) -> int:
+        return self.dll.BLF_fixed_width(font_path, font_size)
 
 class _fix_ime:
     def __init__(self) -> None:
@@ -265,7 +277,6 @@ class _fix_ime:
 
         return ime_data
 
-
 class Native(_main, _blender, _fix_ime):
     def __init__(self):
         _main.__init__(self)
@@ -292,14 +303,14 @@ class Native(_main, _blender, _fix_ime):
 
         self.dll_handle = kernel32.LoadLibraryW(os.path.join(dir, f'_{dll_name}.dll'))
 
-        if self.dll_handle is not None:
+        if self.dll_handle:
             if mark.DEBUG:
                 printx("加载 DLL 完成")
         else:
             printx(CCBR, "加载 DLL 失败")
             return False
 
-        self.dll = ctypes.CDLL("", handle=self.dll_handle)
+        self.dll = ctypes.CDLL(dll_name, handle=self.dll_handle)
 
         self._dll_init__main()
         self._dll_init__blender()

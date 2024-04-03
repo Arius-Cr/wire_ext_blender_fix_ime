@@ -38,7 +38,25 @@
 
    > 如果使用不同的版本，请适当修改 **native/main.vcxproj** 中的 `PlatformToolset` 和 `WindowsTargetPlatformVersion` 属性。
 
-3. 在项目目录中执行（自行替换 **{}** 中的内容）：
+3. 下载依赖库
+
+    需要从 [Blender 的依赖库](https://projects.blender.org/blender/lib-windows_x64) 中获取头文件和静态库文件：
+
+    - freetype
+
+        将 freetype/include/freetype2 复制到 src/native/include/ 中。
+        将 freetype/lib/freetype2ST.lib 复制到 src/native/lib/ 中。
+
+    - brotli
+
+        将 brotli/lib/brotlicommon-static.lib 复制到 src/native/lib/ 中。
+        将 brotli/lib/brotlidec-static.lib 复制到 src/native/lib/ 中。
+
+    - zlib
+
+        将 zlib/lib/libz_st.lib 复制到 src/native/lib/ 中。
+
+4. 在项目目录中执行（自行替换 **{}** 中的内容）：
 
    ```
    > python make.py build --vsdev "{path to VsDevCmd.bat}"

@@ -1,12 +1,12 @@
 ----- V1
-3.0.0 - 3.3.12
+3.0.0 - 3.3.17
 
 ----- V2
 3.4.0 - 3.4.1
 新增成员：dynamic_listeners
 
 ----- V3
-3.5.0 - 3.6.9
+3.5.0 - 3.6.10
 成员 button_groups 的类型从 ListBase 改为 blender::Vector<uiButtonGroup>
 其它改动没有实际影响
 

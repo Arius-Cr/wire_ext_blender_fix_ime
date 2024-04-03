@@ -392,7 +392,7 @@ static void blender_data_init_wmWindow()
         offset_wmWindow__modalhandlers = 304;
     }
     else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) || // V3
-             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 9)))   // V3
+             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 10)))   // V3
     {
         offset_wmWindow__workspace_hook = 128;
         offset_wmWindow__modalhandlers = 296;
@@ -412,7 +412,7 @@ static void blender_data_init_wmWindow()
     // ----- DNA 类型 WorkSpaceInstanceHook
 
     /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 0)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         offset_WorkSpaceInstanceHook__active = 0;
         offset_WorkSpaceInstanceHook__act_layout = 8;
@@ -421,7 +421,7 @@ static void blender_data_init_wmWindow()
     // ----- DNA 类型 WorkSpaceLayout
 
     /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 0)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         offset_WorkSpaceLayout__screen = 16;
     }
@@ -429,7 +429,7 @@ static void blender_data_init_wmWindow()
     // ----- DNA 类型 bScreen
 
     /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 0)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         offset_bScreen__active_region = 280;
     }
@@ -437,7 +437,7 @@ static void blender_data_init_wmWindow()
     // ----- DNA 类型 ARegion
 
     /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 0)) || // V2
-             (VER_GTE(3, 6, 0) && VER_LTE(3, 6, 9)))   // V2
+             (VER_GTE(3, 6, 0) && VER_LTE(3, 6, 10)))   // V2
     {
         offset_ARegion__uiblocks = 240;
     }
@@ -451,7 +451,7 @@ static void blender_data_init_wmWindow()
     // ----- 非 DNA 类型 wmEventHandler、wmEventHandler_UI
 
     /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 0)) || // V2
-             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 9)) || // V2
+             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 10)) || // V2
              (VER_GTE(3, 0, 0) && VER_LTE(3, 4, Z)))   // V1
     {
         // V1、V2 内存对齐后相同
@@ -472,7 +472,7 @@ static void blender_data_init_wmWindow()
 
     /**/ if ((VER_GTE(4, 1, 0) && VER_LTE(4, 1, 0)) || // V3
              (VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) || // V2
-             (VER_GTE(3, 2, 0) && VER_LTE(3, 6, 9)) || // V2
+             (VER_GTE(3, 2, 0) && VER_LTE(3, 6, 10)) || // V2
              (VER_GTE(3, 0, 0) && VER_LTE(3, 1, Z)))   // V1
     {
         // V1、V2、V3 内存对齐后相同
@@ -487,7 +487,7 @@ static void blender_data_init_wmWindow()
         sizeof_uiPopupBlockHandle = 328;
         offset_uiPopupBlockHandle__region = 0;
     }
-    else if ((VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9))) // V1
+    else if ((VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10))) // V1
     {
         sizeof_uiPopupBlockHandle = 264;
         offset_uiPopupBlockHandle__region = 0;
@@ -497,7 +497,7 @@ static void blender_data_init_wmWindow()
 
     /**/ if ((VER_GTE(4, 1, 0) && VER_LTE(4, 1, 0)) || // V5
              (VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) || // V4
-             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 9)) || // V3
+             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 10)) || // V3
              (VER_GTE(3, 4, 0) && VER_LTE(3, 4, Z)) || // V2
              (VER_GTE(3, 0, 0) && VER_LTE(3, 3, Z)))   // V1
     {
@@ -512,7 +512,7 @@ static void blender_data_init_wmWindow()
         offset_uiBut__flag = 24;
         offset_uiBut__type = 36;
     }
-    else if ((VER_GTE(3, 4, 0) && VER_LTE(3, 6, 9)) || // V5
+    else if ((VER_GTE(3, 4, 0) && VER_LTE(3, 6, 10)) || // V5
              (VER_GTE(3, 3, 0) && VER_LTE(3, 3, Z)) || // V4
              (VER_GTE(3, 2, 0) && VER_LTE(3, 2, Z)) || // V3
              (VER_GTE(3, 1, 0) && VER_LTE(3, 1, Z)) || // V2
@@ -523,7 +523,7 @@ static void blender_data_init_wmWindow()
     }
 
     /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 0)) ||
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))
     {
         // 当前需求无需区分版本
 
@@ -558,7 +558,7 @@ extern __declspec(dllexport) int SpaceText_lheight_px_get(void *SpaceText)
         }
     }
     else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, 2)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         size_t runtime = GEN_ADDR(SpaceText, offset_SpaceText__runtime);
         int value = GET_VALUE(int, runtime, offset_SpaceText_Runtime__lheight_px);
@@ -580,7 +580,7 @@ extern __declspec(dllexport) int SpaceText_cwidth_px_get(void *SpaceText)
         }
     }
     else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, 2)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         size_t runtime = GEN_ADDR(SpaceText, offset_SpaceText__runtime);
         int value = GET_VALUE(int, runtime, offset_SpaceText_Runtime__cwidth_px);
@@ -602,7 +602,7 @@ extern __declspec(dllexport) int SpaceText_line_number_display_digits_get(void *
         }
     }
     else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, 2)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         size_t runtime = GEN_ADDR(SpaceText, offset_SpaceText__runtime);
         int value = GET_VALUE(int, runtime, offset_SpaceText_Runtime__line_number_display_digits);
@@ -624,7 +624,7 @@ static void blender_data_init_SpaceText()
         offset_SpaceText_Runtime__line_number_display_digits = 40;
     }
     else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 9)))   // V1
+             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 10)))   // V1
     {
         offset_SpaceText__runtime = 592;
         offset_SpaceText_Runtime__lheight_px = 0;
@@ -746,7 +746,7 @@ extern __declspec(dllexport) int BLF_fixed_width(wchar_t *font_path, float font_
     FT_UInt ft_size = (unsigned int)floorf((font_size * 64.0f) + 0.5f);
     FT_Set_Char_Size(face, 0, ft_size, 72, 72);
 
-    printx(D_IME, CCFR "font_size: %d", font_size);
+    printx(D_IME, CCFR "font_size: %f", font_size);
     printx(D_IME, CCFR "ft_size: %d", ft_size);
 
     // 参考源码：blf_glyph_cache_new

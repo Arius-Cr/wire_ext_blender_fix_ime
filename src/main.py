@@ -25,7 +25,7 @@ if DEBUG_BUILD:
 
 info = {
     'supported_versions': [
-        ((3, 0, 0), (3, 6, 9)),
+        ((3, 0, 0), (3, 6, 10)),
         ((4, 0, 0), (4, 1, 0)),
     ],
     'github': 'https://github.com/Arius-Cr/wire_ext_blender_fix_ime',

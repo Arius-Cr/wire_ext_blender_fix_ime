@@ -673,6 +673,8 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
     HIMC hImc = ImmGetContext(hWnd);
     if (hImc && key != VK_PROCESSKEY && !is_ignore_key(key))
     {
+        ImmReleaseContext(hWnd, hImc);
+
         LPARAM extra_info = GetMessageExtraInfo();
         if (extra_info != myHIMC_INPUT_PASS && extra_info != myHIMC_INPUT_BLOCK)
         {
@@ -726,6 +728,8 @@ static void fix_ime_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     HIMC hImc = ImmGetContext(hWnd);
     if (hImc && key != VK_PROCESSKEY && !is_ignore_key(key))
     {
+        ImmReleaseContext(hWnd, hImc);
+
         LPARAM extra_info = GetMessageExtraInfo();
         if (extra_info != myHIMC_INPUT_PASS && extra_info != myHIMC_INPUT_BLOCK)
         {
@@ -964,6 +968,7 @@ static LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, 
     }
     break;
     case WM_KEYDOWN:
+    case WM_SYSKEYDOWN: // 在 F10、Alt + ... 按键时触发
     {
         get_ime_invoker(window);
 
@@ -980,6 +985,7 @@ static LRESULT Subclassproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, 
     }
     break;
     case WM_KEYUP:
+    case WM_SYSKEYUP:
     {
         get_ime_invoker(window);
 

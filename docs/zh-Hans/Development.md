@@ -45,11 +45,13 @@
     - freetype
 
         将 freetype/include/freetype2 复制到 src/native/include/ 中。
+
         将 freetype/lib/freetype2ST.lib 复制到 src/native/lib/ 中。
 
     - brotli
 
         将 brotli/lib/brotlicommon-static.lib 复制到 src/native/lib/ 中。
+        
         将 brotli/lib/brotlidec-static.lib 复制到 src/native/lib/ 中。
 
     - zlib

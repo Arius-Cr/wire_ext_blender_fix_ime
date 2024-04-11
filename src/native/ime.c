@@ -363,8 +363,8 @@ typedef enum
 static KEY_CATALOG get_key_catalog(USHORT key, BOOL extended)
 {
     /**
-     * 判断当前按键是否为字符键
-     * 
+     * 判断当前按键是否为字符键，包括回车键，退格键，因为这些键都是输入法可能会处理的按键。
+     *
      * #define VK_NUMPAD0        0x60
      * #define VK_NUMPAD1        0x61
      * #define VK_NUMPAD2        0x62
@@ -398,7 +398,7 @@ static KEY_CATALOG get_key_catalog(USHORT key, BOOL extended)
      */
     if ((key >= '0' && key <= '9') ||
         (key >= 'A' && key <= 'Z') ||
-        (key == VK_SPACE) ||
+        (key == VK_SPACE) || (key == VK_RETURN) || (key == VK_BACK) ||
         (key >= VK_OEM_1 && key <= VK_OEM_3) ||
         (key >= VK_OEM_4 && key <= VK_OEM_7) ||
         (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
@@ -408,13 +408,13 @@ static KEY_CATALOG get_key_catalog(USHORT key, BOOL extended)
 
     /**
      * 判断当前按键是否为非数字锁定时的数字键盘上的数字键或点号键
-     * 
+     *
      * 以 数字键4 为例，按下时：
      * - 　数字锁定时，key == VK_NUMPAD4，extended = False
      * - 非数字锁定时，key == VK_LEFT，   extended = False
      * 左方向键按下时：
      * - 　　　　　　　key == VK_LEFT，   extended = True
-     * 
+     *
      * Key  | Num Lock         | not Num Lock    |
      * 0    | VK_NUMPAD0(0x60) | VK_INSERT(0x2D) |
      * 1    | VK_NUMPAD1(0x61) | VK_END   (0x23) |
@@ -703,7 +703,7 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 
                     if ((key >= '0' && key <= '9') ||
                         (key >= 'A' && key <= 'Z') ||
-                        (key == VK_SPACE) ||
+                        (key == VK_SPACE) || (key == VK_RETURN) || (key == VK_BACK) ||
                         (key >= VK_OEM_1 && key <= VK_OEM_3) ||
                         (key >= VK_OEM_4 && key <= VK_OEM_7) ||
                         (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))

@@ -1428,6 +1428,9 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         args = self.op_args
         space = cast(SpaceTextEditor, context.space_data)
         text = space.text
+        use_overwrite = space.use_overwrite  # 插入模式
+
+        space.use_overwrite = False
 
         if event == 'START':
             if (text.select_end_line_index != text.current_line_index or
@@ -1474,7 +1477,12 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
                     if DEBUG:
                         printx(CCFA, "插入结果字符串: [%s]" % data.result_str, len(data.result_str))
 
+                    if use_overwrite:
+                        space.use_overwrite = True
+
                     self.op_insert('INVOKE_DEFAULT', True, text=data.result_str)
+
+                    space.use_overwrite = False
 
                     self.length = 0
                     self.move_times = 0
@@ -1505,6 +1513,9 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
                     self.move_times = data.composite_len_c - data.composite_cur_i
                     for _ in range(self.move_times):
                         self.op_move(*args, type='PREVIOUS_CHARACTER')
+
+        space.use_overwrite = use_overwrite
+
         pass
 
     def process_console(self, context: Context, ime_event: tuple[CompositionEventType, IMEData, int]):

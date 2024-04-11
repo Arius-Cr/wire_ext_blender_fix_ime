@@ -350,6 +350,94 @@ static bool is_caps_lock_key(USHORT key)
     return false;
 }
 
+typedef enum
+{
+    // 拦截（均为字符按键）
+    KEY_CATALOG_BLOCK,
+    // 非数字锁定时的数字键（0-9，.），此时按键实际为方向键、HOME、END、DEL等。
+    KEY_CATALOG_BLOCK_NOT_NUMLOCK,
+    // 不拦截（非字符按键、非数字锁定时的数字键）
+    KEY_CATALOG_NOT_BLOCK,
+} KEY_CATALOG;
+
+static KEY_CATALOG get_key_catalog(USHORT key, BOOL extended)
+{
+    /**
+     * 判断当前按键是否为字符键
+     * 
+     * #define VK_NUMPAD0        0x60
+     * #define VK_NUMPAD1        0x61
+     * #define VK_NUMPAD2        0x62
+     * #define VK_NUMPAD3        0x63
+     * #define VK_NUMPAD4        0x64
+     * #define VK_NUMPAD5        0x65
+     * #define VK_NUMPAD6        0x66
+     * #define VK_NUMPAD7        0x67
+     * #define VK_NUMPAD8        0x68
+     * #define VK_NUMPAD9        0x69
+     * #define VK_MULTIPLY       0x6A   // *
+     * #define VK_ADD            0x6B   // +
+     * #define VK_SEPARATOR      0x6C   // ENTER
+     * #define VK_SUBTRACT       0x6D   // -
+     * #define VK_DECIMAL        0x6E   // .
+     * #define VK_DIVIDE         0x6F   // /
+     *
+     * #define VK_OEM_1          0xBA   // ';:' for US
+     * #define VK_OEM_PLUS       0xBB   // '+' any country
+     * #define VK_OEM_COMMA      0xBC   // ',' any country
+     * #define VK_OEM_MINUS      0xBD   // '-' any country
+     * #define VK_OEM_PERIOD     0xBE   // '.' any country
+     * #define VK_OEM_2          0xBF   // '/?' for US
+     * #define VK_OEM_3          0xC0   // '`~' for US
+     *
+     * #define VK_OEM_4          0xDB  //  '[{' for US
+     * #define VK_OEM_5          0xDC  //  '\|' for US
+     * #define VK_OEM_6          0xDD  //  ']}' for US
+     * #define VK_OEM_7          0xDE  //  ''"' for US
+     * #define VK_OEM_8          0xDF
+     */
+    if ((key >= '0' && key <= '9') ||
+        (key >= 'A' && key <= 'Z') ||
+        (key == VK_SPACE) ||
+        (key >= VK_OEM_1 && key <= VK_OEM_3) ||
+        (key >= VK_OEM_4 && key <= VK_OEM_7) ||
+        (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
+    {
+        return KEY_CATALOG_BLOCK;
+    }
+
+    /**
+     * 判断当前按键是否为非数字锁定时的数字键盘上的数字键或点号键
+     * 
+     * 以 数字键4 为例，按下时：
+     * - 　数字锁定时，key == VK_NUMPAD4，extended = False
+     * - 非数字锁定时，key == VK_LEFT，   extended = False
+     * 左方向键按下时：
+     * - 　　　　　　　key == VK_LEFT，   extended = True
+     * 
+     * Key  | Num Lock         | not Num Lock    |
+     * 0    | VK_NUMPAD0(0x60) | VK_INSERT(0x2D) |
+     * 1    | VK_NUMPAD1(0x61) | VK_END   (0x23) |
+     * 2    | VK_NUMPAD2(0x62) | VK_DOWN  (0x28) |
+     * 3    | VK_NUMPAD3(0x63) | VK_NEXT  (0x22) |
+     * 4    | VK_NUMPAD4(0x64) | VK_LEFT  (0x25) |
+     * 5    | VK_NUMPAD5(0x65) | VK_CLEAR (0x0C) |
+     * 6    | VK_NUMPAD6(0x66) | VK_RIGHT (0x27) |
+     * 7    | VK_NUMPAD7(0x67) | VK_HOME  (0x24) |
+     * 8    | VK_NUMPAD8(0x68) | VK_UP    (0x26) |
+     * 9    | VK_NUMPAD9(0x69) | VK_PRIOR (0x21) |
+     * .    | VK_DECIMAL(0x6E) | VK_DELETE(0x2E) |
+     */
+    if (!extended && ((key >= VK_PRIOR && key <= VK_DOWN) ||
+                      (key >= VK_INSERT && key <= VK_DELETE) ||
+                      (key == VK_CLEAR)))
+    {
+        return KEY_CATALOG_BLOCK_NOT_NUMLOCK;
+    }
+
+    return KEY_CATALOG_NOT_BLOCK;
+}
+
 // ----------
 
 /**
@@ -526,13 +614,16 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     bool alt = key_states[VK_MENU] & 0x80;
     unsigned int msg = raw.data.keyboard.Message;
     bool key_down = !(raw.data.keyboard.Flags & RI_KEY_BREAK) && msg != WM_KEYUP && msg != WM_SYSKEYUP;
+    bool extended = raw.data.keyboard.Flags & (RI_KEY_E0 | RI_KEY_E1);
 
     wchar_t key_name[256] = L"??";
     if (D_IME)
     {
-        bool extended = raw.data.keyboard.Flags & (RI_KEY_E0 | RI_KEY_E1);
         GetKeyNameTextW(MAKELPARAM(0, (extended ? KF_EXTENDED : 0) | (raw.data.keyboard.MakeCode & 0xFF)),
                         (LPWSTR)&key_name, 256);
+        printx(D_IME, CCFP "%s：\"%ls\" (%hx), %s",
+               key_down ? "按下" : "释放", &key_name, key,
+               extended ? "扩展" : "非扩展");
     }
 
     FIRT result = FIRT_PASS;
@@ -633,15 +724,22 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
         }
         else
         {
-            if (!is_ignore_key(key))
+            switch (get_key_catalog(key, extended))
+            {
+            case KEY_CATALOG_BLOCK:
+            case KEY_CATALOG_BLOCK_NOT_NUMLOCK:
             {
                 printx(D_IME, CCFA "WM_INPUT 屏蔽（%s-插件接管）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
                 result = FIRT_BLOCK;
             }
-            else
+            break;
+            case KEY_CATALOG_NOT_BLOCK:
+            default:
             {
                 printx(D_IME, CCFA "WM_INPUT 放行（%s-无关按键）：\"%ls\" (%hx)", key_down ? "按下" : "释放", &key_name, key);
                 result = FIRT_PASS;
+            }
+            break;
             }
         }
 
@@ -669,9 +767,17 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
      * 但会重新触发KEY_DOWN，因此需要通过标记避免再次重发。
      * 只会重发字符按键，控制按键重发会导致问题。
      */
-    USHORT key = wParam;
+
+    USHORT key = LOWORD(wParam);
+    WORD key_flags = HIWORD(lParam);
+    BOOL extended = (key_flags & KF_EXTENDED) == KF_EXTENDED;
+    LPARAM extra_info = GetMessageExtraInfo();
+
+    KEY_CATALOG key_cat = get_key_catalog(key, extended);
+
     HIMC hImc = ImmGetContext(hWnd);
-    if (hImc && key != VK_PROCESSKEY && !is_ignore_key(key))
+
+    if (key_cat == KEY_CATALOG_BLOCK && hImc && key != VK_PROCESSKEY)
     {
         ImmReleaseContext(hWnd, hImc);
 
@@ -685,9 +791,10 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
                 printx(D_IME, "WM_KEYDOWN 回放：\"%ls\" (%x)", key_name, key);
             }
 
-            WORD key_flags = HIWORD(lParam);
+            // 不含扩展标记的扫描码
             WORD wScan = LOBYTE(key_flags); // equal to MapVirtualKey(key, MAPVK_VK_TO_VSC)
-            DWORD dwFlags = (key_flags & KF_EXTENDED) ? KEYEVENTF_EXTENDEDKEY : 0;
+            // 释放标记 | 扩展标记E0 | 扩展标记E1（?）
+            DWORD dwFlags = (extended ? KEYEVENTF_EXTENDEDKEY : 0);
 
             printx(D_IME, CCFA "wScan 1: %x", wScan);
             printx(D_IME, CCFA "wScan 2: %x", MapVirtualKey(key, MAPVK_VK_TO_VSC));
@@ -720,13 +827,56 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             printx(D_IME, "WM_KEYDOWN 回放...完成");
         }
     }
+
+    if (key_cat == KEY_CATALOG_BLOCK_NOT_NUMLOCK)
+    {
+        LPARAM extra_info = GetMessageExtraInfo();
+        if (extra_info != myHIMC_INPUT_PASS && extra_info != myHIMC_INPUT_BLOCK)
+        {
+            /**
+             * 用于修复 Blender 在非数字锁定时，不响应数字键盘上部分按键的问题。
+             *
+             * 以按下 4 为例，此时按键为 VK_LEFT 但不带 KEYEVENTF_EXTENDEDKEY 标记，
+             * 而左方向键为 VK_LEFT 带 KEYEVENTF_EXTENDEDKEY 标记。
+             *
+             * 修复逻辑：屏蔽按键，模拟该按键带 KEYEVENTF_EXTENDEDKEY 标记的版本。
+             */
+
+            WORD wScan = LOBYTE(key_flags); // equal to MapVirtualKey(key, MAPVK_VK_TO_VSC)
+            DWORD dwFlags = 0;
+
+            int events_count = 1;
+            if (HIBYTE(GetKeyState(key)) != 0) // 当前按键事件非重复
+            {
+                playback_key_events[0].type = INPUT_KEYBOARD;
+                playback_key_events[0].ki.wVk = key;
+                playback_key_events[0].ki.wScan = wScan;
+                playback_key_events[0].ki.dwFlags = dwFlags | KEYEVENTF_KEYUP;
+                playback_key_events[0].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count = 2;
+                printx(D_IME, "WM_KEYDOWN 中断重复状态");
+            }
+            playback_key_events[events_count - 1].type = INPUT_KEYBOARD;
+            playback_key_events[events_count - 1].ki.wVk = key;
+            playback_key_events[events_count - 1].ki.wScan = wScan;
+            playback_key_events[events_count - 1].ki.dwFlags = dwFlags | KEYEVENTF_EXTENDEDKEY;
+            playback_key_events[events_count - 1].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+            SendInput(events_count, (PINPUT)&playback_key_events, sizeof(INPUT));
+        }
+    }
 }
 
 static void fix_ime_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, WindowData *window)
 {
-    USHORT key = wParam;
+    USHORT key = LOWORD(wParam);
+    WORD key_flags = HIWORD(lParam);
+    BOOL extended = (key_flags & KF_EXTENDED) == KF_EXTENDED;
+
+    KEY_CATALOG key_cat = get_key_catalog(key, extended);
+
     HIMC hImc = ImmGetContext(hWnd);
-    if (hImc && key != VK_PROCESSKEY && !is_ignore_key(key))
+
+    if (key_cat == KEY_CATALOG_BLOCK && hImc && key != VK_PROCESSKEY)
     {
         ImmReleaseContext(hWnd, hImc);
 
@@ -740,9 +890,8 @@ static void fix_ime_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
                 printx(D_IME, "WM_KEYUP 回放：\"%ls\" (%x)", key_name, key);
             }
 
-            WORD key_flags = HIWORD(lParam);
-            WORD wScan = LOBYTE(key_flags); // equal to MapVirtualKey(key, MAPVK_VK_TO_VSC)
-            DWORD dwFlags = (key_flags & KF_EXTENDED) ? KEYEVENTF_EXTENDEDKEY : 0;
+            WORD wScan = LOBYTE(key_flags);
+            DWORD dwFlags = (extended ? KEYEVENTF_EXTENDEDKEY : 0);
 
             playback_key_events[0].type = INPUT_KEYBOARD;
             playback_key_events[0].ki.wVk = key;
@@ -754,6 +903,23 @@ static void fix_ime_WM_KEYUP(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
         else
         {
             printx(D_IME, "WM_KEYUP 回放...完成");
+        }
+    }
+
+    if (key_cat == KEY_CATALOG_BLOCK_NOT_NUMLOCK)
+    {
+        LPARAM extra_info = GetMessageExtraInfo();
+        if (extra_info != myHIMC_INPUT_PASS && extra_info != myHIMC_INPUT_BLOCK)
+        {
+            WORD wScan = LOBYTE(key_flags);
+            DWORD dwFlags = KEYEVENTF_EXTENDEDKEY;
+
+            playback_key_events[0].type = INPUT_KEYBOARD;
+            playback_key_events[0].ki.wVk = key;
+            playback_key_events[0].ki.wScan = wScan;
+            playback_key_events[0].ki.dwFlags = dwFlags | KEYEVENTF_KEYUP;
+            playback_key_events[0].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+            SendInput(1, (PINPUT)&playback_key_events, sizeof(INPUT));
         }
     }
 }

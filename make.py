@@ -303,9 +303,14 @@ def run(args):
 
     if args.use_wt:
         cmd = ['wt', exe_path]
+        subprocess.Popen(cmd, cwd=blender_dir)
     else:
         cmd = [exe_path]
-    subprocess.Popen(cmd, cwd=blender_dir)
+        p = subprocess.Popen(cmd, cwd=blender_dir)
+        p.communicate()
+        p.wait()
+    pass
+    
 
 def clean(args):
     if (_dir := prj_dir.joinpath('xbuild')).exists():

@@ -6,7 +6,7 @@
 新增成员：dynamic_listeners
 
 ----- V3
-3.5.0 - 3.6.10
+3.5.0 - 3.6.11
 成员 button_groups 的类型从 ListBase 改为 blender::Vector<uiButtonGroup>
 其它改动没有实际影响
 
@@ -15,7 +15,7 @@
 成员 contexts 的类型从 ListBase 改为 blender::Vector<std::unique_ptr<bContextStore>>
 
 ----- V5
-4.1.0 - 4.1.0
+4.1.0 - 4.1.1
 成员 name 的类型从 char [UI_MAX_NAME_STR] 改为 std::string
 
 无影响的改动：

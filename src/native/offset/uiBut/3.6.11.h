@@ -4,18 +4,15 @@ struct uiBut {
   /** Pointer back to the layout item holding this button. */
   uiLayout *layout = nullptr;
   int flag = 0;
-  int flag2 = 0;
   int drawflag = 0;
   eButType type = eButType(0);
   eButPointerType pointype = UI_BUT_POIN_NONE;
   short bit = 0, bitnr = 0, retval = 0, strwidth = 0, alignnr = 0;
   short ofs = 0, pos = 0, selsta = 0, selend = 0;
 
-  std::string str;
-
-  std::string drawstr;
-
-  char *placeholder = nullptr;
+  char *str = nullptr;
+  char strdata[UI_MAX_NAME_STR] = "";
+  char drawstr[UI_MAX_DRAW_STR] = "";
 
   rctf rect = {}; /* block relative coords */
 
@@ -49,16 +46,11 @@ struct uiBut {
   uiButHandleFunc func = nullptr;
   void *func_arg1 = nullptr;
   void *func_arg2 = nullptr;
-  /**
-   * C++ version of #func above. Allows storing arbitrary data in a type safe way, no void
-   * pointer arguments.
-   */
-  std::function<void(bContext &)> apply_func;
 
   uiButHandleNFunc funcN = nullptr;
   void *func_argN = nullptr;
 
-  const bContextStore *context = nullptr;
+  bContextStore *context = nullptr;
 
   uiButCompleteFunc autocomplete_func = nullptr;
   void *autofunc_arg = nullptr;
@@ -75,10 +67,6 @@ struct uiBut {
   uiButToolTipFunc tip_func = nullptr;
   void *tip_arg = nullptr;
   uiFreeArgFunc tip_arg_free = nullptr;
-  /** Function to override the label to be displayed in the tooltip. */
-  std::function<std::string(const uiBut *)> tip_label_func;
-
-  uiButToolTipCustomFunc tip_custom_func = nullptr;
 
   /** info on why button is disabled, displayed in tooltip */
   const char *disabled_info = nullptr;
@@ -117,16 +105,14 @@ struct uiBut {
 
   ListBase extra_op_icons = {nullptr, nullptr}; /** #uiButExtraOpIcon */
 
-  eWM_DragDataType dragtype = WM_DRAG_ID;
+  /* Drag-able data, type is WM_DRAG_... */
+  char dragtype = WM_DRAG_ID;
   short dragflag = 0;
   void *dragpoin = nullptr;
-  const ImBuf *imb = nullptr;
+  ImBuf *imb = nullptr;
   float imb_scale = 0;
 
-  /**
-   * Active button data, set when the user is hovering or interacting with a button (#UI_HOVER and
-   * #UI_SELECT state mostly).
-   */
+  /** Active button data (set when the user is hovering or interacting with a button). */
   uiHandleButtonData *active = nullptr;
 
   /** Custom button data (borrowed, not owned). */
@@ -136,7 +122,8 @@ struct uiBut {
   double *editval = nullptr;
   float *editvec = nullptr;
 
-  std::function<bool(const uiBut &)> pushed_state_func;
+  uiButPushedStateFunc pushed_state_func = nullptr;
+  const void *pushed_state_arg = nullptr;
 
   /** Little indicator (e.g., counter) displayed on top of some icons. */
   IconTextOverlay icon_overlay_text = {};
@@ -156,14 +143,7 @@ enum {
   UI_SELECT = (1 << 0),
   /** Temporarily hidden (scrolled out of the view). */
   UI_SCROLLED = (1 << 1),
-  /**
-   * The button is hovered by the mouse and should be drawn with a hover highlight. Also set
-   * sometimes to highlight buttons without actually hovering it (e.g. for arrow navigation in
-   * menus). UI handling code manages this mostly and usually does this together with making the
-   * button active/focused (see #uiBut::active). This means events will be forwarded to it and
-   * further handlers/shortcuts can be used while hovering it.
-   */
-  UI_HOVER = (1 << 2),
+  UI_ACTIVE = (1 << 2),
   UI_HAS_ICON = (1 << 3),
   UI_HIDDEN = (1 << 4),
   /** Display selected, doesn't impact interaction. */
@@ -176,10 +156,10 @@ enum {
    * active button can be polled on non-active buttons to (e.g. for disabling). */
   UI_BUT_ACTIVE_OVERRIDE = (1 << 7),
 
-  /* WARNING: rest of #uiBut.flag in UI_interface.hh */
+  /* WARNING: rest of #uiBut.flag in UI_interface.h */
 };
 
-enum eButType {
+typedef enum {
   UI_BTYPE_BUT = 1 << 9,
   UI_BTYPE_ROW = 2 << 9,
   UI_BTYPE_TEXT = 3 << 9,
@@ -233,7 +213,7 @@ enum eButType {
   UI_BTYPE_HISTOGRAM = 48 << 9,
   UI_BTYPE_WAVEFORM = 49 << 9,
   UI_BTYPE_VECTORSCOPE = 50 << 9,
-  UI_BTYPE_PROGRESS = 51 << 9,
+  UI_BTYPE_PROGRESS_BAR = 51 << 9,
   UI_BTYPE_NODE_SOCKET = 53 << 9,
   UI_BTYPE_SEPR = 54 << 9,
   UI_BTYPE_SEPR_LINE = 55 << 9,
@@ -242,6 +222,6 @@ enum eButType {
   /** Resize handle (resize UI-list). */
   UI_BTYPE_GRIP = 57 << 9,
   UI_BTYPE_DECORATOR = 58 << 9,
-  /** An item a view (see #ui::AbstractViewItem). */
+  /* An item a view (see #ui::AbstractViewItem). */
   UI_BTYPE_VIEW_ITEM = 59 << 9,
-};
+} eButType;

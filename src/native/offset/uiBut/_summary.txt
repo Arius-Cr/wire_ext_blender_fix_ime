@@ -1,4 +1,4 @@
-尽管变动非常复杂，但是我们需要的 flag、type、UI_SELECT 等都是简单地，总结如下：
+尽管变动非常复杂，但是我们需要的 flag、type、UI_SELECT 等都是简单的，总结如下：
 
 uiBut
 V1 - V5
@@ -26,11 +26,11 @@ uiBut
 成员 pie_dir 的类型从 signed char 改为 RadialDirection (Enum)
 
 ----- V4
-3.3.0 - 3.3.12
+3.3.0 - 3.3.18
 删除成员：modifier_key
 
 ----- V5
-3.4.0 - 3.6.9
+3.4.0 - 3.6.11
 新增成员：icon_overlay_text
 注：3.5.0 转为 C++
 
@@ -45,13 +45,11 @@ uiBut
 删除成员：pushed_state_arg
 
 ----- V7
-4.1.0 - 4.1.0
+4.1.0 - 4.1.1
 成员 str 的类型从 char * 改为 std::string
 删除成员 strdata
 成员 drawstr 的类型从 char [UI_MAX_DRAW_STR] 改为 std::string
 新增成员 placeholder
-删除成员 a1
-删除成员 a2
 
 ============================================================
 UI_SELECT
@@ -60,13 +58,13 @@ UI_SELECT
 3.0.0 - 3.1.2
 
 ----- V2
-3.2.0 - 3.6.9
+3.2.0 - 3.6.11
 4.0.0 - 4.0.2
 新增枚举 UI_BUT_ACTIVE_OVERRIDE
 注：在 4.0.0 中修改了注释
 
 ----- V3
-4.1.0 - 4.1.0
+4.1.0 - 4.1.1
 枚举 UI_ACTIVE 改为 UI_HOVER，值不变
 
 ============================================================
@@ -79,11 +77,11 @@ eButType
 3.1.0 - 3.2.2
 
 ----- V3
-3.3.0 - 3.6.10
+3.3.0 - 3.6.11
 枚举 UI_BTYPE_TREEROW 改为 UI_BTYPE_VIEW_ITEM，值不变
 注：3.4.0 中修改了注释
 注：3.5.0 中修改了注释
 
 ----- V4
-4.0.0 - 4.1.0
+4.0.0 - 4.1.1
 枚举 UI_BTYPE_PROGRESS_BAR 改为 UI_BTYPE_PROGRESS，值不变

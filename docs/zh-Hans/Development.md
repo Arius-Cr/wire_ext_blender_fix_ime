@@ -30,11 +30,11 @@
 
    开发者所有版本：
 
-   - Visual Studio 2022 Build Tools 17.6.1
+   - Visual Studio 2022 Build Tools 17.9.6
 
-   - MSVC 14.36.32532
+   - MSVC 14.39.33519
 
-   - Windows SDK 10.0.20348.0
+   - Windows SDK 10.0.22621.0
 
    > 如果使用不同的版本，请适当修改 **native/main.vcxproj** 中的 `PlatformToolset` 和 `WindowsTargetPlatformVersion` 属性。
 

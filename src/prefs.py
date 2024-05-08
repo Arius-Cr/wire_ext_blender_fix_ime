@@ -1,5 +1,6 @@
 from typing import cast, Literal, Union
 from datetime import datetime
+import asyncio
 
 import bpy
 from bpy.types import Context, UILayout
@@ -39,7 +40,7 @@ class Prefs(bpy.types.AddonPreferences):
     def use_auto_update_blender_data_update(self, context: Context):
         from .main import blender_data
         if self.use_auto_update_blender_data:
-            blender_data.auto_update()
+            asyncio.run(blender_data.auto_update_and_restart())
 
     use_auto_update_blender_data: bpy.props.BoolProperty(
         name="自动更新内存偏移数据",

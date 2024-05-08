@@ -96,7 +96,7 @@ def register() -> None:
     registered = True
 
     if _prefs.use_auto_update_blender_data:
-        blender_data.auto_update()
+        asyncio.run(blender_data.auto_update_and_restart())
     pass
 
 def unregister() -> None:
@@ -287,6 +287,47 @@ class BlenderData:
 
         return True
 
+    async def update_and_restart():
+        is_compatible = blender_data.is_compatible
+        await blender_data.update()
+        if blender_data.is_compatible != is_compatible:
+            fix_off()
+            fix_on()
+        pass
+    
+    async def auto_update(self):
+        invoked = False
+        
+        # 启用插件时，先执行一次更新
+        _prefs = get_prefs(bpy.context)
+        if _prefs.enable_from_disable:
+            _prefs.enable_from_disable = False
+            if mark.DEBUG:
+                printx(CCFA, "自动更新 blender.py：初次启动")
+            invoked = True
+            await blender_data.update()
+
+        if invoked:
+            return
+        
+        # 当前离上次更新超过三天则自动执行一次更新
+        now = datetime.now(tzbj)
+        if (now - addon_data.blender_data_update_time).days >= 3:
+            if mark.DEBUG:
+                printx(CCFA, "自动更新 blender.py：计划任务")
+            invoked = True
+            await blender_data.update()
+            
+        pass
+
+    async def auto_update_and_restart(self):
+        is_compatible = blender_data.is_compatible
+        await blender_data.auto_update()
+        if blender_data.is_compatible != is_compatible:
+            fix_off()
+            fix_on()
+        pass
+
     def startup(self) -> bool:
         '''
         加载下载或默认的 blender.py 文件并应用。
@@ -329,30 +370,6 @@ class BlenderData:
 
         return True
 
-    def auto_update(self):
-        invoked = False
-        
-        # 启用插件时，先执行一次更新
-        _prefs = get_prefs(bpy.context)
-        if _prefs.enable_from_disable:
-            _prefs.enable_from_disable = False
-            if mark.DEBUG:
-                printx(CCFA, "自动更新 blender.py：初次启动")
-            asyncio.run(blender_data.update())
-            invoked = True
-
-        if invoked:
-            return
-        
-        # 当前离上次更新超过三天则自动执行一次更新
-        now = datetime.now(tzbj)
-        if (now - addon_data.blender_data_update_time).days >= 3:
-            if mark.DEBUG:
-                printx(CCFA, "自动更新 blender.py：计划任务")
-            asyncio.run(blender_data.update())
-            invoked = True
-
-        pass
 
 class WIRE_FIX_IME_OT_update_blender_data(Operator):
     bl_idname = 'wire_fix_ime.update_blender_data'
@@ -360,19 +377,8 @@ class WIRE_FIX_IME_OT_update_blender_data(Operator):
     bl_description = "获取插件所需 Blender 内部数据的内存偏移量（仅限适用于当前插件的数据）"
 
     def execute(self, context: Context) -> Union[Literal['RUNNING_MODAL'], Literal['CANCELLED'], Literal['FINISHED'], Literal['PASS_THROUGH'], Literal['INTERFACE']]:
-        asyncio.run(self.run())
+        asyncio.run(blender_data.update_and_restart())
         return {'FINISHED'}
-
-    async def run(self):
-        is_compatible = blender_data.is_compatible
-        await blender_data.update()
-        if blender_data.is_compatible != is_compatible:
-            # 重启相关功能
-            if mark.DEBUG:
-                printx(CCFR, "!!!!!!!!!!!重启相关功能")
-            fix_off()
-            fix_on()
-        pass
 
 class WIRE_FIX_IME_OT_clean_blender_data(Operator):
     bl_idname = 'wire_fix_ime.clean_blender_data'
@@ -384,22 +390,5 @@ class WIRE_FIX_IME_OT_clean_blender_data(Operator):
         return blender_data.file_path_cache.exists()
 
     def execute(self, context: Context) -> Union[Literal['RUNNING_MODAL'], Literal['CANCELLED'], Literal['FINISHED'], Literal['PASS_THROUGH'], Literal['INTERFACE']]:
-        if blender_data.file_path_cache.exists():
-            os.unlink(blender_data.file_path_cache)
-
-            success = blender_data.load('default')
-            if not success:
-                if mark.DEBUG:
-                    printx(CCFA, "加载 blender.py 失败")
-                return False
-
-            blender_data.apply()
-
-            global addon_data
-            addon_data.blender_data_update_time = datetime.fromtimestamp(0, tzbj)
-            addon_data.save()
-
-            fix_off()
-            fix_on()
-
+        blender_data.reset()
         return {'FINISHED'}

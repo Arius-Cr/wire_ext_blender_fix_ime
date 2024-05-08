@@ -37,7 +37,7 @@ info = {
     'github': 'https://github.com/Arius-Cr/wire_ext_blender_fix_ime',
     'gitee': 'https://gitee.com/arius-cr/wire_ext_blender_fix_ime',
     'baidu': 'https://pan.baidu.com/s/1H9DxkAdmBJXLhl5Aj29Q6Q?pwd=q4e5',
-    'blender_data_url': 'https://gitee.com/arius-cr/wire_ext_blender_fix_ime/raw/main/native/blender.py',
+    'blender_data_url': 'https://gitee.com/arius-cr/wire_ext_blender_fix_ime/raw/main/src/native/blender.py',
 }
 
 registered: bool = False

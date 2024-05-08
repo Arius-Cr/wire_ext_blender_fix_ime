@@ -145,6 +145,11 @@ class Manager():
                      prefs.use_fix_ime_font_edit or
                      prefs.use_fix_ime_text_editor or
                      prefs.use_fix_ime_console)
+        
+        from .main import blender_data
+        if not blender_data.is_compatible:
+            _fix_field = False
+            _fix_space = False
 
         native.use_fix_direct_input_caps_lock(True)
         native.use_fix_direct_input_all(True)

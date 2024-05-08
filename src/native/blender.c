@@ -27,14 +27,6 @@
 
 #define UNKNOWN 0
 
-#define Z 99999
-
-#define VER_GTE(m, s, r) \
-    ((ver_m > m) || (ver_m == m && ver_s > s) || (ver_m == m && ver_s == s && ver_r >= r))
-
-#define VER_LTE(m, s, r) \
-    ((ver_m < m) || (ver_m == m && ver_s < s) || (ver_m == m && ver_s == s && ver_r <= r))
-
 #define GEN_ADDR(base, offset) ((size_t)base + offset)
 #define GET_VALUE(type, base, offset) *(type *)GEN_ADDR(base, offset)
 
@@ -374,165 +366,6 @@ extern __declspec(dllexport) void *wmWindow_active_region_get(void *wm_pointer)
     return NULL;
 }
 
-static void blender_data_init_wmWindow()
-{
-    // 无需区分版本
-    WM_HANDLER_TYPE_UI = 2;
-
-    // 无需区分版本（当前无使用）
-    WM_HANDLER_BLOCKING = 1;
-    WM_HANDLER_ACCEPT_DBL_CLICK = 2;
-    WM_HANDLER_DO_FREE = 128;
-
-    // ----- DNA 类型 wmWindow
-
-    /**/ if ((VER_GTE(4, 1, 0) && VER_LTE(4, 1, 1))) //// V4
-    {
-        offset_wmWindow__workspace_hook = 128;
-        offset_wmWindow__modalhandlers = 304;
-    }
-    else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) || // V3
-             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 11)))  // V3
-    {
-        offset_wmWindow__workspace_hook = 128;
-        offset_wmWindow__modalhandlers = 296;
-    }
-    else if ((VER_GTE(3, 3, 0) && VER_LTE(3, 4, Z))) //// V2
-    {
-        offset_wmWindow__workspace_hook = 128;
-        offset_wmWindow__modalhandlers = 280;
-    }
-    else if ((VER_GTE(3, 0, 0) && VER_LTE(3, 2, Z))) //// V1
-    {
-
-        offset_wmWindow__workspace_hook = 120;
-        offset_wmWindow__modalhandlers = 272;
-    }
-
-    // ----- DNA 类型 WorkSpaceInstanceHook
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 11)))  // V1
-    {
-        offset_WorkSpaceInstanceHook__active = 0;
-        offset_WorkSpaceInstanceHook__act_layout = 8;
-    }
-
-    // ----- DNA 类型 WorkSpaceLayout
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 11)))  // V1
-    {
-        offset_WorkSpaceLayout__screen = 16;
-    }
-
-    // ----- DNA 类型 bScreen
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 11)))  // V1
-    {
-        offset_bScreen__active_region = 280;
-    }
-
-    // ----- DNA 类型 ARegion
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) || // V2
-             (VER_GTE(3, 6, 0) && VER_LTE(3, 6, 11)))  // V2
-    {
-        offset_ARegion__uiblocks = 240;
-    }
-    else if ((VER_GTE(3, 0, 0) && VER_LTE(3, 5, Z))) //// V1
-    {
-        offset_ARegion__uiblocks = 232;
-    }
-
-    // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-    // ----- 非 DNA 类型 wmEventHandler、wmEventHandler_UI
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) ||  // V2
-             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 11)) || // V2
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 4, Z)))    // V1
-    {
-        // V1、V2 内存对齐后相同
-
-        offset_wmEventHandler__type = 16;
-
-        offset_wmEventHandler__handle_fn = 32;
-        offset_wmEventHandler__remove_fn = 40;
-        offset_wmEventHandler__user_data = 48;
-        offset_wmEventHandler__area = 56;
-        offset_wmEventHandler__region = 64;
-        offset_wmEventHandler__menu = 72;
-
-        WM_HANDLER_TYPE_UI = 2;
-    }
-
-    // ----- 非 DNA 类型 uiHandleButtonData
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) ||  // V2
-             (VER_GTE(3, 2, 0) && VER_LTE(3, 6, 11)) || // V2
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 1, Z)))    // V1
-    {
-        // V1、V2 内存对齐后相同
-
-        sizeof_uiHandleButtonData = 376;
-    }
-
-    // ----- 非 DNA 类型 uiPopupBlockHandle
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1))) // V2
-    {
-        sizeof_uiPopupBlockHandle = 328;
-        offset_uiPopupBlockHandle__region = 0;
-    }
-    else if ((VER_GTE(3, 0, 0) && VER_LTE(3, 6, 11))) // V1
-    {
-        sizeof_uiPopupBlockHandle = 264;
-        offset_uiPopupBlockHandle__region = 0;
-    }
-
-    // ----- 非 DNA 类型 uiBlock
-
-    /**/ if ((VER_GTE(4, 1, 0) && VER_LTE(4, 1, 1)) ||  // V5
-             (VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) ||  // V4
-             (VER_GTE(3, 5, 0) && VER_LTE(3, 6, 11)) || // V3
-             (VER_GTE(3, 4, 0) && VER_LTE(3, 4, Z)) ||  // V2
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 3, Z)))    // V1
-    {
-        offset_uiBlock__buttons = 16;
-    }
-
-    // ----- 非 DNA 类型 uiBut
-
-    /**/ if ((VER_GTE(4, 1, 0) && VER_LTE(4, 1, 1)) || // V7
-             (VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)))   // V6
-    {
-        offset_uiBut__flag = 24;
-        offset_uiBut__type = 36;
-    }
-    else if ((VER_GTE(3, 4, 0) && VER_LTE(3, 6, 11)) || // V5
-             (VER_GTE(3, 3, 0) && VER_LTE(3, 3, Z)) ||  // V4
-             (VER_GTE(3, 2, 0) && VER_LTE(3, 2, Z)) ||  // V3
-             (VER_GTE(3, 1, 0) && VER_LTE(3, 1, Z)) ||  // V2
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 0, Z)))    // V1
-    {
-        offset_uiBut__flag = 24;
-        offset_uiBut__type = 32;
-    }
-
-    /**/ if ((VER_GTE(4, 0, 0) && VER_LTE(4, 1, 1)) ||
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 11)))
-    {
-        // 当前需求无需区分版本
-
-        UI_SELECT = (1 << 0);             // 十六进制：1
-        UI_BTYPE_TEXT = (3 << 9);         // 十六进制：600
-        UI_BTYPE_NUM = (6 << 9);          // 十六进制：C00
-        UI_BTYPE_SEARCH_MENU = (41 << 9); // 十六进制：5200
-    }
-}
-
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 // 文件：source\blender\makesdna\DNA_space_types.h
@@ -608,31 +441,6 @@ extern __declspec(dllexport) int SpaceText_line_number_display_digits_get(void *
     }
 
     return 0;
-}
-
-static void blender_data_init_SpaceText()
-{
-    // ----- DNA 类型 SpaceText、SpaceText_Runtime
-
-    /**/ if ((VER_GTE(4, 1, 0) && VER_LTE(4, 1, 1))) //// V2
-    {
-        SpaceText_ver = 2;
-
-        offset_SpaceText__runtime = 592;
-        offset_SpaceText_Runtime__lheight_px = 0;
-        offset_SpaceText_Runtime__cwidth_px = 4;
-        offset_SpaceText_Runtime__line_number_display_digits = 40;
-    }
-    else if ((VER_GTE(4, 0, 0) && VER_LTE(4, 0, Z)) || // V1
-             (VER_GTE(3, 0, 0) && VER_LTE(3, 6, 11)))  // V1
-    {
-        SpaceText_ver = 1;
-
-        offset_SpaceText__runtime = 592;
-        offset_SpaceText_Runtime__lheight_px = 0;
-        offset_SpaceText_Runtime__cwidth_px = 4;
-        offset_SpaceText_Runtime__line_number_display_digits = 40;
-    }
 }
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
@@ -805,22 +613,69 @@ static void blender_data_uninit_blf()
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
-extern __declspec(dllexport) void blender_data_init()
+extern /*__declspec(dllexport)*/ void blender_data_init()
 {
-    // 无需区分版本
-    offset_ListBase__first = 0;
-    offset_ListBase__last = 8;
-    offset_Link__next = 0;
-    offset_Link__prev = 8;
-
-    blender_data_init_wmWindow();
-
-    blender_data_init_SpaceText();
-
     blender_data_init_blf();
 }
 
-extern __declspec(dllexport) void blender_data_uninit()
+extern /*__declspec(dllexport)*/ void blender_data_uninit()
 {
+    // 该函数可能会重复执行，因此执行任何操作前都应该先判断是否需要反初始化再执行反初始化
+
     blender_data_uninit_blf();
+}
+
+extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t value)
+{
+
+#define _set_(_name)                    \
+    if (wcscmp(name, L## #_name) == 0) \
+    {                                  \
+        _name = value;                 \
+        return true;                   \
+    }
+
+    /******/ _set_(offset_ListBase__first)                               //
+        else _set_(offset_ListBase__last)                                //
+        else _set_(offset_Link__next)                                    //
+        else _set_(offset_Link__prev)                                    //
+        else _set_(offset_wmWindow__modalhandlers)                       //
+        else _set_(offset_wmWindow__workspace_hook)                      //
+        else _set_(offset_wmEventHandler__type)                          //
+        else _set_(offset_wmEventHandler__flag)                          //
+        else _set_(offset_wmEventHandler__handle_fn)                     //
+        else _set_(offset_wmEventHandler__remove_fn)                     //
+        else _set_(offset_wmEventHandler__user_data)                     //
+        else _set_(offset_wmEventHandler__area)                          //
+        else _set_(offset_wmEventHandler__region)                        //
+        else _set_(offset_wmEventHandler__menu)                          //
+        else _set_(WM_HANDLER_TYPE_UI)                                   //
+        else _set_(sizeof_uiHandleButtonData)                            //
+        else _set_(sizeof_uiPopupBlockHandle)                            //
+        else _set_(offset_uiPopupBlockHandle__region)                    //
+        else _set_(offset_ARegion__uiblocks)                             //
+        else _set_(offset_uiBlock__buttons)                              //
+        else _set_(offset_uiBut__flag)                                   //
+        else _set_(offset_uiBut__type)                                   //
+        else _set_(UI_SELECT)                                            //
+        else _set_(UI_BTYPE_TEXT)                                        //
+        else _set_(UI_BTYPE_NUM)                                         //
+        else _set_(UI_BTYPE_SEARCH_MENU)                                 //
+        else _set_(WM_HANDLER_BLOCKING)                                  //
+        else _set_(WM_HANDLER_ACCEPT_DBL_CLICK)                          //
+        else _set_(WM_HANDLER_DO_FREE)                                   //
+        else _set_(offset_wmWindow__workspace_hook)                      //
+        else _set_(offset_WorkSpaceInstanceHook__active)                 //
+        else _set_(offset_WorkSpaceInstanceHook__act_layout)             //
+        else _set_(offset_WorkSpaceLayout__screen)                       //
+        else _set_(offset_bScreen__active_region)                        //
+        else _set_(offset_SpaceText__runtime)                            //
+        else _set_(offset_SpaceText_Runtime__lheight_px)                 //
+        else _set_(offset_SpaceText_Runtime__cwidth_px)                  //
+        else _set_(offset_SpaceText_Runtime__line_number_display_digits) //
+        else _set_(SpaceText_ver)                                        //
+        ;
+#undef _set_
+
+    return false;
 }

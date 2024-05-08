@@ -71,7 +71,7 @@ class _main:
         self.dll.use_debug.argtypes = [ctypes.c_int]
         self.dll.use_debug.restype = ctypes.c_bool
 
-        self.dll.init.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        self.dll.init.argtypes = []
         self.dll.init.restype = ctypes.c_bool
 
         self.dll.uninit.argtypes = []
@@ -80,8 +80,8 @@ class _main:
     def use_debug(self, level: int) -> bool:
         return self.dll.use_debug(level)
 
-    def init(self, ver_m: int, ver_s: int, ver_r: int) -> bool:
-        return self.dll.init(ver_m, ver_s, ver_r)
+    def init(self) -> bool:
+        return self.dll.init()
 
     def uninit(self) -> bool:
         return self.dll.uninit()
@@ -89,6 +89,9 @@ class _main:
 
 class _blender:
     def _dll_init__blender(self):
+        self.dll.blender_data_set.argtypes = [ctypes.c_wchar_p, ctypes.c_size_t]
+        self.dll.blender_data_set.restype = ctypes.c_bool
+
         self.dll.wmWindow_is_but_active.argtypes = [ctypes.c_void_p]
         self.dll.wmWindow_is_but_active.restype = ctypes.c_bool
 
@@ -112,6 +115,9 @@ class _blender:
 
         self.dll.BLF_fixed_width.argtypes = [ctypes.c_wchar_p, ctypes.c_float]
         self.dll.BLF_fixed_width.restype = ctypes.c_int
+
+    def blender_data_set(self, name: str, value: int):
+        return self.dll.blender_data_set(name, value)
 
     def wmWindow_is_but_active(self, wm_pointer: int) -> bool:
         return self.dll.wmWindow_is_but_active(wm_pointer)

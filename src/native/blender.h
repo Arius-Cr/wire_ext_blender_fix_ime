@@ -35,8 +35,10 @@ extern __declspec(dllexport) int BLF_fixed_width(wchar_t *font_path, float font_
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
-extern __declspec(dllexport) void blender_data_init();
+extern /*__declspec(dllexport)*/ void blender_data_init();
 
-extern __declspec(dllexport) void blender_data_uninit();
+extern /*__declspec(dllexport)*/ void blender_data_uninit();
+
+extern __declspec(dllexport) bool blender_data_set(const wchar_t *name_id, size_t value);
 
 #endif

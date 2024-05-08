@@ -184,6 +184,7 @@ def build(args):
         (['src', 'debug', '__init__.py'], ['debug', '__init__.py']),
         (['src', 'debug', 'mark.py'], ['debug', 'mark.py']),
         (['src', 'native', '__init__.py'], ['native', '__init__.py']),
+        (['src', 'native', 'blender.py'], ['native', 'blender.py']),
         (['xbuild', args.config, 'out', f'{addon_name}.dll'], ['native', f'{addon_name}.dll']),
         (['src', 'utils', '__init__.py'], ['utils', '__init__.py']),
         (['src', 'utils', 'printx.py'], ['utils', 'printx.py']),

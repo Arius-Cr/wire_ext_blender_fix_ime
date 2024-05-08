@@ -1,4 +1,5 @@
 from typing import cast, Literal, Union
+from datetime import datetime
 
 import bpy
 from bpy.types import Context, UILayout
@@ -26,6 +27,27 @@ def get_prefs(context: bpy.types.Context) -> 'Prefs':
 
 class Prefs(bpy.types.AddonPreferences):
     bl_idname = __package__  # 必须和插件模块名称相同
+
+    # 该属性用于检测插件是从停用状态到启用状态，还是从启用状态到启用状态（Blender 加载已启用的插件时）
+    enable_from_disable: bpy.props.BoolProperty(
+        name="停用->启用",
+        description="(仅供内部使用)",
+        default=True,
+        options={'HIDDEN'}
+    )
+
+    def use_auto_update_blender_data_update(self, context: Context):
+        from .main import blender_data
+        if self.use_auto_update_blender_data:
+            blender_data.auto_update()
+
+    use_auto_update_blender_data: bpy.props.BoolProperty(
+        name="自动更新内存偏移数据",
+        description="初始启动插件或每隔三天自动更新内存偏移数据。",
+        default=True,
+        options={'HIDDEN'},
+        update=use_auto_update_blender_data_update,
+    )
 
     def use_fix_ime_update(self, context: Context):
         from .ime import Manager
@@ -95,7 +117,30 @@ class Prefs(bpy.types.AddonPreferences):
 
     def draw(self, context: bpy.types.Context) -> None:
         layout: UILayout = self.layout.column()
+
+        # 选项
+
+        self.draw_options(layout.column())
+
+        # 数据
+
+        layout.separator()
+
+        self.draw_data(layout.column())
+
+        # 链接
+
+        layout.separator()
+
+        self.draw_link(layout.column())
+
+        pass
+
+    def draw_options(self, layout: UILayout):
         split_factor = 0.3
+
+        from .main import blender_data
+        layout.enabled = blender_data.is_compatible
 
         _for_field = self.use_fix_ime_for_field
         _for_space = self.use_fix_ime_for_space
@@ -159,11 +204,35 @@ class Prefs(bpy.types.AddonPreferences):
             rowr = split.row()
             rowr.prop(self, 'use_debug')
 
-        # 链接
+    def draw_data(self, layout: UILayout):
+        from .main import (
+            tzlocal,
+            addon_data,
+            blender_data,
+            WIRE_FIX_IME_OT_update_blender_data,
+            WIRE_FIX_IME_OT_clean_blender_data,
+        )
 
-        layout.separator()
+        row = layout.row()
+        rowrow = row.row(align=True)
+        rowrow.operator(WIRE_FIX_IME_OT_update_blender_data.bl_idname, text='更新内存偏移数据')
+        rowrow.prop(self, 'use_auto_update_blender_data', text="自动更新", toggle=True)
+        row.operator(WIRE_FIX_IME_OT_clean_blender_data.bl_idname, text='清除内存偏移数据')
 
-        self.draw_link(layout.column())
+        _datetime = addon_data.blender_data_update_time.astimezone(tzlocal)
+        layout.label(text="最近更新于: " + _datetime.strftime('%Y-%m-%d %H:%M:%S'))
+
+        if not blender_data.is_compatible:
+            col = layout.column()
+            col.alert = True
+            col.label(text=f"当前插件不兼容 Blender {'.'.join(map(str, bpy.app.version))}", icon='ERROR')
+            col.label(text="你可以尝试点击【更新内存偏移数据】或自行更新插件", icon='INFO')
+
+        layout.label(text="当前支持的 Blender 版本:")
+        for _min, _max, _date, _hash in blender_data.blender_vers:
+            _dev = f" (开发版 {_date} {_hash})" if _date is not None else ""
+            layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}{_dev}")
+
         pass
 
     def draw_link(self, layout: UILayout):
@@ -172,27 +241,4 @@ class Prefs(bpy.types.AddonPreferences):
         row = layout.row()
         row.operator('wm.url_open', text="GitHub", icon='URL').url = info['github']
         row.operator('wm.url_open', text="百度网盘", icon='URL').url = info['baidu']
-        pass
-
-# ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-class PrefsAlert(bpy.types.AddonPreferences):
-    bl_idname = __package__
-
-    def draw(self, context: bpy.types.Context) -> None:
-        layout: UILayout = self.layout
-
-        # 警告
-
-        from .main import version_mismatch_alert
-
-        column = layout.column()
-        for _str in version_mismatch_alert:
-            column.label(text=_str)
-
-        # 链接
-
-        layout.separator()
-
-        Prefs.draw_link(self, layout.column())
         pass

@@ -45,7 +45,7 @@ class Prefs(bpy.types.AddonPreferences):
     use_auto_update_blender_data: bpy.props.BoolProperty(
         name="自动更新内存偏移数据",
         description="初始启动插件或每隔三天自动更新内存偏移数据。",
-        default=True,
+        default=True if not DEBUG_BUILD else False,
         options={'HIDDEN'},
         update=use_auto_update_blender_data_update,
     )

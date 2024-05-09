@@ -287,7 +287,7 @@ class BlenderData:
 
         return True
 
-    async def update_and_restart():
+    async def update_and_restart(self):
         is_compatible = blender_data.is_compatible
         await blender_data.update()
         if blender_data.is_compatible != is_compatible:

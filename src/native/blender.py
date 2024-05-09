@@ -1,5 +1,7 @@
 import typing
 from typing import cast, Literal, Union
+from datetime import datetime
+dtfmt = '%Y-%m-%d %H:%M %z'
 
 __all__ = ['get_data']
 
@@ -31,6 +33,8 @@ def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Unio
 def get_data_3_0_4() -> dict:
 
     data = {
+        # 数据更新时间
+        'mtime': datetime.strptime('2024-05-09 15:41 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
             ((3, 0, 0), _3__6__X_, None, None),

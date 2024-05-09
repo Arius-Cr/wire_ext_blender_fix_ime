@@ -207,9 +207,10 @@ class Prefs(bpy.types.AddonPreferences):
 
     def draw_data(self, layout: UILayout):
         from .main import (
-            tzlocal,
+            tzlocal, dtzero,
             addon_data,
             blender_data,
+            blender_data_default,
             WIRE_FIX_IME_OT_update_blender_data,
             WIRE_FIX_IME_OT_clean_blender_data,
         )
@@ -220,8 +221,17 @@ class Prefs(bpy.types.AddonPreferences):
         rowrow.prop(self, 'use_auto_update_blender_data', text="自动更新", toggle=True)
         row.operator(WIRE_FIX_IME_OT_clean_blender_data.bl_idname, text='清除内存偏移数据')
 
+        _datetime = blender_data_default.mtime.astimezone(tzlocal)
+        layout.label(text="本地版本: " + blender_data_default.mtime.strftime('%Y-%m-%d %H:%M') +
+                     ("   [正在使用]" if blender_data.type == 'default' else ""))
+
+        _datetime = blender_data.mtime if blender_data.type == 'cache' else dtzero
+        _datetime = _datetime.astimezone(tzlocal)
+        layout.label(text="远端版本: " + _datetime.strftime('%Y-%m-%d %H:%M') +
+                     ("   [正在使用]" if blender_data.type == 'cache' else ""))
+
         _datetime = addon_data.blender_data_update_time.astimezone(tzlocal)
-        layout.label(text="最近更新于: " + _datetime.strftime('%Y-%m-%d %H:%M:%S'))
+        layout.label(text="最近更新: " + _datetime.strftime('%Y-%m-%d %H:%M:%S'))
 
         if not blender_data.is_compatible:
             col = layout.column()

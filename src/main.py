@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 dtfmt = '%Y-%m-%d %H:%M:%S %z'
 tzbj = timezone(timedelta(hours=8))
 tzlocal = datetime.now().tzinfo
+dtzero = datetime.fromtimestamp(0, tzbj)
 
 import bpy
 from bpy.types import Context, Operator
@@ -45,6 +46,7 @@ registered: bool = False
 addon_data: Union['AddonData', None] = None
 
 blender_data: Union['BlenderData', None] = None
+blender_data_default: Union['BlenderData', None] = None
 
 def register() -> None:
     if DEBUG_BUILD:
@@ -62,7 +64,7 @@ def register() -> None:
 
     # -----
 
-    global registered, addon_data, blender_data
+    global registered, addon_data, blender_data, blender_data_default
 
     bpy.utils.register_class(WIRE_FIX_IME_OT_update_blender_data)
     bpy.utils.register_class(WIRE_FIX_IME_OT_clean_blender_data)
@@ -88,6 +90,8 @@ def register() -> None:
     addon_data = AddonData()
     addon_data.load()
 
+    blender_data_default = BlenderData()
+    blender_data_default.load('default')
     blender_data = BlenderData()
     blender_data.startup()
 
@@ -143,7 +147,7 @@ def fix_off():
 
 class AddonData:
     def __init__(self) -> None:
-        self.blender_data_update_time: datetime = datetime.fromtimestamp(0, tzbj)
+        self.blender_data_update_time: datetime = dtzero
         pass
 
     def load(self) -> bool:
@@ -178,9 +182,11 @@ class BlenderData:
         root = Path(__file__).parent
         self.file_path_default = root.joinpath('native', 'blender.py')
         self.file_path_cache = root.joinpath('data', 'blender.py')
+        self.type: Union[Literal['default', 'cache'], None] = None
 
         # blender.py
         self.data: Union[dict, None] = None
+        self.mtime: datetime = dtzero
         self.blender_vers: list[tuple[tuple[int, int, int], tuple[int, int, int], Union[str, None], Union[str, None]]] = []
         self.items: dict[str, int] = {}
         self.is_compatible: bool = False
@@ -191,6 +197,7 @@ class BlenderData:
         import importlib
 
         self.data = None
+        self.mtime = dtzero
         self.blender_vers = []
         self.items = {}
         self.is_compatible = False
@@ -205,6 +212,9 @@ class BlenderData:
                     return False
                 module = importlib.import_module('.data.blender', __package__)
         except:
+            if type == 'default':  # 此为严重错误，必须不能发生
+                raise TypeError(f"{__package__}: 加载默认 blender.py 失败")
+
             if mark.DEBUG:
                 printx(CCFR, "加载 blender.py 模块失败")
             return False
@@ -218,8 +228,10 @@ class BlenderData:
             if mark.DEBUG:
                 printx(CCFR, "调用 get_data 返回空")
             return False
-
+        
+        self.type = type
         self.data = data
+        self.mtime = data['mtime'] if 'mtime' in data else dtzero
         self.blender_vers = data['blender_vers']
         self.items = data['items']
         for _min, _max, *_ in self.blender_vers:
@@ -266,85 +278,67 @@ class BlenderData:
         '''
         下载远端的 blender.py 文件，加载下载的 blender.py 文件并应用。
         '''
-
         success = await self.fetch()
         if not success:
             if mark.DEBUG:
                 printx(CCFA, "获取 blender.py 失败")
             return False
 
-        success = self.load('cache')
-        if not success:
-            if mark.DEBUG:
-                printx(CCFA, "加载 blender.py 失败")
-            return False
-
-        self.apply()  # 应用可以失败，譬如当前为不兼容的 Blender 时
-
-        global addon_data
         addon_data.blender_data_update_time = datetime.now(tzbj)
         addon_data.save()
 
-        return True
+        return self.startup()
 
     async def update_and_restart(self):
-        is_compatible = blender_data.is_compatible
         await blender_data.update()
-        if blender_data.is_compatible != is_compatible:
-            fix_off()
-            fix_on()
+        fix_off()
+        fix_on()
         pass
-    
-    async def auto_update(self):
-        invoked = False
-        
+
+    async def auto_update(self) -> Union[bool, None]:
         # 启用插件时，先执行一次更新
         _prefs = get_prefs(bpy.context)
         if _prefs.enable_from_disable:
             _prefs.enable_from_disable = False
             if mark.DEBUG:
                 printx(CCFA, "自动更新 blender.py：初次启动")
-            invoked = True
-            await blender_data.update()
+            return await blender_data.update()
 
-        if invoked:
-            return
-        
         # 当前离上次更新超过三天则自动执行一次更新
         now = datetime.now(tzbj)
         if (now - addon_data.blender_data_update_time).days >= 3:
             if mark.DEBUG:
                 printx(CCFA, "自动更新 blender.py：计划任务")
-            invoked = True
-            await blender_data.update()
-            
-        pass
+            return await blender_data.update()
+
+        return None
 
     async def auto_update_and_restart(self):
-        is_compatible = blender_data.is_compatible
         await blender_data.auto_update()
-        if blender_data.is_compatible != is_compatible:
-            fix_off()
-            fix_on()
+        fix_off()
+        fix_on()
         pass
 
     def startup(self) -> bool:
         '''
         加载下载或默认的 blender.py 文件并应用。
         '''
+        load_cache = False
         if self.file_path_cache.exists():
             _success = self.load('cache')
             if not _success:
                 return self.reset()
-        else:
-            _success = self.load('default')
-            if not _success:
-                if mark.DEBUG:
-                    printx(CCFA, f"{__package__}: startup 加载默认 blender.py 失败")
-                return False
+            else:
+                if blender_data_default.mtime >= self.mtime:
+                    if mark.DEBUG:
+                        printx(CCFA, "本地比远端 blender.py 更新")
+                else:
+                    load_cache = True
 
-        if self.is_compatible:
-            self.apply()
+        if not load_cache:
+            self.load('default')
+
+        self.apply()  # 应用可以失败，譬如当前为不兼容的 Blender 时
 
         return True
 
@@ -355,26 +349,18 @@ class BlenderData:
         if self.file_path_cache.exists():
             os.unlink(self.file_path_cache)
 
-            success = self.load('default')
-            if not success:
-                if mark.DEBUG:
-                    printx(CCFA, f"{__package__}: reset 加载默认 blender.py 失败")
-                return False
+        addon_data.blender_data_update_time = dtzero
+        addon_data.save()
 
-            if self.is_compatible:
-                self.apply()
+        self.load('default')
 
-            global addon_data
-            addon_data.blender_data_update_time = datetime.fromtimestamp(0, tzbj)
-            addon_data.save()
-
+        self.apply()
         return True
-
 
 class WIRE_FIX_IME_OT_update_blender_data(Operator):
     bl_idname = 'wire_fix_ime.update_blender_data'
     bl_label = "更新内存偏移量"
-    bl_description = "获取插件所需 Blender 内部数据的内存偏移量（仅限适用于当前插件的数据）"
+    bl_description = "获取插件所需 Blender 内部数据的内存偏移量"
 
     def execute(self, context: Context) -> Union[Literal['RUNNING_MODAL'], Literal['CANCELLED'], Literal['FINISHED'], Literal['PASS_THROUGH'], Literal['INTERFACE']]:
         asyncio.run(blender_data.update_and_restart())
@@ -382,8 +368,8 @@ class WIRE_FIX_IME_OT_update_blender_data(Operator):
 
 class WIRE_FIX_IME_OT_clean_blender_data(Operator):
     bl_idname = 'wire_fix_ime.clean_blender_data'
-    bl_label = "清除"
-    bl_description = "清除"
+    bl_label = "清除内存偏移量"
+    bl_description = "清除下载的内存偏移量文件"
 
     @classmethod
     def poll(cls, context: Context = None) -> bool:

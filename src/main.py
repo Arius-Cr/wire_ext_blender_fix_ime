@@ -46,7 +46,6 @@ registered: bool = False
 addon_data: Union['AddonData', None] = None
 
 blender_data: Union['BlenderData', None] = None
-blender_data_default: Union['BlenderData', None] = None
 
 def register() -> None:
     if DEBUG_BUILD:
@@ -64,7 +63,7 @@ def register() -> None:
 
     # -----
 
-    global registered, addon_data, blender_data, blender_data_default
+    global registered, addon_data, blender_data
 
     bpy.utils.register_class(WIRE_FIX_IME_OT_update_blender_data)
     bpy.utils.register_class(WIRE_FIX_IME_OT_clean_blender_data)
@@ -90,9 +89,8 @@ def register() -> None:
     addon_data = AddonData()
     addon_data.load()
 
-    blender_data_default = BlenderData()
-    blender_data_default.load('default')
     blender_data = BlenderData()
+    blender_data.init()
     blender_data.startup()
 
     fix_on()
@@ -182,7 +180,10 @@ class BlenderData:
         root = Path(__file__).parent
         self.file_path_default = root.joinpath('native', 'blender.py')
         self.file_path_cache = root.joinpath('data', 'blender.py')
+
         self.type: Union[Literal['default', 'cache'], None] = None
+        self.mtime_default: datetime = dtzero
+        self.mtime_cache: datetime = dtzero
 
         # blender.py
         self.data: Union[dict, None] = None
@@ -193,9 +194,22 @@ class BlenderData:
 
         pass
 
+    def init(self):
+        # 仅为了加载默认数据中的更新时间而已
+        self.load('default')
+        self.mtime_default = self.mtime
+
+        self.type = None
+        self.data = None
+        self.mtime = dtzero
+        self.blender_vers = []
+        self.items = {}
+        self.is_compatible = False
+
     def load(self, type: Literal['default', 'cache']) -> bool:
         import importlib
 
+        self.type = None
         self.data = None
         self.mtime = dtzero
         self.blender_vers = []
@@ -228,10 +242,12 @@ class BlenderData:
             if mark.DEBUG:
                 printx(CCFR, "调用 get_data 返回空")
             return False
-        
+
         self.type = type
         self.data = data
         self.mtime = data['mtime'] if 'mtime' in data else dtzero
+        if self.type == 'cache':
+            self.mtime_cache = self.mtime
         self.blender_vers = data['blender_vers']
         self.items = data['items']
         for _min, _max, *_ in self.blender_vers:
@@ -306,9 +322,10 @@ class BlenderData:
 
         # 当前离上次更新超过三天则自动执行一次更新
         now = datetime.now(tzbj)
-        if (now - addon_data.blender_data_update_time).days >= 3:
+        delta = now - addon_data.blender_data_update_time
+        if delta.days >= 3:
             if mark.DEBUG:
-                printx(CCFA, "自动更新 blender.py：计划任务")
+                printx(CCFA, f"自动更新 blender.py：计划任务 (已间隔 {delta.days} 天)")
             return await blender_data.update()
 
         return None
@@ -324,16 +341,15 @@ class BlenderData:
         加载下载或默认的 blender.py 文件并应用。
         '''
         load_cache = False
-        if self.file_path_cache.exists():
-            _success = self.load('cache')
-            if not _success:
-                return self.reset()
+        _success = self.load('cache')
+        if not _success:
+            return self.reset()
+        else:
+            if self.mtime_default > self.mtime:
+                if mark.DEBUG:
+                    printx(CCFA, "本地比远端 blender.py 更新")
             else:
-                if blender_data_default.mtime >= self.mtime:
-                    if mark.DEBUG:
-                        printx(CCFA, "本地比远端 blender.py 更新")
-                else:
-                    load_cache = True
+                load_cache = True
 
         if not load_cache:
             self.load('default')
@@ -348,6 +364,7 @@ class BlenderData:
         '''
         if self.file_path_cache.exists():
             os.unlink(self.file_path_cache)
+        self.mtime_cache = dtzero
 
         addon_data.blender_data_update_time = dtzero
         addon_data.save()

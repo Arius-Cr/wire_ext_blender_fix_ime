@@ -25,12 +25,12 @@ def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Unio
     global _bl_ver
     _bl_ver = bl_ver
 
-    if (3, 0, 4) <= ex_ver <= (3, 0, 4):
-        return get_data_3_0_4()
+    if (3, 0, 5) <= ex_ver <= (3, 0, 5):
+        return get_data_3_0_5()
 
     return None
 
-def get_data_3_0_4() -> dict:
+def get_data_3_0_5() -> dict:
 
     data = {
         # 数据更新时间

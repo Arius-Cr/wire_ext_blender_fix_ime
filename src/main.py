@@ -394,4 +394,6 @@ class WIRE_FIX_IME_OT_clean_blender_data(Operator):
 
     def execute(self, context: Context) -> Union[Literal['RUNNING_MODAL'], Literal['CANCELLED'], Literal['FINISHED'], Literal['PASS_THROUGH'], Literal['INTERFACE']]:
         blender_data.reset()
+        fix_off()
+        fix_on()
         return {'FINISHED'}

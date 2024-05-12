@@ -34,13 +34,13 @@ def get_data_3_0_4() -> dict:
 
     data = {
         # 数据更新时间
-        'mtime': datetime.strptime('2024-05-09 15:41 +08:00', dtfmt),
+        'mtime': datetime.strptime('2024-05-12 16:10 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
             ((3, 0, 0), _3__6__X_, None, None),
             ((4, 0, 0), _4__1__X_, None, None),
             # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((4, 2, A), (4, 2, A), '2024-05-08 22:06', '03cd8b359ba5'),
+            ((4, 2, A), (4, 2, A), '2024-05-11 15:08', 'e63fef61624e'),
         ],
         'items': {},
     }

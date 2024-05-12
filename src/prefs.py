@@ -255,5 +255,6 @@ class Prefs(bpy.types.AddonPreferences):
 
         row = layout.row()
         row.operator('wm.url_open', text="GitHub", icon='URL').url = info['github']
+        row.operator('wm.url_open', text="Gitee", icon='URL').url = info['gitee']
         row.operator('wm.url_open', text="百度网盘", icon='URL').url = info['baidu']
         pass

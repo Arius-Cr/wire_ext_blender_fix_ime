@@ -29,6 +29,10 @@ struct wmEventHandler_UI {
   struct {
     ScrArea *area;
     ARegion *region;
-    ARegion *menu;
+    /**
+     * Temporary, floating regions stored in #Screen::regionbase.
+     * Used for menus, popovers & dialogs.
+     */
+    ARegion *region_popup;
   } context;
 };

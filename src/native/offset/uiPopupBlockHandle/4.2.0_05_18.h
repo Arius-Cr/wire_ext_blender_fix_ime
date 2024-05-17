@@ -14,7 +14,12 @@ struct uiPopupBlockHandle {
 
   /** Store data for refreshing popups. */
   uiPopupBlockCreate popup_create_vars;
-  /** True if we can re-create the popup using #uiPopupBlockHandle.popup_create_vars. */
+  /**
+   * True if we can re-create the popup using #uiPopupBlockHandle.popup_create_vars.
+   *
+   * \note Popups that can refresh are called with #bContext::wm::region_popup set
+   * to the #uiPopupBlockHandle::region both on initial creation and when refreshing.
+   */
   bool can_refresh;
   bool refresh;
 

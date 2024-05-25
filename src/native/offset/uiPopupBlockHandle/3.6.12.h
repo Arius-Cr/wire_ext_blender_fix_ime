@@ -50,6 +50,4 @@ struct uiPopupBlockHandle {
   bool is_grab;
   int grab_xy_prev[2];
   /* #endif */
-
-  char menu_idname[64];
 };

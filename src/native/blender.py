@@ -9,7 +9,7 @@ _bl_ver: tuple[int, int, int] = None
 
 A = 0
 Z = 99999
-_3__6__X_ = (3, 6, 11)
+_3__6__X_ = (3, 6, 12)
 _4__1__X_ = (4, 1, 1)
 
 def MAP(items: dict, item_name: str, maps: list[tuple[tuple[int, int, int], tuple[int, int, int], int]]):
@@ -34,13 +34,13 @@ def get_data_3_0_5() -> dict:
 
     data = {
         # 数据更新时间
-        'mtime': datetime.strptime('2024-05-18 07:17 +08:00', dtfmt),
+        'mtime': datetime.strptime('2024-05-25 08:50 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
             ((3, 0, 0), _3__6__X_, None, None),
             ((4, 0, 0), _4__1__X_, None, None),
             # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((4, 2, A), (4, 2, A), '2024-05-17 05:45', '95a74a02bcc6'),
+            ((4, 2, A), (4, 2, A), '2024-05-24 09:39', 'd960b922b311'),
         ],
         'items': {},
     }

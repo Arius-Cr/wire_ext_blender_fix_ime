@@ -14,7 +14,7 @@
 
 # 安装
 
-> **注意**：该插件仅适用于 Windows 版的 Blender。
+> **注意**：该插件仅适用于 Windows 版的 Blender。因能力所限，**没有**计划开发 Linux 或 MacOS 版。
 
 > **注意**：当 Blender 以后台模式（--background）运行时，插件不会且无需启动。
 

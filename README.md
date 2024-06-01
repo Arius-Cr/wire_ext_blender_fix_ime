@@ -6,6 +6,8 @@
 
 **视频**：[BiliBili](https://www.bilibili.com/video/BV1Jj42197YQ)
 
+> 注：因能力所限，**没有**计划开发 Linux 或 MacOS 版。
+
 该插件能够让 Blender 更好地支持 Windows 平台上的输入法。
 
 让你在 Blender 的输入框、文本物体编辑模式、文本编辑器、控制台中，获得良好的输入法使用体验。

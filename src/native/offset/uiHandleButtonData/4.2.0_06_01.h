@@ -17,10 +17,8 @@ struct uiHandleButtonData {
   bool changed_cursor;
   wmTimer *flashtimer;
 
-  /* edited value */
-  /* use 'ui_textedit_string_set' to assign new strings */
-  char *str;
-  char *origstr;
+  uiTextEdit text_edit;
+
   double value, origvalue, startvalue;
   float vec[3], origvec[3];
   ColorBand *coba;
@@ -40,15 +38,6 @@ struct uiHandleButtonData {
 
   /* auto open (hold) */
   wmTimer *hold_action_timer;
-
-  /* text selection/editing */
-  /* size of 'str' (including terminator) */
-  int str_maxncpy;
-  /* Button text selection:
-   * extension direction, selextend, inside ui_do_but_TEX */
-  int sel_pos_init;
-  /* Allow reallocating str/editstr and using 'maxlen' to track alloc size (maxlen + 1) */
-  bool is_str_dynamic;
 
   /* number editing / dragging */
   /* coords are Window/uiBlock relative (depends on the button) */
@@ -90,9 +79,6 @@ struct uiHandleButtonData {
 #endif
 
   uiBlockInteraction_Handle *custom_interaction_handle;
-
-  /* Text field undo. */
-  uiUndoStack_Text *undo_stack_text;
 
   /* post activate */
   uiButtonActivateType posttype;

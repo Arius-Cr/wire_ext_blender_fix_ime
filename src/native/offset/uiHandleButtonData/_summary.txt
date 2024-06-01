@@ -8,6 +8,12 @@
 4.0.0 - 4.1.1
 新增 disable_force 成员
 
+----- V3（开发版）
+4.2.0 - 4.2.0
+删除 str、origstr、str_maxncpy、sel_pos_init、is_str_dynamic、undo_stack_text 成员
+新增 text_edit 成员（类型：uiTextEdit）
+注：实际上只是将被删的成员合并为单个成员
+
 无影响的改动：
 3.1.0 改动了注释
 3.5.0 从 C 转为 C++

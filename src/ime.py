@@ -1611,11 +1611,15 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
     # -----
 
     def draw_comp_underline_text_editor(self, context: Context):
+        if context.space_data.text != self.space.text:
+            return
+        
         # 1. 更新候选窗口位置
         # 2. 绘制下划线
         manager = self.manager
 
-        manager.ime_window_pos_update_text_editor(context, self)
+        if context.space_data == self.space:
+            manager.ime_window_pos_update_text_editor(context, self)
 
         if bpy.app.version >= (4, 0, 0):
             shader = cast(gpu.types.GPUShader, gpu.shader.from_builtin('UNIFORM_COLOR'))
@@ -1718,6 +1722,9 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         pass
 
     def draw_comp_underline_console(self, context: Context):
+        if context.space_data != self.space:
+            return
+        
         # 1. 更新候选窗口位置
         # 2. 绘制下划线
         manager = self.manager

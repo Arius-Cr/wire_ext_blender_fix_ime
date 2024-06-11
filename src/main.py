@@ -114,6 +114,7 @@ def unregister() -> None:
     native.dll_unload()
 
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_update_blender_data)
+    bpy.utils.unregister_class(WIRE_FIX_IME_OT_clean_blender_data)
 
     prefs.unregister()
     ime.unregister()

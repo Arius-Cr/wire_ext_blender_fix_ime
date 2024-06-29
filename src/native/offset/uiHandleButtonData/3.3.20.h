@@ -1,4 +1,4 @@
-struct uiHandleButtonData {
+typedef struct uiHandleButtonData {
   wmWindowManager *wm;
   wmWindow *window;
   ScrArea *area;
@@ -17,8 +17,10 @@ struct uiHandleButtonData {
   bool changed_cursor;
   wmTimer *flashtimer;
 
-  uiTextEdit text_edit;
-
+  /* edited value */
+  /* use 'ui_textedit_string_set' to assign new strings */
+  char *str;
+  char *origstr;
   double value, origvalue, startvalue;
   float vec[3], origvec[3];
   ColorBand *coba;
@@ -28,7 +30,7 @@ struct uiHandleButtonData {
   /**
    * Behave as if #UI_BUT_DISABLED is set (without drawing grayed out).
    * Needed so non-interactive labels can be activated for the purpose of showing tool-tips,
-   * without them blocking interaction with nodes, see: #97386.
+   * without them blocking interaction with nodes, see: T97386.
    */
   bool disable_force;
 
@@ -39,10 +41,21 @@ struct uiHandleButtonData {
   /* auto open (hold) */
   wmTimer *hold_action_timer;
 
+  /* text selection/editing */
+  /* size of 'str' (including terminator) */
+  int maxlen;
+  /* Button text selection:
+   * extension direction, selextend, inside ui_do_but_TEX */
+  int sel_pos_init;
+  /* Allow reallocating str/editstr and using 'maxlen' to track alloc size (maxlen + 1) */
+  bool is_str_dynamic;
+
   /* number editing / dragging */
   /* coords are Window/uiBlock relative (depends on the button) */
   int draglastx, draglasty;
   int dragstartx, dragstarty;
+  int draglastvalue;
+  int dragstartvalue;
   bool dragchange, draglock;
   int dragsel;
   float dragf, dragfstart;
@@ -62,11 +75,12 @@ struct uiHandleButtonData {
 
   /* Menu open, see: #UI_screen_free_active_but_highlight. */
   uiPopupBlockHandle *menu;
+  int menuretval;
 
   /* Search box see: #UI_screen_free_active_but_highlight. */
   ARegion *searchbox;
 #ifdef USE_KEYNAV_LIMIT
-  uiKeyNavLock searchbox_keynav_state;
+  struct uiKeyNavLock searchbox_keynav_state;
 #endif
 
 #ifdef USE_DRAG_MULTINUM
@@ -78,12 +92,15 @@ struct uiHandleButtonData {
   uiSelectContextStore select_others;
 #endif
 
-  uiBlockInteraction_Handle *custom_interaction_handle;
+  struct uiBlockInteraction_Handle *custom_interaction_handle;
+
+  /* Text field undo. */
+  struct uiUndoStack_Text *undo_stack_text;
 
   /* post activate */
   uiButtonActivateType posttype;
   uiBut *postbut;
-};
+} uiHandleButtonData;
 
 struct uiKeyNavLock {
   /** Set when we're using keyboard-input. */
@@ -92,16 +109,16 @@ struct uiKeyNavLock {
   int event_xy[2];
 };
 
-struct uiHandleButtonMulti {
+typedef struct uiHandleButtonMulti {
   enum {
     /** gesture direction unknown, wait until mouse has moved enough... */
-    INIT_UNSET = 0,
+    BUTTON_MULTI_INIT_UNSET = 0,
     /** vertical gesture detected, flag buttons interactively (UI_BUT_DRAG_MULTI) */
-    INIT_SETUP,
+    BUTTON_MULTI_INIT_SETUP,
     /** flag buttons finished, apply horizontal motion to active and flagged */
-    INIT_ENABLE,
+    BUTTON_MULTI_INIT_ENABLE,
     /** vertical gesture _not_ detected, take no further action */
-    INIT_DISABLE,
+    BUTTON_MULTI_INIT_DISABLE,
   } init;
 
   bool has_mbuts; /* any buttons flagged UI_BUT_DRAG_MULTI */
@@ -122,12 +139,13 @@ struct uiHandleButtonMulti {
    * used to detect buttons between the current and initial mouse position */
   int drag_start[2];
 
-  /* store x location once INIT_SETUP is set,
-   * moving outside this sets INIT_ENABLE */
+  /* store x location once BUTTON_MULTI_INIT_SETUP is set,
+   * moving outside this sets BUTTON_MULTI_INIT_ENABLE */
   int drag_lock_x;
-};
 
-struct uiSelectContextStore {
+} uiHandleButtonMulti;
+
+typedef struct uiSelectContextStore {
   uiSelectContextElem *elems;
   int elems_len;
   bool do_free;
@@ -137,4 +155,4 @@ struct uiSelectContextStore {
    * - dragging numbers uses delta.
    * - typing in values will assign to all. */
   bool is_copy;
-};
+} uiSelectContextStore;

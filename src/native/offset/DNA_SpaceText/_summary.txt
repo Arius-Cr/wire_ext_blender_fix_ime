@@ -1,9 +1,9 @@
 ----- V1
-3.0.0 - 3.6.11
+3.0.0 - 3.6.14
 4.0.0 - 4.0.2
 
 ----- V2
-4.1.0 - 4.1.1
+4.1.0 - 4.2.0
 `SpaceText_Runtime runtime` 改为 `SpaceText_Runtime *runtime`
 
 无影响的改动：

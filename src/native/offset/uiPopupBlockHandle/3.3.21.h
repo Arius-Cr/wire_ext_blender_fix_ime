@@ -1,6 +1,6 @@
 struct uiPopupBlockHandle {
   /* internal */
-  ARegion *region;
+  struct ARegion *region;
 
   /** Use only for #UI_BLOCK_MOVEMOUSE_QUIT popups. */
   float towards_xy[2];
@@ -8,30 +8,25 @@ struct uiPopupBlockHandle {
   bool dotowards;
 
   bool popup;
-  void (*popup_func)(bContext *C, void *arg, int event);
-  void (*cancel_func)(bContext *C, void *arg);
+  void (*popup_func)(struct bContext *C, void *arg, int event);
+  void (*cancel_func)(struct bContext *C, void *arg);
   void *popup_arg;
 
   /** Store data for refreshing popups. */
-  uiPopupBlockCreate popup_create_vars;
-  /**
-   * True if we can re-create the popup using #uiPopupBlockHandle.popup_create_vars.
-   *
-   * \note Popups that can refresh are called with #bContext::wm::region_popup set
-   * to the #uiPopupBlockHandle::region both on initial creation and when refreshing.
-   */
+  struct uiPopupBlockCreate popup_create_vars;
+  /** True if we can re-create the popup using #uiPopupBlockHandle.popup_create_vars. */
   bool can_refresh;
   bool refresh;
 
-  wmTimer *scrolltimer;
+  struct wmTimer *scrolltimer;
   float scrolloffset;
 
-  uiKeyNavLock keynav_state;
+  struct uiKeyNavLock keynav_state;
 
   /* for operator popups */
-  wmOperator *popup_op;
-  ScrArea *ctx_area;
-  ARegion *ctx_region;
+  struct wmOperator *popup_op;
+  struct ScrArea *ctx_area;
+  struct ARegion *ctx_region;
 
   /* return values */
   int butretval;
@@ -55,6 +50,4 @@ struct uiPopupBlockHandle {
   bool is_grab;
   int grab_xy_prev[2];
   /* #endif */
-
-  char menu_idname[64];
 };

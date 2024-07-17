@@ -13,7 +13,7 @@ struct uiBlock {
   ListBase layouts;
   uiLayout *curlayout;
 
-  blender::Vector<std::unique_ptr<bContextStore>> contexts;
+  ListBase contexts;
 
   /** A block can store "views" on data-sets. Currently tree-views (#AbstractTreeView) only.
    * Others are imaginable, e.g. table-views, grid-views, etc. These are stored here to support
@@ -22,7 +22,7 @@ struct uiBlock {
 
   ListBase dynamic_listeners; /* #uiBlockDynamicListener */
 
-  std::string name;
+  char name[UI_MAX_NAME_STR];
 
   float winmat[4][4];
 
@@ -38,6 +38,9 @@ struct uiBlock {
 
   uiButHandleNFunc funcN;
   void *func_argN;
+
+  uiMenuHandleFunc butm_func;
+  void *butm_func_arg;
 
   uiBlockHandleFunc handle_func;
   void *handle_func_arg;
@@ -96,14 +99,13 @@ struct uiBlock {
   /** use so presets can find the operator,
    * across menus and from nested popups which fail for operator context. */
   wmOperator *ui_operator;
-  bool ui_operator_free;
 
   /** XXX hack for dynamic operator enums */
   void *evil_C;
 
   /** unit system, used a lot for numeric buttons so include here
    * rather than fetching through the scene every time. */
-  const UnitSettings *unit;
+  UnitSettings *unit;
   /** \note only accessed by color picker templates. */
   ColorPickerData color_pickers;
 

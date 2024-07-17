@@ -32,6 +32,13 @@ struct uiHandleButtonData {
    */
   bool disable_force;
 
+  /**
+   * Semi-modal buttons: Instead of capturing all events, pass on events that aren't relevant to
+   * own handling. This way a text button (e.g. a search/filter field) can stay active while the
+   * remaining UI stays interactive. Only few button types support this well currently.
+   */
+  bool is_semi_modal;
+
   /* auto open */
   bool used_mouse;
   wmTimer *autoopentimer;
@@ -83,46 +90,6 @@ struct uiHandleButtonData {
   /* post activate */
   uiButtonActivateType posttype;
   uiBut *postbut;
-};
-
-struct uiAfterFunc {
-  uiAfterFunc *next, *prev;
-
-  uiButHandleFunc func;
-  void *func_arg1;
-  void *func_arg2;
-  /** C++ version of #func above, without need for void pointer arguments. */
-  std::function<void(bContext &)> apply_func;
-
-  uiButHandleNFunc funcN;
-  void *func_argN;
-
-  uiButHandleRenameFunc rename_func;
-  void *rename_arg1;
-  void *rename_orig;
-
-  uiBlockHandleFunc handle_func;
-  void *handle_func_arg;
-  int retval;
-
-  wmOperator *popup_op;
-  wmOperatorType *optype;
-  wmOperatorCallContext opcontext;
-  PointerRNA *opptr;
-
-  PointerRNA rnapoin;
-  PropertyRNA *rnaprop;
-
-  void *search_arg;
-  uiFreeArgFunc search_arg_free_fn;
-
-  uiBlockInteraction_CallbackData custom_interaction_callbacks;
-  uiBlockInteraction_Handle *custom_interaction_handle;
-
-  std::optional<bContextStore> context;
-
-  char undostr[BKE_UNDO_STR_MAX];
-  std::string drawstr;
 };
 
 struct uiKeyNavLock {

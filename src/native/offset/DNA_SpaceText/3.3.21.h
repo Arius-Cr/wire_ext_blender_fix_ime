@@ -1,34 +1,37 @@
-struct SpaceText_Runtime {
+typedef struct SpaceText_Runtime {
 
   /** Actual line height, scaled by DPI. */
-  int lheight_px = 0;
+  int lheight_px;
 
   /** Runtime computed, character width. */
-  int cwidth_px = 0;
+  int cwidth_px;
 
   /** The handle of the scroll-bar which can be clicked and dragged. */
-  rcti scroll_region_handle{0, 0, 0, 0};
+  struct rcti scroll_region_handle;
   /** The region for selected text to show in the scrolling area. */
-  rcti scroll_region_select{0, 0, 0, 0};
+  struct rcti scroll_region_select;
 
   /** Number of digits to show in the line numbers column (when enabled). */
-  int line_number_display_digits = 0;
+  int line_number_display_digits;
 
   /** Number of lines this window can display (even when they aren't used). */
-  int viewlines = 0;
+  int viewlines;
 
   /** Use for drawing scroll-bar & calculating scroll operator motion scaling. */
-  float scroll_px_per_line = 0.0f;
+  float scroll_px_per_line;
 
   /**
    * Run-time for scroll increments smaller than a line (smooth scroll).
    * Values must be between zero and the line, column width: (cwidth, TXT_LINE_HEIGHT(st)).
    */
-  int scroll_ofs_px[2]{0, 0};
+  int scroll_ofs_px[2];
+
+  char _pad1[4];
 
   /** Cache for faster drawing. */
-  void *drawcache = nullptr;
-};
+  void *drawcache;
+
+} SpaceText_Runtime;
 
 /** Text Editor. */
 typedef struct SpaceText {
@@ -77,5 +80,5 @@ typedef struct SpaceText {
   char _pad3[2];
 
   /** Keep last. */
-  SpaceText_Runtime *runtime;
+  SpaceText_Runtime runtime;
 } SpaceText;

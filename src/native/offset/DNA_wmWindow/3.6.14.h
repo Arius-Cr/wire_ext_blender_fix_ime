@@ -29,20 +29,9 @@ typedef struct wmWindow {
 
   /** Window-ID also in screens, is for retrieving this window after read. */
   int winid;
-  /** Window coords (in pixels). */
-  short posx, posy;
-  /**
-   * Window size (in pixels).
-   *
-   * \note Loading a window typically uses the size & position saved in the blend-file,
-   * there is an exception for startup files which works as follows:
-   * Setting the window size to zero before `ghostwin` has been set has a special meaning,
-   * it causes the window size to be initialized to `wm_init_state.size_x` (& `size_y`).
-   * These default to the main screen size but can be overridden by the `--window-geometry`
-   * command line argument.
-   */
-  short sizex, sizey;
-  /** Normal, maximized, full-screen, #GHOST_TWindowState. */
+  /** Window coords. */
+  short posx, posy, sizex, sizey;
+  /** Borderless, full. */
   char windowstate;
   /** Set to 1 if an active window, for quick rejects. */
   char active;
@@ -113,13 +102,9 @@ typedef struct wmWindow {
    */
   struct wmEvent *event_last_handled;
 
-  /**
-   * Input Method Editor data - complex character input (especially for Asian character input)
-   * Currently WIN32 and APPLE, runtime-only data.
-   */
-  const struct wmIMEData *ime_data;
-  char ime_data_is_composing;
-  char _pad1[7];
+  /* Input Method Editor data - complex character input (especially for Asian character input)
+   * Currently WIN32 and APPLE, runtime-only data. */
+  struct wmIMEData *ime_data;
 
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue;
@@ -134,16 +119,9 @@ typedef struct wmWindow {
   /** Properties for stereoscopic displays. */
   struct Stereo3dFormat *stereo3d_format;
 
-  /** Custom drawing callbacks. */
+  /* custom drawing callbacks */
   ListBase drawcalls;
 
-  /** Private runtime info to show text in the status bar. */
+  /* Private runtime info to show text in the status bar. */
   void *cursor_keymap_status;
-
-  /**
-   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
-   * Used to detect double-click events.
-   */
-  uint64_t eventstate_prev_press_time_ms;
-
 } wmWindow;

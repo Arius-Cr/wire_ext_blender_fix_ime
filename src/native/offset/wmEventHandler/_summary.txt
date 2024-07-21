@@ -11,4 +11,4 @@ flag 从 char(1字节) 类型转为 eWM_EventHandlerFlag(4字节)，
 
 无影响的改动：
 4.0.0 从 C 转为 C++
-4.2.0 修改了注释
+4.2.0 修改了注释，wmEventHandler_UI 中 menu 成员改名为 region_popup

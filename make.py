@@ -189,6 +189,7 @@ def build(args):
         (['src', 'utils', '__init__.py'], ['utils', '__init__.py']),
         (['src', 'utils', 'printx.py'], ['utils', 'printx.py']),
         (['src', '__init__.py'], ['__init__.py']),
+        (['src', 'blender_manifest.toml'], ['blender_manifest.toml']),
         (['src', 'ime.py'], ['ime.py']),
         (['src', 'main.py'], ['main.py']),
         (['src', 'prefs.py'], ['prefs.py']),

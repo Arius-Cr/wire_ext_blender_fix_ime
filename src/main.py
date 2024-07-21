@@ -23,7 +23,6 @@ from .utils.printx import *
 
 from .native import native
 
-from . import bl_info
 from . import prefs
 from . import ime
 
@@ -233,12 +232,12 @@ class BlenderData:
             if mark.DEBUG:
                 printx(CCFR, "加载 blender.py 模块失败")
             return False
-        from . import bl_info
+        from . import _bl_info
 
         # 设计缺陷：get_data 这个函数的内容应该放在这里，不应该放在 blender.py，
         # 否则新版本获取到旧版 blender.py 时，调用 get_data 必然失败。
         # 但这个缺陷并不严重，因为发布新版时，新的 blender.py 必然伴随发布。
-        data = getattr(module, 'get_data')(bl_info['version'], bpy.app.version)
+        data = getattr(module, 'get_data')(_bl_info['version'], bpy.app.version)
 
         del sys.modules[module.__name__]
 

@@ -25,7 +25,7 @@ def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Unio
     global _bl_ver
     _bl_ver = bl_ver
 
-    if (3, 0, 5) <= ex_ver <= (3, 0, 6):
+    if (3, 0, 5) <= ex_ver <= (3, 0, 7):
         return get_data_3_0_5()
 
     return None

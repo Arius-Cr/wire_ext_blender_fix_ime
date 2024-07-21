@@ -5,13 +5,17 @@ bl_info = {
     'author': "阿弩斯(Arius)",
     'description': "增强 Blender 对 Windows 平台上输入法的支持",
     'blender': (3, 0, 0),
-    'version': (3, 0, 6),
+    'version': (3, 0, 7),
     'location': "",
     'support': 'COMMUNITY',
-    'category': 'Interface',
+    'category': 'User Interface',
     'doc_url': '',
     'tracker_url': '',
 }
+
+# Blender 4.2.0 及以上以 Extension 的方式加载插件时，会在启用插件时删除 bl_info，
+# 此处备份该信息以便后续使用
+_bl_info = bl_info
 
 def register():
     from . import main

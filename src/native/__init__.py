@@ -12,6 +12,8 @@ from ..utils.printx import *
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+dll_name = 'wire_fix_ime'
+
 kernel32 = ctypes.windll.kernel32
 kernel32.LoadLibraryW.argtypes = [ctypes.wintypes.LPCWSTR]
 kernel32.LoadLibraryW.restype = ctypes.wintypes.HMODULE
@@ -289,12 +291,10 @@ class Native(_main, _blender, _fix_ime):
         _blender.__init__(self)
         _fix_ime.__init__(self)
         self.dll: ctypes.CDLL = None
-        self.dll_handle = None
         pass
 
     def dll_load(self) -> bool:
         dir = Path(os.path.realpath(__file__)).parent
-        dll_name = __package__.split('.')[0]
         # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
         for _ext in ['.dll', '.pdb']:
             _src_name = f'{dll_name}{_ext}'
@@ -307,16 +307,13 @@ class Native(_main, _blender, _fix_ime):
                 except:
                     printx(CCBR, f"复制 {_src_name} 到 {_dst_name} 失败")
 
-        self.dll_handle = kernel32.LoadLibraryW(os.path.join(dir, f'_{dll_name}.dll'))
+        self.dll = ctypes.CDLL(os.path.join(dir, f'_{dll_name}.dll'))
 
-        if self.dll_handle:
-            if mark.DEBUG:
-                printx("加载 DLL 完成")
-        else:
-            printx(CCBR, "加载 DLL 失败")
+        if self.dll is None:
+            printx(CCBG, "加载 DLL 失败")
             return False
-
-        self.dll = ctypes.CDLL(dll_name, handle=self.dll_handle)
+        else:
+            printx("加载 DLL 完成")
 
         self._dll_init__main()
         self._dll_init__blender()
@@ -324,21 +321,19 @@ class Native(_main, _blender, _fix_ime):
         return True
 
     def dll_unload(self) -> bool:
-        if self.dll_handle is None:
+        if self.dll is None:
             return True
-
-        if kernel32.FreeLibrary(self.dll_handle):
-            if mark.DEBUG:
-                printx("卸载 DLL 完成")
-        else:
-            printx(CCBR, "卸载 DLL 失败")
+        
+        if not kernel32.FreeLibrary(self.dll._handle):
+            printx(CCBG, "卸载 DLL 失败")
             return False
+        else:
+            print("卸载 DLL 完成")
 
         del self.dll
-        del self.dll_handle
 
         self.dll = None
-        self.dll_handle = None
+
         return True
 
 

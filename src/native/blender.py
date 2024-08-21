@@ -9,8 +9,8 @@ _bl_ver: tuple[int, int, int] = None
 
 A = 0
 Z = 99999
-_3__6__X_ = (3, 6, 14)
-_4__2__X_ = (4, 2, 0)
+_3__6__X_ = (3, 6, 99) # 3.6.14 和 4.2.0 为最后一个人工记录核对偏移量的版本，之后均假设偏移量没有变动
+_4__2__X_ = (4, 2, 99)
 
 def MAP(items: dict, item_name: str, maps: list[tuple[tuple[int, int, int], tuple[int, int, int], int]]):
     for map in maps:
@@ -34,7 +34,7 @@ def get_data_3_0_5() -> dict:
 
     data = {
         # 数据更新时间
-        'mtime': datetime.strptime('2024-07-17 14:11 +08:00', dtfmt),
+        'mtime': datetime.strptime('2024-08-21 14:25 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
             ((3, 0, 0), _3__6__X_, None, None),

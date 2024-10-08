@@ -23,10 +23,12 @@
 删除成员 butm_func、butm_func_arg
 新增成员 ui_operator_free
 
------ V7（未发布，不确定）
-4.3.0 - 4.3.0
-新增成员 func_argN_free_fn、func_argN_copy_fn
-
 无影响的改动：
 3.4.0 改动了注释
 4.0.0 改动了注释
+
+开发版：
+4.3.0 - V7
+新增成员 func_argN_free_fn、func_argN_copy_fn
+4.4.0 - V7
+新增成员 func_argN_free_fn、func_argN_copy_fn

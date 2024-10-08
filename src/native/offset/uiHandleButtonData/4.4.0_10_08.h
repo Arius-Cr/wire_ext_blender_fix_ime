@@ -32,6 +32,13 @@ struct uiHandleButtonData {
    */
   bool disable_force;
 
+  /**
+   * Semi-modal buttons: Instead of capturing all events, pass on events that aren't relevant to
+   * own handling. This way a text button (e.g. a search/filter field) can stay active while the
+   * remaining UI stays interactive. Only few button types support this well currently.
+   */
+  bool is_semi_modal;
+
   /* auto open */
   bool used_mouse;
   wmTimer *autoopentimer;

@@ -61,6 +61,24 @@ uiBut
 4.3.0 - 4.3.0
 新增成员 func_argN_free_fn、func_argN_copy_fn
 
+开发版：
+4.3.0 - V9
+新增成员：
+  func_argN_free_fn
+  func_argN_copy_fn
+  rename_full_func
+  rename_full_new
+  operator_never_call
+  semi_modal_state
+4.4.0 - V9
+新增成员：
+  func_argN_free_fn
+  func_argN_copy_fn
+  rename_full_func
+  rename_full_new
+  operator_never_call
+  semi_modal_state
+
 ============================================================
 UI_SELECT
 

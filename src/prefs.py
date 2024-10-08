@@ -245,8 +245,13 @@ class Prefs(bpy.types.AddonPreferences):
 
         layout.label(text="当前支持的 Blender 版本:")
         for _min, _max, _date, _hash in blender_data.blender_vers:
-            _dev = f" (开发版 {_date} {_hash})" if _date is not None else ""
-            layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}{_dev}")
+            if _max[2] == 99:
+                _max = (_max[0], _max[1], 'X')
+            if not _date:
+                layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
+            else:
+                _dev = f" (开发版 {_date} {_hash})" if _date is not None else ""
+                layout.label(text=f"{'.'.join(map(str, _max))}{_dev}")
 
         pass
 

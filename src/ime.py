@@ -145,7 +145,7 @@ class Manager():
                      prefs.use_fix_ime_font_edit or
                      prefs.use_fix_ime_text_editor or
                      prefs.use_fix_ime_console)
-        
+
         from .main import blender_data
         if not blender_data.is_compatible:
             _fix_field = False
@@ -542,7 +542,7 @@ class Manager():
         space = cast(SpaceTextEditor, context.space_data)
         text = space.text
 
-        lheight, correct, _, _ = self.get_text_editor_draw_params(context)
+        lheight, _, _ = self.get_text_editor_draw_params(context)
         pixelsize: float = context.preferences.system.pixel_size
 
         c_x: int = 0
@@ -555,11 +555,12 @@ class Manager():
         e_h: int = 0
 
         if not op:
-            cur_l, cur_b = space.region_location_from_cursor(
+            cur_l, cur_b = self.text_editor_region_location_from_cursor(
+                context, region, space,
                 text.current_line_index,
-                len(text.current_line.body[:text.current_character].encode('utf-8')))
+                text.current_character)
             cur_l += region.x
-            cur_b += region.y + correct
+            cur_b += region.y
 
             c_x = cur_l
             c_y = cur_b
@@ -569,24 +570,27 @@ class Manager():
             e_h = lheight
 
         else:
-            sta_l, sta_b = space.region_location_from_cursor(
+            sta_l, sta_b = self.text_editor_region_location_from_cursor(
+                context, region, space,
                 text.current_line_index,
-                len(text.current_line.body[:op.stac_i].encode('utf-8')))
+                op.stac_i)
             sta_l += region.x
-            sta_b += region.y + correct
-            end_l, end_b = space.region_location_from_cursor(
+            sta_b += region.y
+            end_l, end_b = self.text_editor_region_location_from_cursor(
+                context, region, space,
                 text.current_line_index,
-                len(text.current_line.body[:op.endc_i].encode('utf-8')))
+                op.endc_i)
             end_l += region.x
-            end_b += region.y + correct
+            end_b += region.y
 
             if op.clause_stac_i != -1 and op.clause_stac_i != op.clause_endc_i:
                 # 存在焦点区时，将候选窗口定位到焦点区开头
-                clause_l, clause_b = space.region_location_from_cursor(
+                clause_l, clause_b = self.text_editor_region_location_from_cursor(
+                    context, region, space,
                     text.current_line_index,
-                    len(text.current_line.body[:op.clause_stac_i].encode('utf-8')))
+                    op.clause_stac_i)
                 clause_l += region.x
-                clause_b += region.y + correct
+                clause_b += region.y
                 c_x = clause_l
                 c_y = clause_b
             else:
@@ -712,47 +716,53 @@ class Manager():
     def text_editor_region_location_from_cursor(clss, context: Context, region: Region, space: SpaceTextEditor, line_i: int, char_i: int) -> tuple[int, int]:
         text = space.text
         line = cast(TextLine, text.lines[line_i])
-        x, y = space.region_location_from_cursor(line_i, len(line.body[:char_i].encode('utf-8')))
 
-        '''
-        region_location_from_cursor 返回的坐标存在以下问题：
-        1、第二个参数传入错误的值会导致返回的 X 坐标出现偏移。
-           第二个参数从文档来看，要求输入字符索引，但源码中似乎出现了差错，被当成字节偏移来使用，因此需要传入字节偏移而非索引。
-        2、返回的 Y 坐标存在一定的偏移。
-           y1 为官方计算公式（存在错误），y2 为正确的计算公式
-           y1 = (region->winy - (r_pixel_co[1] + (TXT_BODY_LPAD * st->runtime.cwidth_px))) - st->runtime.lheight_px;
-           y1 = (region->winy - r_pixel_co[1]) - (TXT_BODY_LPAD * st->runtime.cwidth_px) - st->runtime.lheight_px;
-           y2 = (region->winy - r_pixel_co[1]) - line_height;
-           y2 = y1 + st->runtime.lheight_px + (TXT_BODY_LPAD * st->runtime.cwidth_px) - line_height;
-           设 correct = st->runtime.lheight_px + (TXT_BODY_LPAD * st->runtime.cwidth_px) - line_height，
-           则 y1 + correct 则为正确的 Y 坐标。
-        '''
+        if bpy.app.version >= (4, 2, 2):
+            # 4.2.2 及以上版本已经修正问题
+            x, y = space.region_location_from_cursor(line_i, char_i)
+        else:
+            x, y = space.region_location_from_cursor(line_i, len(line.body[:char_i].encode('utf-8')))
 
-        # 参考源码：region_location_from_cursor
+            '''
+            region_location_from_cursor 返回的坐标存在以下问题：
+            1、第二个参数传入错误的值会导致返回的 X 坐标出现偏移。
+            第二个参数从文档来看，要求输入字符索引，但源码中似乎出现了差错，被当成字节偏移来使用，因此需要传入字节偏移而非索引。
+            2、返回的 Y 坐标存在一定的偏移。
+            y1 为官方计算公式（存在错误），y2 为正确的计算公式
+            y1 = (region->winy - (r_pixel_co[1] + (TXT_BODY_LPAD * st->runtime.cwidth_px))) - st->runtime.lheight_px;
+            y1 = (region->winy - r_pixel_co[1]) - (TXT_BODY_LPAD * st->runtime.cwidth_px) - st->runtime.lheight_px;
+            y2 = (region->winy - r_pixel_co[1]) - line_height;
+            y2 = y1 + st->runtime.lheight_px + (TXT_BODY_LPAD * st->runtime.cwidth_px) - line_height;
+            设 correct = st->runtime.lheight_px + (TXT_BODY_LPAD * st->runtime.cwidth_px) - line_height，
+            则 y1 + correct 则为正确的 Y 坐标。
+            '''
 
-        lheight_px = native.SpaceText_lheight_px_get(space.as_pointer())
+            # 参考源码：region_location_from_cursor
 
-        TXT_LINE_VPAD: float = 0.3
-        TXT_LINE_HEIGHT = int((1 + TXT_LINE_VPAD) * lheight_px)
-        lheight = TXT_LINE_HEIGHT
+            lheight_px = native.SpaceText_lheight_px_get(space.as_pointer())
 
-        TXT_BODY_LPAD = 1.0
+            TXT_LINE_VPAD: float = 0.3
+            TXT_LINE_HEIGHT = int((1 + TXT_LINE_VPAD) * lheight_px)
+            lheight = TXT_LINE_HEIGHT
 
-        cwidth_px = native.SpaceText_cwidth_px_get(space.as_pointer())
+            TXT_BODY_LPAD = 1.0
 
-        correct = lheight_px + int(TXT_BODY_LPAD * cwidth_px) - lheight
+            cwidth_px = native.SpaceText_cwidth_px_get(space.as_pointer())
 
-        return x, y + correct
+            correct = lheight_px + int(TXT_BODY_LPAD * cwidth_px) - lheight
+
+            y = y + correct
+
+        return x, y
 
     @classmethod
     def get_text_editor_draw_params(clss, context: Context) -> tuple[
         int,  # lheight, 行高
-        int,  # correct, 纵向修正
         int,  # draw_xmin, 区块中的绘制区域
         int,  # draw_xmax
     ]:
         '''
-        return: lheight, correct, draw_xmin, draw_xmax,
+        return: lheight, draw_xmin, draw_xmax,
         '''
         region = context.region
         st = cast(SpaceTextEditor, context.space_data)
@@ -770,14 +780,6 @@ class Manager():
 
         TXT_BODY_LPAD = 1.0
 
-        # 修正通过 region_location_from_cursor 获取的纵向坐标位置偏移的问题。
-        # y1 为官方的计算公式（存在错误），y2 为正确的计算公式
-        # y1 = (region->winy - (r_pixel_co[1] + (TXT_BODY_LPAD * st->runtime.cwidth_px))) - st->runtime.lheight_px;
-        # y1 = (region->winy - r_pixel_co[1]) - (TXT_BODY_LPAD * st->runtime.cwidth_px) - st->runtime.lheight_px;
-        # y2 = (region->winy - r_pixel_co[1]) - line_height;
-        # y2 = y1 + st->runtime.lheight_px + (TXT_BODY_LPAD * st->runtime.cwidth_px) - line_height;
-        correct = lheight_px + int(TXT_BODY_LPAD * cwidth_px) - lheight
-
         TXT_NUMCOL_PAD = 1.0
 
         linenr_offset: int = 0
@@ -794,7 +796,7 @@ class Manager():
         draw_xmin: int = linenr_offset
         draw_xmax: int = region.width - TXT_SCROLL_WIDTH
 
-        return (lheight, correct, draw_xmin, draw_xmax)
+        return (lheight, draw_xmin, draw_xmax)
 
     # -----
     # 获取控制台相关的尺寸信息，以便定位候选框和绘制下划线
@@ -824,7 +826,7 @@ class Manager():
                 font_path = str(local.joinpath('datafiles', 'fonts', 'DejaVuSansMono.woff2'))
             else:
                 font_path = str(local.joinpath('datafiles', 'fonts', 'bmonofont-i18n.ttf'))
-        
+
         # 参考源码：textview_draw() 中 tds.cwidth
         if bpy.app.version >= (3, 1, 0):
             font_size = lheight * 0.8
@@ -832,7 +834,7 @@ class Manager():
             font_size = int(lheight * 0.8)
 
         cwidth: Union[int, None] = None
-        
+
         global cwidth_cache
         for _font_path, _font_size, _cwidth in cwidth_cache:
             if _font_path == font_path and _font_size == font_size:
@@ -841,12 +843,12 @@ class Manager():
         if cwidth is None:
             cwidth = native.BLF_fixed_width(font_path, font_size)
             cwidth_cache.append((font_path, font_size, cwidth))
-        
+
         if cwidth < 1:  # 获取失败会返回 -1，此时无视失败即可，界面上会看出异常
             cwidth = 1
 
         # printx(CCFA, "console cwidth", cwidth, scale_factor, cwidth * scale_factor)
-        
+
         # printx(CCFA, "text_str", space.prompt + text.body)
 
         columns = int((draw_xmax - draw_xmin) / cwidth)
@@ -1613,7 +1615,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
     def draw_comp_underline_text_editor(self, context: Context):
         if context.space_data.text != self.space.text:
             return
-        
+
         # 1. 更新候选窗口位置
         # 2. 绘制下划线
         manager = self.manager
@@ -1638,7 +1640,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         space = cast(SpaceTextEditor, context.space_data)
         text = space.text
 
-        lheight, correct, draw_rect_xmin, draw_rect_xmax = manager.get_text_editor_draw_params(context)
+        lheight, draw_rect_xmin, draw_rect_xmax = manager.get_text_editor_draw_params(context)
 
         pixelsize: float = context.preferences.system.pixel_size
 
@@ -1674,12 +1676,6 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         # 绘制合成字符串的下划线
 
         if draw_underline:
-            # sta_l, sta_b = st.region_location_from_cursor(
-            #     text.current_line_index, len(text.current_line.body[:self.stac_i].encode('utf-8')))
-            # end_l, end_b = st.region_location_from_cursor(
-            #     text.current_line_index, len(text.current_line.body[:self.endc_i].encode('utf-8')))
-            # sta_b += correct
-            # end_b += correct
             sta_l, sta_b = manager.text_editor_region_location_from_cursor(context, region, space, text.current_line_index, self.stac_i)
             end_l, end_b = manager.text_editor_region_location_from_cursor(context, region, space, text.current_line_index, self.endc_i)
             if end_b == sta_b:
@@ -1695,12 +1691,6 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         # 绘制选择字符串的下划线
 
         if draw_clause_underline:
-            # sta_l, sta_b = st.region_location_from_cursor(
-            #     text.current_line_index, len(text.current_line.body[:self.clause_stac_i].encode('utf-8')))
-            # end_l, end_b = st.region_location_from_cursor(
-            #     text.current_line_index, len(text.current_line.body[:self.clause_endc_i].encode('utf-8')))
-            # sta_b += correct
-            # end_b += correct
             sta_l, sta_b = manager.text_editor_region_location_from_cursor(context, region, space, text.current_line_index, self.clause_stac_i)
             end_l, end_b = manager.text_editor_region_location_from_cursor(context, region, space, text.current_line_index, self.clause_endc_i)
             sta_b += uheight  # 抬升位置，避免覆盖“合成字符串的下划线”
@@ -1724,7 +1714,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
     def draw_comp_underline_console(self, context: Context):
         if context.space_data != self.space:
             return
-        
+
         # 1. 更新候选窗口位置
         # 2. 绘制下划线
         manager = self.manager

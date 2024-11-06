@@ -709,7 +709,7 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
                         (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
                     {
 
-                        printx(D_IME, "处理输入法不处理的字符按键：%ls", key_name);
+                        printx(D_IME, CCFA "处理输入法不处理的字符按键：%ls", key_name);
 
                         ImmAssociateContext(hWnd, NULL);
 
@@ -801,11 +801,11 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             printx(D_IME, CCFA "dwFlags 1: %x", dwFlags | KEYEVENTF_KEYUP);
             printx(D_IME, CCFA "dwFlags 2: %x", KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP);
 
-            // 如果当前按键不是重复的按键，则需要发送两个按键消息：
+            // 如果当前按键是重复的按键，则需要发送两个按键消息：
             // 第一个消息为第二个消息进行铺垫，使得第二个消息产生时，按键处于没有按下的状态
             // 第二个消息为正常的按键消息
             int events_count = 1;
-            if (HIBYTE(GetKeyState(key)) != 0) // 当前按键事件非重复
+            if (HIBYTE(GetKeyState(key)) == 1) // 当前按键事件重复
             {
                 playback_key_events[0].type = INPUT_KEYBOARD;
                 playback_key_events[0].ki.wVk = key;
@@ -846,7 +846,7 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             DWORD dwFlags = 0;
 
             int events_count = 1;
-            if (HIBYTE(GetKeyState(key)) != 0) // 当前按键事件非重复
+            if (HIBYTE(GetKeyState(key)) == 1) // 当前按键事件重复
             {
                 playback_key_events[0].type = INPUT_KEYBOARD;
                 playback_key_events[0].ki.wVk = key;

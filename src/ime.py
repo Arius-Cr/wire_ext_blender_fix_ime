@@ -1189,8 +1189,12 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
                     return True
         return False
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        # 从 Blender 4.4 开始必须调用super，并且附带相关参数。
+        # https://developer.blender.org/docs/release_notes/4.4/python_api/
+        # 该改动不影响插件在旧的 Blender 中的工作。
+        super().__init__(*args, **kwargs)
+
         self.manager = None
         self.valid: bool = True
 

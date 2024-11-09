@@ -1,6 +1,33 @@
+# https://github.com/hhatto/autopep8
 [tool.autopep8]
 max_line_length = 250
-ignore = "E402,E121,E122,E123,E124,E125,E126,E127,E128,E129,E131,E133,E302"
+ignore = [
+    "E402",
+    "E121",
+    "E122",
+    "E123",
+    "E124",
+    "E125",
+    "E126",
+    "E127",
+    "E128",
+    "E129",
+    "E131",
+    "E133",
+    "E301",
+    "E302",
+    "E305",
+    "E306",
+]
 
 [tool.pyright]
-reportInvalidTypeForm = "none"
+typeCheckingMode = "off"
+reportInvalidTypeForm = false
+exclude = [
+    "xbackup",
+    "xbuild",
+    "xdata",
+    "xdebug",
+    "xrelease",
+    "xxx",
+]

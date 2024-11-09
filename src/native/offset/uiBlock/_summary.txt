@@ -30,5 +30,7 @@
 开发版：
 4.3.0 - V7
 新增成员 func_argN_free_fn、func_argN_copy_fn
+删除成员 drawextra_arg1、drawextra_arg2
 4.4.0 - V7
 新增成员 func_argN_free_fn、func_argN_copy_fn
+删除成员 drawextra_arg1、drawextra_arg2

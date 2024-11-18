@@ -270,86 +270,6 @@ static IMEInvoker get_ime_invoker(WindowData *window)
     }
 }
 
-/**
- * 检查指定按键是否需要无视（即不拦截）
- */
-static bool is_ignore_key(USHORT key)
-{
-    switch (key)
-    {
-    case VK_CONTROL:
-    case VK_SHIFT:
-    case VK_MENU:
-    case VK_LWIN:
-    case VK_RWIN:
-    case VK_CAPITAL:
-
-    case VK_LCONTROL:
-    case VK_RCONTROL:
-    case VK_LSHIFT:
-    case VK_RSHIFT:
-    case VK_LMENU:
-    case VK_RMENU:
-        return true;
-    }
-    return false;
-}
-
-/**
- * 检查指定按键是否需要无视（即不拦截）
- */
-static bool is_modifiy_key(USHORT key)
-{
-    switch (key)
-    {
-    case VK_CONTROL:
-    case VK_SHIFT:
-    case VK_MENU:
-    case VK_LWIN:
-    case VK_RWIN:
-    case VK_LCONTROL:
-    case VK_RCONTROL:
-    case VK_LSHIFT:
-    case VK_RSHIFT:
-    case VK_LMENU:
-    case VK_RMENU:
-        return true;
-    }
-    return false;
-}
-
-/**
- * 检查指定按键是否需要无视（即不拦截）
- */
-static bool is_charcter_key(USHORT key)
-{
-    if ((key >= '0' && key <= '9') ||
-        (key >= 'A' && key <= 'Z') ||
-        (key == VK_SPACE) ||
-        (key >= VK_OEM_1 && key <= VK_OEM_3) ||
-        (key >= VK_OEM_4 && key <= VK_OEM_7) ||
-        (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
-    {
-        return true;
-    }
-    return false;
-}
-
-/**
- * 如果当前处于大写锁定模式，且按键为单独的字母键
- */
-static bool is_caps_lock_key(USHORT key)
-{
-    if ((key >= 'A' && key <= 'Z') &&
-        (GetKeyState(VK_CAPITAL) & 0x0001) &&
-        !(GetKeyState(VK_CONTROL) & 0x0100) &&
-        !(GetKeyState(VK_MENU) & 0x0100))
-    {
-        return true;
-    }
-    return false;
-}
-
 typedef enum
 {
     // 拦截（均为字符按键）
@@ -805,7 +725,9 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             // 第一个消息为第二个消息进行铺垫，使得第二个消息产生时，按键处于没有按下的状态
             // 第二个消息为正常的按键消息
             int events_count = 1;
-            if (HIBYTE(GetKeyState(key)) == 1) // 当前按键事件重复
+            // GetKeyState 返回的是按键消息产生时按键的状态，不包括按键消息自身。
+            // 返回值的最高位为 1 时表示按键按下，此时值为负数；否则为释放，此时值为非负数
+            if (GetKeyState(key) < 0) // 按键发生时按键已经按下，表示该按键是重复按键
             {
                 playback_key_events[0].type = INPUT_KEYBOARD;
                 playback_key_events[0].ki.wVk = key;
@@ -846,7 +768,7 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             DWORD dwFlags = 0;
 
             int events_count = 1;
-            if (HIBYTE(GetKeyState(key)) == 1) // 当前按键事件重复
+            if (GetKeyState(key) < 0)
             {
                 playback_key_events[0].type = INPUT_KEYBOARD;
                 playback_key_events[0].ki.wVk = key;

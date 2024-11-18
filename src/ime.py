@@ -642,6 +642,9 @@ class Manager():
         window = context.window
         region = context.region
         space = cast(SpaceConsole, context.space_data)
+        # 控制台初始化时 space.history 为空
+        if len(space.history) == 0:
+            return
         text = cast(ConsoleLine, space.history[-1])
 
         scale_factor: float = context.preferences.system.ui_scale
@@ -817,6 +820,9 @@ class Manager():
 
     @classmethod
     def console_region_location_from_cursor(clss, context: Context, region: Region, space: SpaceConsole, cursor: int) -> tuple[int, int]:
+        # 控制台初始化时 space.history 为空
+        if len(space.history) == 0:
+            return (0, 0)
         text = cast(ConsoleLine, space.history[-1])
 
         scale_factor: float = context.preferences.system.ui_scale

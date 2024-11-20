@@ -584,6 +584,15 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
                             use_fix_direct_input = true;
                         }
                     }
+                    
+                    // 如果按键为 "/"（主键盘/数字键盘）则先关闭输入法等处理完成后再开启输入法。
+                    // 原因：当语言为中文时，Blender 认为 “/” 会触发合成，所以对 “/” 不作处理，
+                    // 但并不是所有输入法都会对 “/” 进行处理。
+                    // 最终导致该按键不被程序也不被输入法处理。
+                    if (!shift && (key == VK_DIVIDE || key == VK_OEM_2))
+                    {
+                        use_fix_direct_input = true;
+                    }
                 }
 
                 if (use_fix_direct_input)

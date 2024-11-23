@@ -63,6 +63,7 @@ WorkSpaceLayout
 DNA_screen_types.h
 bScreen
 ARegion
+ARegionRuntime # Blender 4.4.0 新增
 
 -----
 非 DNA 类型

@@ -6,13 +6,14 @@ dtfmt = '%Y-%m-%d %H:%M %z'
 __all__ = ['get_data']
 
 _bl_ver: tuple[int, int, int] = None
+_ex_ver: tuple[int, int, int] = None
 
 A = 0
 Z = 99999
-_3__6__X_ = (3, 6, 99)  # 3.6.14 为最后一个人工记录核对偏移量的版本，之后均假设偏移量没有变动
-_4__2__X_ = (4, 2, 99)  # 4.2.0  为最后一个人工记录核对偏移量的版本，之后均假设偏移量没有变动
-_4__3__X_ = (4, 3, 0)  # 开发版
-_4__4__X_ = (4, 4, 0)  # 开发版
+_3__6__X_ = (3, 6, 99)  # 人工核对偏移量的最后一个版本为 3.6.14 ，之后均假设偏移量没有变动
+_4__2__X_ = (4, 2, 99)  # 人工核对偏移量的最后一个版本为 4.2.0  ，之后均假设偏移量没有变动
+_4__3__X_ = (4, 3, 99)  # 人工核对偏移量的最后一个版本为 4.3.0  ，之后均假设偏移量没有变动
+_4__4__X_ = (4, 4, 00)  # 开发版
 
 def MAP(items: dict, item_name: str, maps: list[tuple[tuple[int, int, int], tuple[int, int, int], int]]):
     for map in maps:
@@ -24,10 +25,11 @@ def MAP(items: dict, item_name: str, maps: list[tuple[tuple[int, int, int], tupl
             return
 
 def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Union[dict, None]:
-    global _bl_ver
+    global _ex_ver, _bl_ver
+    _ex_ver = ex_ver
     _bl_ver = bl_ver
 
-    if (3, 0, 5) <= ex_ver <= (3, 0, 10):
+    if (3, 0, 5) <= ex_ver <= (3, 0, 11):
         return get_data_3_0_5()
 
     return None
@@ -36,16 +38,23 @@ def get_data_3_0_5() -> dict:
 
     data = {
         # 数据更新时间
-        'mtime': datetime.strptime('2024-11-09 11:03 +08:00', dtfmt),
+        'mtime': datetime.strptime('2024-11-23 17:35 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
-            ((3, 0, 0), _4__2__X_, None, None),
+            ((3, 0, 0), _4__3__X_, None, None),
             # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((4, 3, 0), _4__3__X_, '2024-11-07 21:13', '5c880a52916e'),
-            ((4, 4, 0), _4__4__X_, '2024-11-08 09:22', '021e010a075f'),
+            ((4, 4, 0), _4__4__X_, '2024-11-21 21:29', '205fba598dd8'),
         ],
         'items': {},
     }
+
+    # 需要 3.0.11 及以上才支持 Blender 4.4.0
+    if _ex_ver <= (3, 0, 10):
+        _blender_vers = []
+        for _item in data['blender_vers']:
+            if _item[0] < (4, 4, 0):
+                _blender_vers.append(_item)
+        data['blender_vers'] = _blender_vers
 
     items = cast(dict[str, int], data['items'])
 
@@ -110,15 +119,24 @@ def get_data_3_0_5() -> dict:
         ((4, 3, 0), _4__4__X_, 280),  # V1
     ])
 
-    # DNA 类型 ARegion
+    # DNA 类型 ARegion (3.0 - 4.3)
 
     MAP(items, 'offset_ARegion__uiblocks', [
         ((3, 0, 0), (3, 5, Z), 232),  # V1
         ((3, 6, 0), _3__6__X_, 240),  # V2
         ((4, 0, 0), _4__2__X_, 240),  # V2
         ((4, 3, 0), _4__3__X_, 240),  # V2
-        ((4, 4, 0), _4__4__X_, 240),  # V2
     ])
+
+    # DNA 类型 ARegion (4.4 及以上)，插件需要 3.0.11 及以上才支持
+
+    if _ex_ver >= (3, 0, 11):
+        MAP(items, 'offset_ARegion__runtime', [
+            ((4, 4, 0), _4__4__X_, 312),  # V3
+        ])
+        MAP(items, 'offset_ARegionRuntime__uiblocks', [
+            ((4, 4, 0), _4__4__X_, 480),  # V1 # 注意：Release 配置下的偏移量和 Debug 配置下的不同
+        ])
 
     # 非 DNA 类型 wmEventHandler、wmEventHandler_UI
     # V1、V2 内存对齐后相同

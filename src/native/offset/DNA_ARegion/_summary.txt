@@ -1,15 +1,28 @@
+===
+ARegion
+
 ----- V1
 3.0.0 - 3.5.1
 
 ----- V2
 3.6.0 - 3.6.14
-4.0.0 - 4.2.0
+4.0.0 - 4.3.0
 新增成员：category_scroll、_pad0
 
 无影响的改动：
 3.4.0 改动了注释
 4.0.0 改动了注释
 
+===
+ARegionRuntim
+
+----- V1
+4.0.0 - 4.0.0
+注意：Release 配置下的偏移量和 Debug 配置下的不同。
+
 开发版：
-4.3.0 - V2
-4.4.0 - V2
+4.4.0 - V3
+runtime 从 ARegion_Runtime* 改为 ARegionRuntimeHandle*
+删除成员：_pad0
+成员移动到 ARegionRuntime：visible、do_draw、type、uiblocks、handlers、panels_category、gizmo_map、regiontimer、draw_buffer、headerstr
+这个改动影响 uiblocks 的偏移位置。

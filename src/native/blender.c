@@ -165,9 +165,18 @@ static size_t sizeof_uiPopupBlockHandle = UNKNOWN;
 // uiPopupBlockHandle.region: ARegion *
 static size_t offset_uiPopupBlockHandle__region = UNKNOWN;
 
+// 仅适用于 3.0 - 4.3
 // 文件：source\blender\makesdna\DNA_screen_types.h
 // ARegion.uiblocks: ListBase<uiBlock>
 static size_t offset_ARegion__uiblocks = UNKNOWN;
+
+// 仅适用于 4.4 及以上
+// 文件：source\blender\makesdna\DNA_screen_types.h
+// ARegion.runtime: ARegionRuntimeHandle *
+static size_t offset_ARegion__runtime = UNKNOWN;
+// 文件：source\blender\blenkernel\BKE_screen.hh
+// ARegionRuntime.uiblocks: ListBase<uiBlock>
+static size_t offset_ARegionRuntime__uiblocks = UNKNOWN;
 
 // 文件：source\blender\editors\interface\interface_intern.hh
 // uiBlock.buttons: uiBut *
@@ -258,8 +267,29 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                     printx(D_IME, CCFR "\taddr_region: %zu", addr_region);
 
                     // 遍历 blocks
-                    size_t addr_uiblocks = GEN_ADDR(addr_region, offset_ARegion__uiblocks);
-                    printx(D_IME, CCFR "\taddr_uiblocks: %zu (offset %zu)", addr_uiblocks, offset_ARegion__uiblocks);
+                    size_t addr_uiblocks = 0;
+                    if (bl_ver < BL_VER(4, 4, 0))
+                    {
+                        // Blender < 4.4.0
+                        addr_uiblocks = GEN_ADDR(addr_region, offset_ARegion__uiblocks);
+                        printx(D_IME, CCFR "\taddr_uiblocks: %zu (offset %zu)", addr_uiblocks, offset_ARegion__uiblocks);
+                    }
+                    else
+                    {
+                        // Blender >= 4.4.0
+                        size_t addr_runtime = GET_VALUE(size_t, addr_region, offset_ARegion__runtime);
+                        printx(D_IME, CCFR "\taddr_runtime: %zu (offset %zu)", addr_runtime, offset_ARegion__runtime);
+                        if (addr_runtime != 0)
+                        {
+                            addr_uiblocks = GEN_ADDR(addr_runtime, offset_ARegionRuntime__uiblocks);
+                            printx(D_IME, CCFR "\taddr_uiblocks: %zu (offset %zu)", addr_uiblocks, offset_ARegionRuntime__uiblocks);
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+
                     for (size_t addr_uiBlock = GET_VALUE(size_t, addr_uiblocks, offset_ListBase__first);
                          addr_uiBlock != 0;
                          addr_uiBlock = GET_VALUE(size_t, addr_uiBlock, offset_Link__next))
@@ -628,7 +658,7 @@ extern /*__declspec(dllexport)*/ void blender_data_uninit()
 extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t value)
 {
 
-#define _set_(_name)                    \
+#define _set_(_name)                   \
     if (wcscmp(name, L## #_name) == 0) \
     {                                  \
         _name = value;                 \
@@ -654,6 +684,8 @@ extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t v
         else _set_(sizeof_uiPopupBlockHandle)                            //
         else _set_(offset_uiPopupBlockHandle__region)                    //
         else _set_(offset_ARegion__uiblocks)                             //
+        else _set_(offset_ARegion__runtime)                              //
+        else _set_(offset_ARegionRuntime__uiblocks)                      //
         else _set_(offset_uiBlock__buttons)                              //
         else _set_(offset_uiBut__flag)                                   //
         else _set_(offset_uiBut__type)                                   //

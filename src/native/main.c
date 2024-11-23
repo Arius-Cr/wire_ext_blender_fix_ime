@@ -16,6 +16,11 @@ extern HANDLE process_handle = NULL;
 extern DWORD process_id = 0;
 extern DWORD thread_id = 0;
 
+extern int bl_ver_main = 0;
+extern int bl_ver_minor = 0;
+extern int bl_ver_patch = 0;
+extern int bl_ver = 0;
+
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 extern __declspec(dllexport) bool use_debug(bool enable)
@@ -25,8 +30,13 @@ extern __declspec(dllexport) bool use_debug(bool enable)
     return data_use_debug;
 }
 
-extern __declspec(dllexport) bool init()
+extern __declspec(dllexport) bool init(int bl_ver_main_, int bl_ver_minor_, int bl_ver_patch_)
 {
+    bl_ver_main = bl_ver_main_;
+    bl_ver_minor = bl_ver_minor_;
+    bl_ver_patch = bl_ver_patch_;
+    bl_ver = BL_VER(bl_ver_main_, bl_ver_minor_, bl_ver_patch_);
+
     setup_console_encoding();
 
     process_handle = GetCurrentProcess();

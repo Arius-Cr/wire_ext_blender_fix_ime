@@ -83,7 +83,7 @@ def register() -> None:
     else:
         _prefs.use_debug = False
 
-    native.init()
+    native.init(*bpy.app.version)
 
     addon_data = AddonData()
     addon_data.load()

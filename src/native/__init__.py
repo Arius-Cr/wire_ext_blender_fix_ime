@@ -73,7 +73,7 @@ class _main:
         self.dll.use_debug.argtypes = [ctypes.c_int]
         self.dll.use_debug.restype = ctypes.c_bool
 
-        self.dll.init.argtypes = []
+        self.dll.init.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
         self.dll.init.restype = ctypes.c_bool
 
         self.dll.uninit.argtypes = []
@@ -82,8 +82,8 @@ class _main:
     def use_debug(self, level: int) -> bool:
         return self.dll.use_debug(level)
 
-    def init(self) -> bool:
-        return self.dll.init()
+    def init(self, bl_ver_main: int, bl_ver_minor: int, bl_ver_patch: int) -> bool:
+        return self.dll.init(bl_ver_main, bl_ver_minor, bl_ver_patch)
 
     def uninit(self) -> bool:
         return self.dll.uninit()

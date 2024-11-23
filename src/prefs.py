@@ -240,7 +240,7 @@ class Prefs(bpy.types.AddonPreferences):
         if not blender_data.is_compatible:
             col = layout.column()
             col.alert = True
-            col.label(text=f"当前插件不兼容 Blender {'.'.join(map(str, bpy.app.version))}", icon='ERROR')
+            col.label(text=f"插件的当前版本不兼容 Blender {'.'.join(map(str, bpy.app.version))}", icon='ERROR')
             col.label(text="你可以尝试点击【更新内存偏移数据】或自行更新插件", icon='INFO')
 
         layout.label(text="当前支持的 Blender 版本:")

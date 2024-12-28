@@ -245,8 +245,12 @@ typedef enum
 /** 在 WM_INPUT 中用于接收 GetKeyboardState() 的输出 */
 static BYTE key_states[256] = {0};
 
-/** 回放按键数据，用于 SendInput()。最多只有两个回放按键数据。 */
-static INPUT playback_key_events[2];
+/* 回放按键数据，用于 SendInput()。最多只有两个回放按键数据。 */
+/* 对于 FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE 最多可能有六个按键数据 */
+static INPUT playback_key_events[6];
+
+/* 修复 Blender 在中文输入模式下无法输入英文标点的问题 */
+#define FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE 1
 
 /**
  * 获取指定窗口中 IME 的调用者。
@@ -272,7 +276,7 @@ static IMEInvoker get_ime_invoker(WindowData *window)
 
 typedef enum
 {
-    // 拦截（均为字符按键）
+    // 拦截（均为字符按键，除退格键）
     KEY_CATALOG_BLOCK,
     // 非数字锁定时的数字键（0-9，.），此时按键实际为方向键、HOME、END、DEL等。
     KEY_CATALOG_BLOCK_NOT_NUMLOCK,
@@ -284,6 +288,7 @@ static KEY_CATALOG get_key_catalog(USHORT key, BOOL extended)
 {
     /**
      * 判断当前按键是否为字符键，包括回车键，退格键，因为这些键都是输入法可能会处理的按键。
+     * 譬如正在合成文字时，按下空格键、回车键选择或确认文字。
      *
      * #define VK_NUMPAD0        0x60
      * #define VK_NUMPAD1        0x61
@@ -318,7 +323,7 @@ static KEY_CATALOG get_key_catalog(USHORT key, BOOL extended)
      */
     if ((key >= '0' && key <= '9') ||
         (key >= 'A' && key <= 'Z') ||
-        (key == VK_SPACE) || (key == VK_RETURN) || (key == VK_BACK) ||
+        (key == VK_SPACE) || (key == VK_RETURN) || (key == VK_BACK) || (key == VK_TAB) ||
         (key >= VK_OEM_1 && key <= VK_OEM_3) ||
         (key >= VK_OEM_4 && key <= VK_OEM_7) ||
         (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
@@ -522,7 +527,7 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     UINT raw_size = sizeof(RAWINPUT);
     GetRawInputData((HRAWINPUT)lParam, RID_INPUT, &raw, &raw_size, sizeof(RAWINPUTHEADER));
     if (raw.header.dwType != RIM_TYPEKEYBOARD)
-        return false; // 仅处理键盘消息
+        return FIRT_PASS; // 仅处理键盘消息
 
     USHORT key = raw.data.keyboard.VKey;
     // BYTE state[256] = {0};
@@ -575,70 +580,99 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
                 {
                     if (data_use_fix_direct_input_all)
                     {
+#if defined(FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE)
+                        /**
+                         * 背景：
+                         *
+                         *   Blender 假定了所有中文输入法都会在按下部分标点符号时进入文本合成状态。
+                         *   因此在 WM_INPUT 时，遇到这些标点符号的按键时，会不处理按键。
+                         *   但并不是所有标点符号按键都会触发文本合成，譬如微软拼音输入法中的 “/” 键不会触发文本合成。
+                         *   同时，中文输入法有英文标点模式，可以在中文输入状态输入英文。
+                         *   同时，部分输入法会根据之前输入的字符自动选择输入的标点为英文还是中文，
+                         *   譬如微软拼音输入法会在输入数字后在按主键盘的 “.” 键时，产生英文标点 “.”，此外则产生中文标点 “。"。
+                         *
+                         *   简单来说，Blender 不支持用户在中文输入模式下输入英文标点符号。
+                         *
+                         *   源码可参考：HOST_ImeWin32::IsImeKeyEvent()
+                         *
+                         * 解决：
+                         *
+                         *   为了解决上面的问题，增加了一个 data_use_fix_direct_input_all 开关。
+                         *   当启用时，如果 WM_INPUT 遇到回放的标点符号按键，
+                         *   则先停用输入法，让 Blender 处理了按键后，再重新启用输入法。
+                         *
+                         *   但该方案对于微软拼音输入法存在缺陷。
+                         *
+                         *   微软拼音输入法会根据之前的按键决定标点符号按键产生英文标点还是中文标点。
+                         *
+                         *   假设前一个输入的字符为数字，则按下主键盘的 “.” 键时，按键会被屏蔽，然后回放。
+                         *   回放由 Blender 处理后，产生英文标点 “.”，
+                         *   但回放按键同时也会被输入法处理，此时微软拼音输入法会产生文本合成消息。
+                         *   该消息同样会被 Blender 处理，因此额外产生中文标点 “。”。
+                         *   即按下 “.” 后，会产生两个字符 “.。”。
+                         *
+                         *   解决上述问题，目前采取大写锁定的方法。
+                         *   对于主键盘的 “.” 键，在发送回放按键前和后，分别发送一个大写锁定按下然后释放的按键序列。
+                         *   即让回放的按键处于大写锁定模式中。
+                         *   这样可以阻止微软拼音输入法对回放按键产生文本合成消息，
+                         *   因为在大写锁定的时候，微软拼音输入法不会触发任何文本合成。
+                         *   同时绝大部分的中文输入法都不会在大写锁定时触发任何文本合成（但微软日语输入法会，但不影响）。
+                         *
+                         * 注意：
+                         *
+                         *   原则上只需要支持 Blender 所假定的这些标点即可：
+                         *     !"$'(),.:;<>?[\]^_`/
+                         *   但这里将这个解决机制扩大化，让大部分回放的按键使用相同的方法处理。
+                         *   可能存在潜在的问题，但逻辑上大概没有问题。
+                         *   这里仅记录上述标点符号对应的虚拟按键：
+                         *   - [! ]  Shift  + '1'
+                         *   - ['"] [Shift] + VK_OEM_7
+                         *   - [$ ]  Shift  + '4'
+                         *   - [( ]  Shift  + '9'
+                         *   - [) ]  Shift  + '0'
+                         *   - [,<] [Shift] + VK_OEM_COMMA
+                         *   - [.>] [Shift] + VK_OEM_PERIOD, VK_DECIMAL
+                         *   - [;:] [Shift] + VK_OEM_1
+                         *   - [/?] [Shift] + VK_OEM_2, VK_DIVIDE
+                         *   - [[ ]           VK_OEM_4
+                         *   - [\|] [Shift] + VK_OEM_5
+                         *   - [] ]           VK_OEM_6
+                         *   - [^ ]  Shift  + '6'
+                         *   - [_ ]           VK_OEM_MINUS
+                         *   - [` ]           VK_OEM_3
+                         */
                         use_fix_direct_input = true;
+#endif
                     }
                     else if (data_use_fix_direct_input_caps_lock)
                     {
+                        /**
+                         * 在 Blender 中同样无法在中文输入模式且大写锁定时输入字符，原因和 data_use_fix_direct_input_all 相同。
+                         * 即 Blender 假定所有字符按键都会在中文输入模式中触发文本合成，故而不处理，
+                         * 但实际上多数输入法在大写锁定时不触发文本合成。
+                         * 
+                         * 解决方法和 data_use_fix_direct_input_all 相同。
+                         * 如果已经启用 data_use_fix_direct_input_all ，则无需考虑 data_use_fix_direct_input_caps_lock，
+                         * 因为 data_use_fix_direct_input_all 已经包括 data_use_fix_direct_input_caps_lock。
+                         */
                         if ((GetKeyState(VK_CAPITAL) & 0x0001))
                         {
                             use_fix_direct_input = true;
                         }
                     }
-                    
-                    // 如果按键为 "/"（主键盘/数字键盘）则先关闭输入法等处理完成后再开启输入法。
-                    // 原因：当语言为中文时，Blender 认为 “/” 会触发合成，所以对 “/” 不作处理，
-                    // 但并不是所有输入法都会对 “/” 进行处理。
-                    // 最终导致该按键不被程序也不被输入法处理。
-                    if (!shift && (key == VK_DIVIDE || key == VK_OEM_2))
-                    {
-                        use_fix_direct_input = true;
-                    }
                 }
+
+                /**
+                 * 如果 use_fix_direct_input 则先停用输入法再让 Blender 处理该按键，
+                 * 避免 Blender 的额外逻辑导致按键无法输入字符。
+                 * 否则，直接放行（result = FIRT_PASS），让 Blender 直接处理。
+                 */
 
                 if (use_fix_direct_input)
                 {
-                    /**
-                     * #define VK_NUMPAD0        0x60
-                     * #define VK_NUMPAD1        0x61
-                     * #define VK_NUMPAD2        0x62
-                     * #define VK_NUMPAD3        0x63
-                     * #define VK_NUMPAD4        0x64
-                     * #define VK_NUMPAD5        0x65
-                     * #define VK_NUMPAD6        0x66
-                     * #define VK_NUMPAD7        0x67
-                     * #define VK_NUMPAD8        0x68
-                     * #define VK_NUMPAD9        0x69
-                     * #define VK_MULTIPLY       0x6A   // *
-                     * #define VK_ADD            0x6B   // +
-                     * #define VK_SEPARATOR      0x6C   // ENTER
-                     * #define VK_SUBTRACT       0x6D   // -
-                     * #define VK_DECIMAL        0x6E   // .
-                     * #define VK_DIVIDE         0x6F   // /
-                     *
-                     * #define VK_OEM_1          0xBA   // ';:' for US
-                     * #define VK_OEM_PLUS       0xBB   // '+' any country
-                     * #define VK_OEM_COMMA      0xBC   // ',' any country
-                     * #define VK_OEM_MINUS      0xBD   // '-' any country
-                     * #define VK_OEM_PERIOD     0xBE   // '.' any country
-                     * #define VK_OEM_2          0xBF   // '/?' for US
-                     * #define VK_OEM_3          0xC0   // '`~' for US
-                     *
-                     * #define VK_OEM_4          0xDB  //  '[{' for US
-                     * #define VK_OEM_5          0xDC  //  '\|' for US
-                     * #define VK_OEM_6          0xDD  //  ']}' for US
-                     * #define VK_OEM_7          0xDE  //  ''"' for US
-                     * #define VK_OEM_8          0xDF
-                     */
-
-                    if ((key >= '0' && key <= '9') ||
-                        (key >= 'A' && key <= 'Z') ||
-                        (key == VK_SPACE) || (key == VK_RETURN) || (key == VK_BACK) ||
-                        (key >= VK_OEM_1 && key <= VK_OEM_3) ||
-                        (key >= VK_OEM_4 && key <= VK_OEM_7) ||
-                        (key >= VK_NUMPAD0 && key <= VK_DIVIDE && key != VK_SEPARATOR))
+                    if (get_key_catalog(key, extended) == KEY_CATALOG_BLOCK)
                     {
-
-                        printx(D_IME, CCFA "处理输入法不处理的字符按键：%ls", key_name);
+                        printx(D_IME, CCFA "处理输入法不处理的字符按键：\"%ls\"", key_name);
 
                         ImmAssociateContext(hWnd, NULL);
 
@@ -733,24 +767,83 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             // 如果当前按键是重复的按键，则需要发送两个按键消息：
             // 第一个消息为第二个消息进行铺垫，使得第二个消息产生时，按键处于没有按下的状态
             // 第二个消息为正常的按键消息
-            int events_count = 1;
+            int events_count = 0;
             // GetKeyState 返回的是按键消息产生时按键的状态，不包括按键消息自身。
             // 返回值的最高位为 1 时表示按键按下，此时值为负数；否则为释放，此时值为非负数
             if (GetKeyState(key) < 0) // 按键发生时按键已经按下，表示该按键是重复按键
             {
-                playback_key_events[0].type = INPUT_KEYBOARD;
-                playback_key_events[0].ki.wVk = key;
-                playback_key_events[0].ki.wScan = wScan;
-                playback_key_events[0].ki.dwFlags = dwFlags | KEYEVENTF_KEYUP;
-                playback_key_events[0].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
-                events_count = 2;
+                playback_key_events[events_count].type = INPUT_KEYBOARD;
+                playback_key_events[events_count].ki.wVk = key;
+                playback_key_events[events_count].ki.wScan = wScan;
+                playback_key_events[events_count].ki.dwFlags = dwFlags | KEYEVENTF_KEYUP;
+                playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count += 1;
                 printx(D_IME, "WM_KEYDOWN 中断重复状态");
             }
-            playback_key_events[events_count - 1].type = INPUT_KEYBOARD;
-            playback_key_events[events_count - 1].ki.wVk = key;
-            playback_key_events[events_count - 1].ki.wScan = wScan;
-            playback_key_events[events_count - 1].ki.dwFlags = dwFlags;
-            playback_key_events[events_count - 1].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+
+#if defined(FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE)
+            /**
+             * 此处特地对主键盘上 “.” 键进行特殊处理，主要是为了让该键在微软拼音输入法中正常使用。
+             * 具体原因请通过 FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE 搜索相关代码。
+             */
+            bool toggle_cap_lock = false;
+
+            if (key == VK_OEM_PERIOD && ((GetKeyState(VK_CAPITAL) & 0x0001) == 0))
+            {
+                bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) == 1;
+                bool shift = (GetKeyState(VK_SHIFT) & 0x8000) == 1;
+                bool alt = (GetKeyState(VK_MENU) & 0x8000) == 1;
+
+                if (!ctrl && !shift && !alt)
+                {
+                    toggle_cap_lock = true;
+
+                    printx(D_IME, CCFY "WM_KEYDOWN 对 \".\" 特殊处理");
+                }
+            }
+
+            if (toggle_cap_lock)
+            {
+                playback_key_events[events_count].type = INPUT_KEYBOARD;
+                playback_key_events[events_count].ki.wVk = VK_CAPITAL;
+                playback_key_events[events_count].ki.wScan = 0x003A;
+                playback_key_events[events_count].ki.dwFlags = 0;
+                playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count += 1;
+                playback_key_events[events_count].type = INPUT_KEYBOARD;
+                playback_key_events[events_count].ki.wVk = VK_CAPITAL;
+                playback_key_events[events_count].ki.wScan = 0x003A;
+                playback_key_events[events_count].ki.dwFlags = KEYEVENTF_KEYUP;
+                playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count += 1;
+            }
+#endif /* FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE */
+
+            playback_key_events[events_count].type = INPUT_KEYBOARD;
+            playback_key_events[events_count].ki.wVk = key;
+            playback_key_events[events_count].ki.wScan = wScan;
+            playback_key_events[events_count].ki.dwFlags = dwFlags;
+            playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+            events_count += 1;
+
+#if defined(FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE)
+            if (toggle_cap_lock)
+            {
+                playback_key_events[events_count].type = INPUT_KEYBOARD;
+                playback_key_events[events_count].ki.wVk = VK_CAPITAL;
+                playback_key_events[events_count].ki.wScan = 0x003A;
+                playback_key_events[events_count].ki.dwFlags = 0;
+                playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count += 1;
+                playback_key_events[events_count].type = INPUT_KEYBOARD;
+                playback_key_events[events_count].ki.wVk = VK_CAPITAL;
+                playback_key_events[events_count].ki.wScan = 0x003A;
+                playback_key_events[events_count].ki.dwFlags = KEYEVENTF_KEYUP;
+                playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count += 1;
+            }
+#endif /* FIX_ENG_PUNCTUATION_IN_CHINESE_INPUT_MODE */
+
             SendInput(events_count, (PINPUT)&playback_key_events, sizeof(INPUT));
         }
         else
@@ -776,22 +869,25 @@ static void fix_ime_WM_KEYDOWN(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
             WORD wScan = LOBYTE(key_flags); // equal to MapVirtualKey(key, MAPVK_VK_TO_VSC)
             DWORD dwFlags = 0;
 
-            int events_count = 1;
+            int events_count = 0;
             if (GetKeyState(key) < 0)
             {
-                playback_key_events[0].type = INPUT_KEYBOARD;
-                playback_key_events[0].ki.wVk = key;
-                playback_key_events[0].ki.wScan = wScan;
-                playback_key_events[0].ki.dwFlags = dwFlags | KEYEVENTF_KEYUP;
-                playback_key_events[0].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
-                events_count = 2;
+                playback_key_events[events_count].type = INPUT_KEYBOARD;
+                playback_key_events[events_count].ki.wVk = key;
+                playback_key_events[events_count].ki.wScan = wScan;
+                playback_key_events[events_count].ki.dwFlags = dwFlags | KEYEVENTF_KEYUP;
+                playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_BLOCK;
+                events_count += 1;
                 printx(D_IME, "WM_KEYDOWN 中断重复状态");
             }
-            playback_key_events[events_count - 1].type = INPUT_KEYBOARD;
-            playback_key_events[events_count - 1].ki.wVk = key;
-            playback_key_events[events_count - 1].ki.wScan = wScan;
-            playback_key_events[events_count - 1].ki.dwFlags = dwFlags | KEYEVENTF_EXTENDEDKEY;
-            playback_key_events[events_count - 1].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+
+            playback_key_events[events_count].type = INPUT_KEYBOARD;
+            playback_key_events[events_count].ki.wVk = key;
+            playback_key_events[events_count].ki.wScan = wScan;
+            playback_key_events[events_count].ki.dwFlags = dwFlags | KEYEVENTF_EXTENDEDKEY;
+            playback_key_events[events_count].ki.dwExtraInfo = myHIMC_INPUT_PASS;
+            events_count += 1;
+
             SendInput(events_count, (PINPUT)&playback_key_events, sizeof(INPUT));
         }
     }

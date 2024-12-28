@@ -5,8 +5,6 @@ typedef struct ARegion {
   View2D v2d;
   /** Coordinates of region. */
   rcti winrct;
-  /** Runtime for partial redraw, same or smaller than winrct. */
-  rcti drawrct;
   /** Size. */
   short winx, winy;
   /**
@@ -28,12 +26,12 @@ typedef struct ARegion {
    */
   short sizex, sizey;
 
-  /** Private, cached notifier events. */
-  short do_draw_paintcursor;
   /** Private, set for indicate drawing overlapped. */
   short overlap;
   /** Temporary copy of flag settings for clean full-screen. */
   short flagfullscreen;
+
+  char _pad[2];
 
   /** Panel. */
   ListBase panels;
@@ -59,19 +57,23 @@ struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
 
-  /** Panel category to use between 'layout' and 'draw'. */
-  const char *category = nullptr;
+  /** Runtime for partial redraw, same or smaller than #ARegion::winrct. */
+  rcti drawrct = {};
 
   /**
    * The visible part of the region, use with region overlap not to draw
    * on top of the overlapping regions.
    *
-   * Lazy initialize, zero'd when unset, relative to #ARegion.winrct x/y min. */
+   * Lazy initialize, zeroed when unset, relative to #ARegion.winrct x/y min.
+   */
   rcti visible_rect = {};
 
   /* The offset needed to not overlap with window scroll-bars. Only used by HUD regions for now. */
   int offset_x = 0;
   int offset_y = 0;
+
+  /** Panel category to use between 'layout' and 'draw'. */
+  const char *category = nullptr;
 
   /** Maps #uiBlock::name to uiBlock for faster lookups. */
   Map<std::string, uiBlock *> block_name_map;
@@ -100,6 +102,9 @@ struct ARegionRuntime {
 
   /** Private, cached notifier events. */
   short do_draw = 0;
+
+  /** Private, cached notifier events. */
+  short do_draw_paintcursor;
 
   /* Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;

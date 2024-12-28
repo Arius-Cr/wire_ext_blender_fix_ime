@@ -132,10 +132,10 @@ def get_data_3_0_5() -> dict:
 
     if _ex_ver >= (3, 0, 11):
         MAP(items, 'offset_ARegion__runtime', [
-            ((4, 4, 0), _4__4__X_, 312),  # V3
+            ((4, 4, 0), _4__4__X_, 296),  # V3
         ])
         MAP(items, 'offset_ARegionRuntime__uiblocks', [
-            ((4, 4, 0), _4__4__X_, 480),  # V1 # 注意：Release 配置下的偏移量和 Debug 配置下的不同
+            ((4, 4, 0), _4__4__X_, 496),  # V1 # 注意：Release 配置下的偏移量和 Debug 配置下的不同
         ])
 
     # 非 DNA 类型 wmEventHandler、wmEventHandler_UI

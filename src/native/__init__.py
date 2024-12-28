@@ -316,10 +316,11 @@ class Native(_main, _blender, _fix_ime):
         self.dll = ctypes.CDLL(os.path.join(dir, f'_{dll_name}.dll'))
 
         if self.dll is None:
-            printx(CCBG, "加载 DLL 失败")
+            printx(CCBG, f"加载 _{dll_name}.dll 失败")
             return False
         else:
-            printx("加载 DLL 完成")
+            if mark.DEBUG:
+                printx(f"加载 _{dll_name}.dll 完成")
 
         self._dll_init__main()
         self._dll_init__blender()
@@ -331,10 +332,11 @@ class Native(_main, _blender, _fix_ime):
             return True
         
         if not kernel32.FreeLibrary(self.dll._handle):
-            printx(CCBG, "卸载 DLL 失败")
+            printx(CCBG, f"卸载 _{dll_name}.dll 失败")
             return False
         else:
-            print("卸载 DLL 完成")
+            if mark.DEBUG:
+                print(f"卸载 _{dll_name}.dll 完成")
 
         del self.dll
 

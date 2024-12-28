@@ -78,7 +78,8 @@ def load_pre(*args):
     # 加载新文件时，本地窗口不会销毁，但是窗口会被新的 wmWindow 关联，即旧的关联会失效。
     for manager in list(managers.values()):
         manager.close(window_destory=False)
-    printx("加载中....")
+    if DEBUG:
+        printx("加载中....")
 
 @persistent
 def depsgraph_update_post(*args):
@@ -86,7 +87,8 @@ def depsgraph_update_post(*args):
     file_loading = False
     file_loaded_watching = False
     bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
-    printx("加载完成")
+    if DEBUG:
+        printx("加载完成")
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 

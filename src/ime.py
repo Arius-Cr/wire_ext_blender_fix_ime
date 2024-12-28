@@ -6,6 +6,7 @@ import time
 import bpy
 from bpy.types import Context, Event, Operator, Region
 from bpy.types import SpaceView3D, SpaceTextEditor, TextLine, SpaceConsole, ConsoleLine
+from bpy.app.handlers import persistent
 import gpu
 import gpu_extras
 from gpu_extras.batch import batch_for_shader
@@ -38,14 +39,21 @@ from .prefs import get_prefs, Prefs
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+file_loading: bool = False
+file_loaded_watching: bool = False
+
 def register():
     bpy.utils.register_class(WIRE_FIX_IME_OT_state_updater)
     bpy.utils.register_class(WIRE_FIX_IME_OT_input_handler)
+    bpy.app.handlers.load_pre.append(load_pre)
     pass
 
 def unregister():
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_state_updater)
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_input_handler)
+    bpy.app.handlers.load_pre.remove(load_pre)
+    if file_loaded_watching:
+        bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
     pass
 
 def use_debug_update():
@@ -59,6 +67,26 @@ def use_debug_update():
     DEBUG_CANDIDATE_POS = mark.DEBUG_CANDIDATE_POS
     DEBUG_GET_MODAL_HANDLER_SIZE = mark.DEBUG_GET_MODAL_HANDLER_SIZE
     pass
+
+@persistent
+def load_pre(*args):
+    global file_loading, file_loaded_watching
+    file_loading = True
+    if not file_loaded_watching:
+        file_loaded_watching = True
+        bpy.app.handlers.depsgraph_update_post.append(depsgraph_update_post)
+    # 加载新文件时，本地窗口不会销毁，但是窗口会被新的 wmWindow 关联，即旧的关联会失效。
+    for manager in list(managers.values()):
+        manager.close(window_destory=False)
+    printx("加载中....")
+
+@persistent
+def depsgraph_update_post(*args):
+    global file_loading, file_loaded_watching
+    file_loading = False
+    file_loaded_watching = False
+    bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
+    printx("加载完成")
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -259,9 +287,7 @@ class Manager():
                 native.use_fix_ime_for_space(False)
 
                 for manager in list(managers.values()):
-                    manager.close()
-
-                managers.clear()
+                    manager.close(window_destory=False)
 
                 clss.fix_space_enabled = False
 
@@ -285,6 +311,18 @@ class Manager():
         pass
 
     def close(self, window_destory: bool = False):
+        if not window_destory:
+            # 窗口销毁时，无需执行下面的操作。
+
+            # 在加载文件时也会调用 close，此时窗口并非销毁，
+            # 为了保险先关闭输入法等待重新捕获窗口再更新输入法状态。
+            native.ime_disable(self.wm_pointer)
+
+            # 将窗口指针和窗口句柄解绑
+            # 在加载新的文件时，窗口关联的 wmWindow 会被销毁，如果不立即解绑，
+            # 在窗口消息中调用 get_ime_invoker 时，会访问到失效的内存，导致程序崩溃。
+            native.unhook_window(self.wm_pointer)
+
         if self.window in managers:
             managers.pop(self.window)
             wm = bpy.context.window_manager
@@ -336,6 +374,11 @@ class Manager():
             printx(f"{CCFG}设置{CCZ0} 更新器 - 启动 - 计时器：BUTTON_DOWN_CALLBACK, 间隔：{_span_s * 1000:.0f}ms")
 
     def register_updater_start_timer(self) -> Union[float, None]:
+        # 文件正式加载完成前，如果调用 event_timer_add，会导致程序闪退。
+        if file_loading:
+            printx(f"{CCFG}等待文件加载完成...{CCZ0}")
+            return
+
         if self.updater_start_timer:
             return
         # if (native.window_is_active(self.wm_pointer) and
@@ -1069,8 +1112,10 @@ class WIRE_FIX_IME_OT_state_updater(Operator):
 
     @ classmethod
     def poll(clss, context: Context) -> bool:
+        global file_loading
         if Manager.fix_field_enabled or Manager.fix_space_enabled:
-            return True
+            if not file_loading:
+                return True
         return False
 
     def invoke(self, context: Context, event: Event) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:

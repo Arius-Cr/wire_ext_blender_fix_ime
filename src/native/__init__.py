@@ -172,6 +172,9 @@ class _fix_ime:
         self.dll.hook_window.argtypes = [ctypes.c_void_p]
         self.dll.hook_window.restype = ctypes.c_bool
 
+        self.dll.unhook_window.argtypes = [ctypes.c_void_p]
+        self.dll.unhook_window.restype = ctypes.c_bool
+
         self.dll.window_is_active.argtypes = [ctypes.c_void_p]
         self.dll.window_is_active.restype = ctypes.c_bool
 
@@ -226,6 +229,9 @@ class _fix_ime:
 
     def hook_window(self, wm_pointer: int) -> bool:
         return self.dll.hook_window(wm_pointer)
+
+    def unhook_window(self, wm_pointer: int) -> bool:
+        return self.dll.unhook_window(wm_pointer)
 
     def window_is_active(self, wm_pointer: int) -> bool:
         return self.dll.window_is_active(wm_pointer)

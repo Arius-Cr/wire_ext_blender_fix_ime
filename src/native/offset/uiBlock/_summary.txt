@@ -23,14 +23,22 @@
 删除成员 butm_func、butm_func_arg
 新增成员 ui_operator_free
 
+----- V7
+4.3.0 - 4.4.0
+新增成员 func_argN_free_fn、func_argN_copy_fn
+删除成员 drawextra_arg1、drawextra_arg2
+
 无影响的改动：
 3.4.0 改动了注释
 4.0.0 改动了注释
 
 开发版：
-4.3.0 - V7
-新增成员 func_argN_free_fn、func_argN_copy_fn
-删除成员 drawextra_arg1、drawextra_arg2
-4.4.0 - V7
-新增成员 func_argN_free_fn、func_argN_copy_fn
-删除成员 drawextra_arg1、drawextra_arg2
+4.5.0 - V8
+buttons 的类型从 ListBase 改为 blender::Vector<std::unique_ptr<uiBut>>。
+新增成员（都是函数）：
+remove_but
+first_but
+last_but
+but_index
+next_but
+prev_but

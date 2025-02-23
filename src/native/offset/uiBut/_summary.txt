@@ -3,7 +3,8 @@
 uiBut
 V1 - V5
 V6 - V7：加入了flag2成员，导致 type 成员偏移
-V8 - V9
+V8 - V10
+V11：移除next和prev成员，导致 flag 和 type 成员偏移（Blender 4.5.0）
 
 UI_SELECT
 V1 - V3
@@ -57,27 +58,33 @@ uiBut
 删除成员 a1、a2
 新增成员 search_weight
 
------ V9（未发布，不确定）
+----- V9
 4.3.0 - 4.3.0
-新增成员 func_argN_free_fn、func_argN_copy_fn
+新增成员：
+  func_argN_free_fn
+  func_argN_copy_fn
+  rename_full_func
+  rename_full_new
+  operator_never_call
+  semi_modal_state
+
+----- V10
+4.4.0 - 4.4.0
+新增成员：
+  menu_no_hover_open
+  drag_preview_icon_id
 
 开发版：
-4.3.0 - V9
-新增成员：
-  func_argN_free_fn
-  func_argN_copy_fn
-  rename_full_func
-  rename_full_new
-  operator_never_call
-  semi_modal_state
-4.4.0 - V9
-新增成员：
-  func_argN_free_fn
-  func_argN_copy_fn
-  rename_full_func
-  rename_full_new
-  operator_never_call
-  semi_modal_state
+4.5.0 - V11
+删除成员 next 和 prev。
+成员 tip 的类型从 const char *tip 改为 blender::StringRef。
+新增成员（析构函数）：~uiBut
+这个改变导致了，必需知道uiBut的大小才能从 uiBlock.buttons 中遍历所有 uiBut。
+在官方源码的 WM_event_add_modal_handler 函数中添加：
+  printf("sizeof_uiBut: %zu\n", sizeof(uiBut));
+  printf("offset_uiBut__flag: %zu\n", offsetof(uiBut, flag));
+  printf("offset_uiBut__type: %zu\n", offsetof(uiBut, type));
+以便打印其大小。
 
 ============================================================
 UI_SELECT
@@ -92,8 +99,11 @@ UI_SELECT
 注：在 4.0.0 中修改了注释
 
 ----- V3
-4.1.0 - 4.2.0
+4.1.0 - 4.4.0
 枚举 UI_ACTIVE 改为 UI_HOVER，值不变
+
+开发版：
+4.5.0 - V3
 
 ============================================================
 eButType
@@ -111,5 +121,8 @@ eButType
 注：3.5.0 中修改了注释
 
 ----- V4
-4.0.0 - 4.2.0
+4.0.0 - 4.4.0
 枚举 UI_BTYPE_PROGRESS_BAR 改为 UI_BTYPE_PROGRESS，值不变
+
+开发版：
+4.5.0 - V4

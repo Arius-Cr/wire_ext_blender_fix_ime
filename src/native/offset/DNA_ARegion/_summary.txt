@@ -9,33 +9,34 @@ ARegion
 4.0.0 - 4.3.0
 新增成员：category_scroll、_pad0
 
+----- V3
+4.4.0 - 4.4.0
+runtime 从 ARegion_Runtime* 改为 ARegionRuntimeHandle*
+删除成员：_pad0
+成员移动到 ARegionRuntime：drawrct、visible、do_draw、do_draw_paintcursor、type、uiblocks、handlers、panels_category、gizmo_map、regiontimer、draw_buffer、headerstr
+这个改动影响 uiblocks 的偏移位置，从 ARegion 移动到了 ARegionRuntime。
+
 无影响的改动：
 3.4.0 改动了注释
 4.0.0 改动了注释
 
-===
-ARegionRuntim
-
------ V1
-4.0.0 - 4.0.0
-注意：Release 配置下的偏移量和 Debug 配置下的不同。
-
 开发版：
-4.4.0 - V3 (2024-11-23)
-runtime 从 ARegion_Runtime* 改为 ARegionRuntimeHandle*
-删除成员：_pad0
-成员移动到 ARegionRuntime：visible、do_draw、type、uiblocks、handlers、panels_category、gizmo_map、regiontimer、draw_buffer、headerstr
-这个改动影响 uiblocks 的偏移位置。
-
-4.4.0 - V3 (2024-12-28)
-ARegion:
-    删除成员：drawrct、_pad
-    新增成员：do_draw_paintcursor
-ARegionRuntime:
-    新增成员：drawrct、category、do_draw_paintcursor
+4.5.0 - V3
 
 ===
+ARegionRuntime
+
+在 Blender 4.4.0 中，我们关注的 uiblocks 成员从 ARegion 移动到了 ARegionRuntime。
+之前无需关注 ARegionRuntime，所以这里仅从 4.4.0 版的 ARegionRuntime 开始记录。
+
+【注意】Release 配置下的偏移量和 Debug 配置下的不同。
 在官方源码的 WM_event_add_modal_handler 函数中添加：
   printf("offset_ARegion__runtime: %zu\n", offsetof(ARegion, runtime));
   printf("offset_ARegionRuntime__uiblocks: %zu\n", offsetof(ARegionRuntimeHandle, uiblocks));
 以 Release 的方式编译运行，按下 "G" 即可打印偏移量。
+
+----- V1
+4.4.0 - 4.4.0
+
+开发版：
+4.5.0 - V1

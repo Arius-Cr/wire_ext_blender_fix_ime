@@ -181,8 +181,15 @@ static size_t offset_ARegionRuntime__uiblocks = UNKNOWN;
 // 文件：source\blender\editors\interface\interface_intern.hh
 // uiBlock.buttons: uiBut *
 static size_t offset_uiBlock__buttons = UNKNOWN;
+// 仅适用于 4.5 及以上
+// uiBlock.buttons: blender::Vector<std::unique_ptr<uiBut>>
+static size_t offset_uiBlock__buttons__begin_ = UNKNOWN;
+static size_t offset_uiBlock__buttons__end_ = UNKNOWN;
+static size_t sizeof_uiBlock__buttons__unique_ptr = UNKNOWN;
 
 // 文件：source\blender\editors\interface\interface_intern.hh
+// sizeof(uiBut)
+static size_t sizeof_uiBut = UNKNOWN;
 // uiBut.flag: int  -->  UI_SELECT、UI_HOVER、...
 static size_t offset_uiBut__flag = UNKNOWN;
 // uiBut.type: eButType  -->  UI_BTYPE_TEXT...
@@ -278,11 +285,11 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                     {
                         // Blender >= 4.4.0
                         size_t addr_runtime = GET_VALUE(size_t, addr_region, offset_ARegion__runtime);
-                        printx(D_IME, CCFR "\taddr_runtime: %zu (offset %zu)", addr_runtime, offset_ARegion__runtime);
+                        printx(D_IME, CCFR "\taddr_runtime(>=4.4.0): %zu (offset %zu)", addr_runtime, offset_ARegion__runtime);
                         if (addr_runtime != 0)
                         {
                             addr_uiblocks = GEN_ADDR(addr_runtime, offset_ARegionRuntime__uiblocks);
-                            printx(D_IME, CCFR "\taddr_uiblocks: %zu (offset %zu)", addr_uiblocks, offset_ARegionRuntime__uiblocks);
+                            printx(D_IME, CCFR "\taddr_uiblocks(>=4.4.0): %zu (offset %zu)", addr_uiblocks, offset_ARegionRuntime__uiblocks);
                         }
                         else
                         {
@@ -297,30 +304,75 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                         printx(D_IME, CCFR "\taddr_uiBlock: %zu", addr_uiBlock);
 
                         // 遍历 buttons
-                        size_t addr_buttons = GEN_ADDR(addr_uiBlock, offset_uiBlock__buttons);
-                        printx(D_IME, CCFR "\taddr_buttons: %zu (offset %zu)", addr_buttons, offset_uiBlock__buttons);
-                        for (size_t addr_uiBut = GET_VALUE(size_t, addr_buttons, offset_ListBase__first);
-                             addr_uiBut != 0;
-                             addr_uiBut = GET_VALUE(size_t, addr_uiBut, offset_Link__next))
+
+                        if (bl_ver < BL_VER(4, 5, 0))
                         {
-                            printx(D_IME, CCFR "\taddr_uiBut: %zu", addr_uiBut);
-
-                            int uiBut_flag = GET_VALUE(int, addr_uiBut, offset_uiBut__flag);
-                            int uiBut_type = GET_VALUE(int, addr_uiBut, offset_uiBut__type);
-
-                            printx(D_IME, CCFR "\tuiBut_flag: %x, %s", uiBut_flag,
-                                   (uiBut_flag & UI_SELECT) ? "True" : "False");
-                            printx(D_IME, CCFR "\tuiBut_type: %x, %s", uiBut_type,
-                                   (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                    uiBut_type == UI_BTYPE_SEARCH_MENU)
-                                       ? "True"
-                                       : "False");
-
-                            if ((uiBut_flag & UI_SELECT) &&
-                                (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                 uiBut_type == UI_BTYPE_SEARCH_MENU))
+                            size_t addr_buttons = GEN_ADDR(addr_uiBlock, offset_uiBlock__buttons);
+                            printx(D_IME, CCFR "\taddr_buttons: %zu (offset %zu)", addr_buttons, offset_uiBlock__buttons);
+                            for (size_t addr_uiBut = GET_VALUE(size_t, addr_buttons, offset_ListBase__first);
+                                 addr_uiBut != 0;
+                                 addr_uiBut = GET_VALUE(size_t, addr_uiBut, offset_Link__next))
                             {
-                                return true;
+                                printx(D_IME, CCFR "\taddr_uiBut: %zu", addr_uiBut);
+
+                                int uiBut_flag = GET_VALUE(int, addr_uiBut, offset_uiBut__flag);
+                                int uiBut_type = GET_VALUE(int, addr_uiBut, offset_uiBut__type);
+
+                                printx(D_IME, CCFR "\tuiBut_flag: %x, %s", uiBut_flag,
+                                       (uiBut_flag & UI_SELECT) ? "True" : "False");
+                                printx(D_IME, CCFR "\tuiBut_type: %x, %s", uiBut_type,
+                                       (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                        uiBut_type == UI_BTYPE_SEARCH_MENU)
+                                           ? "True"
+                                           : "False");
+
+                                if ((uiBut_flag & UI_SELECT) &&
+                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                     uiBut_type == UI_BTYPE_SEARCH_MENU))
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            size_t addr_buttons = GEN_ADDR(addr_uiBlock, offset_uiBlock__buttons);
+                            printx(D_IME, CCFR "\taddr_buttons(>=4.5.0): %zu (offset %zu)", addr_buttons, offset_uiBlock__buttons);
+                            
+                            // 获得的是 std::unique_ptr<uiBut> 结构
+                            size_t addr_unique_ptr_begin_ = GET_VALUE(size_t, addr_buttons, offset_uiBlock__buttons__begin_);
+                            size_t addr_unique_ptr_end_ = GET_VALUE(size_t, addr_buttons, offset_uiBlock__buttons__end_);
+                            int size = (addr_unique_ptr_end_ - addr_unique_ptr_begin_) / sizeof_uiBlock__buttons__unique_ptr;
+                            printx(D_IME, CCFR "\taddr_unique_ptr_begin_: %zu (offset %zu)", addr_unique_ptr_begin_, offset_uiBlock__buttons__begin_);
+                            printx(D_IME, CCFR "\taddr_unique_ptr_end_: %zu (offset %zu)", addr_unique_ptr_end_, offset_uiBlock__buttons__end_);
+                            printx(D_IME, CCFR "\tsize: %d", size);
+                            
+                            size_t addr_unique_ptr = addr_unique_ptr_begin_;
+                            size_t addr_uiBut = 0;
+                            for (int i = 0; i < size; i++)
+                            {
+                                addr_unique_ptr = GEN_ADDR(addr_unique_ptr_begin_, i * sizeof_uiBlock__buttons__unique_ptr);
+                                // 这里的偏移量暂且固定为 0，基本不太可能变。
+                                size_t addr_uiBut = GET_VALUE(size_t, addr_unique_ptr, 0);
+                                printx(D_IME, CCFR "\taddr_uiBut: %zu", addr_uiBut);
+
+                                int uiBut_flag = GET_VALUE(int, addr_uiBut, offset_uiBut__flag);
+                                int uiBut_type = GET_VALUE(int, addr_uiBut, offset_uiBut__type);
+
+                                printx(D_IME, CCFR "\tuiBut_flag: %x, %s", uiBut_flag,
+                                       (uiBut_flag & UI_SELECT) ? "True" : "False");
+                                printx(D_IME, CCFR "\tuiBut_type: %x, %s", uiBut_type,
+                                       (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                        uiBut_type == UI_BTYPE_SEARCH_MENU)
+                                           ? "True"
+                                           : "False");
+
+                                if ((uiBut_flag & UI_SELECT) &&
+                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                     uiBut_type == UI_BTYPE_SEARCH_MENU))
+                                {
+                                    return true;
+                                }
                             }
                         }
                     }
@@ -687,6 +739,10 @@ extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t v
         else _set_(offset_ARegion__runtime)                              //
         else _set_(offset_ARegionRuntime__uiblocks)                      //
         else _set_(offset_uiBlock__buttons)                              //
+        else _set_(offset_uiBlock__buttons__begin_)                      //
+        else _set_(offset_uiBlock__buttons__end_)                        //
+        else _set_(sizeof_uiBlock__buttons__unique_ptr)                  //
+        else _set_(sizeof_uiBut)                                         //
         else _set_(offset_uiBut__flag)                                   //
         else _set_(offset_uiBut__type)                                   //
         else _set_(UI_SELECT)                                            //

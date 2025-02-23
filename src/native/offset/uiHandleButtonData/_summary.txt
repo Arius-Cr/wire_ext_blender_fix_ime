@@ -14,13 +14,19 @@
 新增 text_edit 成员（类型：uiTextEdit）
 注：实际上只是将被删的成员合并为单个成员
 
+----- V4
+4.3.0 - 4.4.0
+新增 is_semi_modal 成员（类型：bool）
+4.4.0 中，成员 event_xy 的类型从 int[2] 变为 blender::int2，不影响结构长度。
+
 无影响的改动：
 3.1.0 改动了注释
 3.5.0 从 C 转为 C++
 3.6.0 成员 maxlen 改名为 str_maxncpy
 
 开发版：
-4.3.0 - V4
-新增 is_semi_modal 成员（类型：bool）
-4.3.0 - V4
-新增 is_semi_modal 成员（类型：bool）
+4.5.0 - V5
+uiSelectContextStore结构：
+    elems 成员的类型从 uiSelectContextElem * 改为 blender::Vector<uiSelectContextElem>；
+    新增 elems_len 成员。
+其余仅仅增加了初始值。

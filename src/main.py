@@ -262,14 +262,14 @@ class BlenderData:
     def apply(self) -> bool:
         if not self.is_compatible:
             if mark.DEBUG:
-                printx(CCBA, "不能设置不兼容的数据")
+                printx(CCFR, "不能设置不兼容的数据")
             return False
 
         for _name, _value in self.items.items():
             success = native.blender_data_set(_name, _value)
             if not success:
                 if mark.DEBUG:
-                    printx(CCBA, "设置数据失败：", _name)
+                    printx(CCFR, "设置数据失败：", _name)
                 return False
 
         return True

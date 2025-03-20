@@ -115,7 +115,6 @@ ui_do_but_textedit:
 
   printf("=====\n");
 
-  printf("=====\n");
 print_stats: # source\blender\blenlib\BLI_vector.hh
   printf("offset_uiBlock__buttons__begin_: %zu\n", (char *)(&this->begin_) - (char *)this);
   printf("offset_uiBlock__buttons__end_: %zu\n", (char *)(&this->end_) - (char *)this);

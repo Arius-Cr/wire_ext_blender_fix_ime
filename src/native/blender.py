@@ -43,19 +43,16 @@ def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Unio
         data = get_data_3_0_5()
         data['blender_vers'].extend([
             ((3, 0, 0), _3__6__X_, None, None),
-            ((4, 0, 0), _4__3__X_, None, None),
-            # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((4, 4, 0), _4__4__X_, '2025-02-22 10:17', '8eb84fdf99ff'), 
+            ((4, 0, 0), _4__4__X_, None, None),
         ])
     else:
         # 需要 3.0.13 及以上才支持 Blender 4.5.0
         data = get_data_3_0_5()
         data['blender_vers'].extend([
             ((3, 0, 0), _3__6__X_, None, None),
-            ((4, 0, 0), _4__3__X_, None, None),
+            ((4, 0, 0), _4__4__X_, None, None),
             # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((4, 4, 0), _4__4__X_, '2025-02-22 10:17', '8eb84fdf99ff'), 
-            ((4, 5, 0), _4__5__X_, '2025-02-22 10:10', '33b483547174'),
+            ((4, 5, 0), _4__5__X_, '2025-03-20 00:39', '33d16796a751'),
         ])
 
     return data
@@ -87,7 +84,7 @@ def get_data_3_0_5() -> dict:
         ((3, 5, 0), _3__6__X_, 296),  # V3
         ((4, 0, 0), (4, 0, Z), 296),  # V3
         ((4, 1, 0), _4__4__X_, 304),  # V4
-        ((4, 5, 0), _4__5__X_, 304),  # V4
+        ((4, 5, 0), _4__5__X_, 288),  # V5
     ])
 
     MAP(items, 'offset_wmWindow__workspace_hook', [

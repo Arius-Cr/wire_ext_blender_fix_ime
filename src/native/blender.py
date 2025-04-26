@@ -52,7 +52,7 @@ def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Unio
             ((3, 0, 0), _3__6__X_, None, None),
             ((4, 0, 0), _4__4__X_, None, None),
             # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((4, 5, 0), _4__5__X_, '2025-03-20 00:39', '33d16796a751'),
+            ((4, 5, 0), _4__5__X_, '2025-04-25 01:23', 'f09ca4d807e4'),
         ])
 
     return data
@@ -61,7 +61,7 @@ def get_data_3_0_5() -> dict:
 
     data = {
         # 数据更新时间
-        'mtime': datetime.strptime('2025-02-23 13:34 +08:00', dtfmt),
+        'mtime': datetime.strptime('2025-04-26 09:10 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
             # 本数据支持的 Blender 版本。由 get_data 函数填充。
@@ -344,5 +344,35 @@ def get_data_3_0_5() -> dict:
         ((4, 1, 0), _4__4__X_, 2),  # V2
         ((4, 5, 0), _4__5__X_, 2),  # V2
     ])
+
+    # DNA 类型 TextStrip
+
+    if _ex_ver >= (3, 0, 14): # 从 3.0.14 开始支持该参数
+
+        MAP(items, 'offset_Strip__flag', [
+            ((4, 4, 0), _4__4__X_, 96),  # V1
+            ((4, 5, 0), _4__5__X_, 96),  # V1
+        ])
+        MAP(items, 'offset_Strip__effectdata', [
+            ((4, 4, 0), _4__4__X_, 352),  # V1
+            ((4, 5, 0), _4__5__X_, 352),  # V1
+        ])
+        MAP(items, 'offset_TextVars__cursor_offset', [
+            ((4, 4, 0), _4__4__X_, 632),  # V1
+            ((4, 5, 0), _4__5__X_, 632),  # V1
+        ])
+        MAP(items, 'offset_TextVars__selection_start_offset', [
+            ((4, 4, 0), _4__4__X_, 636),  # V1
+            ((4, 5, 0), _4__5__X_, 636),  # V1
+        ])
+        MAP(items, 'offset_TextVars__selection_end_offset', [
+            ((4, 4, 0), _4__4__X_, 640),  # V1
+            ((4, 5, 0), _4__5__X_, 640),  # V1
+        ])
+
+        MAP(items, 'SEQ_FLAG_TEXT_EDITING_ACTIVE', [
+            ((4, 4, 0), _4__4__X_, (1 << 6)),  # V1
+            ((4, 5, 0), _4__5__X_, (1 << 6)),  # V1
+        ])
 
     return data

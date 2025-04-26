@@ -215,7 +215,7 @@ static HWND get_handle(void *wm_ptr)
 static FixIMEEventCallback *event_callback = NULL;
 
 #define IS_FILED(invoker) (invoker == INVOKER_FIELD)
-#define IS_SPACE(invoker) (invoker >= INVOKER_VIEW3D_FONT_EDIT && invoker <= INVOKER_CONSOLE)
+#define IS_SPACE(invoker) (invoker >= INVOKER_VIEW3D_TEXT_EDIT && invoker <= INVOKER_SEQUENCE_EDITOR_TEXT_EDIT)
 #define USE_AND_IS_FILED(win) (data_use_fix_ime_for_field && IS_FILED(win->invoker))
 #define USE_AND_IS_SPACE(win) (data_use_fix_ime_for_space && IS_SPACE(win->invoker))
 

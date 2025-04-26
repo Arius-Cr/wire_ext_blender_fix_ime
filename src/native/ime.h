@@ -27,11 +27,13 @@ typedef enum
     /* 当前 IME 由 输入框 激活 */
     INVOKER_FIELD,
     /* 当前 IME 由 3D视图 - 文本编辑模式 激活 */
-    INVOKER_VIEW3D_FONT_EDIT,
+    INVOKER_VIEW3D_TEXT_EDIT,
     /* 当前 IME 由 文本编辑器 激活 */
     INVOKER_TEXT_EDITOR,
     /* 当前 IME 由 控制台 激活 */
     INVOKER_CONSOLE,
+    /* 当前 IME 由 序列编辑器 激活 */
+    INVOKER_SEQUENCE_EDITOR_TEXT_EDIT,
 } IMEInvoker;
 
 /**

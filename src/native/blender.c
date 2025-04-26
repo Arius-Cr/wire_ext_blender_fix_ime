@@ -338,7 +338,7 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                         {
                             size_t addr_buttons = GEN_ADDR(addr_uiBlock, offset_uiBlock__buttons);
                             printx(D_IME, CCFR "\taddr_buttons(>=4.5.0): %zu (offset %zu)", addr_buttons, offset_uiBlock__buttons);
-                            
+
                             // 获得的是 std::unique_ptr<uiBut> 结构
                             size_t addr_unique_ptr_begin_ = GET_VALUE(size_t, addr_buttons, offset_uiBlock__buttons__begin_);
                             size_t addr_unique_ptr_end_ = GET_VALUE(size_t, addr_buttons, offset_uiBlock__buttons__end_);
@@ -346,7 +346,7 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                             printx(D_IME, CCFR "\taddr_unique_ptr_begin_: %zu (offset %zu)", addr_unique_ptr_begin_, offset_uiBlock__buttons__begin_);
                             printx(D_IME, CCFR "\taddr_unique_ptr_end_: %zu (offset %zu)", addr_unique_ptr_end_, offset_uiBlock__buttons__end_);
                             printx(D_IME, CCFR "\tsize: %d", size);
-                            
+
                             size_t addr_unique_ptr = addr_unique_ptr_begin_;
                             size_t addr_uiBut = 0;
                             for (int i = 0; i < size; i++)
@@ -524,6 +524,92 @@ extern __declspec(dllexport) int SpaceText_line_number_display_digits_get(void *
 
     return 0;
 }
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
+// 文件：source\blender\makesdna\DNA_sequence_types.h
+// Strip.flag: int
+static size_t offset_Strip__flag = UNKNOWN;
+// Strip.effectdata: void *
+static size_t offset_Strip__effectdata = UNKNOWN;
+// TextVars.cursor_offset: int
+static size_t offset_TextVars__cursor_offset = UNKNOWN;
+// TextVars.selection_start_offset: int
+static size_t offset_TextVars__selection_start_offset = UNKNOWN;
+// TextVars.selection_end_offset: int
+static size_t offset_TextVars__selection_end_offset = UNKNOWN;
+
+static int SEQ_FLAG_TEXT_EDITING_ACTIVE = UNKNOWN;
+
+extern __declspec(dllexport) bool Strip_is_text_editing_active(void *TextStrip)
+{
+    int flag = GET_VALUE(int, TextStrip, offset_Strip__flag);
+    return flag & SEQ_FLAG_TEXT_EDITING_ACTIVE;
+}
+
+extern __declspec(dllexport) int Strip_text_cursor_offset_get(void *TextStrip)
+{
+    size_t p_TextVars = GET_VALUE(size_t, TextStrip, offset_Strip__effectdata);
+    if (p_TextVars)
+    {
+        return GET_VALUE(int, p_TextVars, offset_TextVars__cursor_offset);
+    }
+
+    return -1;
+}
+
+extern __declspec(dllexport) void Strip_text_cursor_offset_set(void *TextStrip, int offset)
+{
+    size_t p_TextVars = GET_VALUE(size_t, TextStrip, offset_Strip__effectdata);
+    if (p_TextVars)
+    {
+        int *p_offset = (int *)GEN_ADDR(p_TextVars, offset_TextVars__cursor_offset);
+        *p_offset = offset;
+    }
+}
+
+extern __declspec(dllexport) int Strip_text_selection_start_offset_get(void *TextStrip)
+{
+    size_t p_TextVars = GET_VALUE(size_t, TextStrip, offset_Strip__effectdata);
+    if (p_TextVars)
+    {
+        return GET_VALUE(int, p_TextVars, offset_TextVars__selection_start_offset);
+    }
+
+    return -1;
+}
+
+extern __declspec(dllexport) void Strip_text_selection_start_offset_set(void *TextStrip, int offset)
+{
+    size_t p_TextVars = GET_VALUE(size_t, TextStrip, offset_Strip__effectdata);
+    if (p_TextVars)
+    {
+        int *p_offset = (int *)GEN_ADDR(p_TextVars, offset_TextVars__selection_start_offset);
+        *p_offset = offset;
+    }
+}
+
+extern __declspec(dllexport) int Strip_text_selection_end_offset_get(void *TextStrip)
+{
+    size_t p_TextVars = GET_VALUE(size_t, TextStrip, offset_Strip__effectdata);
+    if (p_TextVars)
+    {
+        return GET_VALUE(int, p_TextVars, offset_TextVars__selection_end_offset);
+    }
+
+    return -1;
+}
+
+extern __declspec(dllexport) void Strip_text_selection_end_offset_set(void *TextStrip, int offset)
+{
+    size_t p_TextVars = GET_VALUE(size_t, TextStrip, offset_Strip__effectdata);
+    if (p_TextVars)
+    {
+        int *p_offset = (int *)GEN_ADDR(p_TextVars, offset_TextVars__selection_end_offset);
+        *p_offset = offset;
+    }
+}
+
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -762,6 +848,12 @@ extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t v
         else _set_(offset_SpaceText_Runtime__cwidth_px)                  //
         else _set_(offset_SpaceText_Runtime__line_number_display_digits) //
         else _set_(SpaceText_ver)                                        //
+        else _set_(offset_Strip__flag)                                   //
+        else _set_(offset_Strip__effectdata)                             //
+        else _set_(offset_TextVars__cursor_offset)                       //
+        else _set_(offset_TextVars__selection_start_offset)              //
+        else _set_(offset_TextVars__selection_end_offset)                //
+        else _set_(SEQ_FLAG_TEXT_EDITING_ACTIVE)                         //
         ;
 #undef _set_
 

@@ -89,6 +89,13 @@ class Prefs(bpy.types.AddonPreferences):
         update=use_fix_ime_update,
     )
 
+    use_fix_ime_sequence_editor: bpy.props.BoolProperty(
+        name="序列编辑器",
+        description="启用后，用户可以在【序列编辑器】的【预览区】的【文本片段编辑状态】中使用输入法",
+        default=True,
+        update=use_fix_ime_update,
+    )
+
     candidate_window_percent: bpy.props.FloatProperty(
         name="输入法候选窗水平位置",
         description="设置输入法候选窗相对3D视图底部左侧的位置，最终位置会受系统调整",
@@ -171,16 +178,6 @@ class Prefs(bpy.types.AddonPreferences):
         rowr.prop(self, 'use_fix_ime_font_edit')
 
         split = column.split(factor=split_factor)
-        split.active = _for_field and _for_space and self.use_fix_ime_font_edit
-        rowl = split.row()
-        rowl.alignment = 'RIGHT'
-        rowl.label(text="输入法候选窗水平位置")
-        rowr = split.row()
-        rowr.separator(factor=1.5)
-        rowr.separator(factor=1.5)
-        rowr.prop(self, 'candidate_window_percent', text="")
-
-        split = column.split(factor=split_factor)
         rowl = split.row()
         rowr = split.row()
         rowr.active = _for_field and _for_space
@@ -193,6 +190,22 @@ class Prefs(bpy.types.AddonPreferences):
         rowr.active = _for_field and _for_space
         rowr.separator(factor=1.5)
         rowr.prop(self, 'use_fix_ime_console')
+
+        split = column.split(factor=split_factor)
+        rowl = split.row()
+        rowr = split.row()
+        rowr.active = _for_field and _for_space
+        rowr.separator(factor=1.5)
+        rowr.prop(self, 'use_fix_ime_sequence_editor')
+
+        split = column.split(factor=split_factor)
+        split.active = _for_field and _for_space and (self.use_fix_ime_font_edit or self.use_fix_ime_sequence_editor)
+        rowl = split.row()
+        rowl.alignment = 'RIGHT'
+        rowl.label(text="输入法候选窗水平位置")
+        rowr = split.row()
+        rowr.separator(factor=1.5)
+        rowr.prop(self, 'candidate_window_percent', text="")
 
         # 调试
 

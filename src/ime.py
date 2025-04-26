@@ -5,7 +5,7 @@ import time
 
 import bpy
 from bpy.types import Context, Event, Operator, Region
-from bpy.types import SpaceView3D, SpaceTextEditor, TextLine, SpaceConsole, ConsoleLine
+from bpy.types import SpaceView3D, SpaceTextEditor, TextLine, SpaceConsole, ConsoleLine, SpaceSequenceEditor
 from bpy.app.handlers import persistent
 import gpu
 import gpu_extras
@@ -45,12 +45,22 @@ file_loaded_watching: bool = False
 def register():
     bpy.utils.register_class(WIRE_FIX_IME_OT_state_updater)
     bpy.utils.register_class(WIRE_FIX_IME_OT_input_handler)
+    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_insert)
+    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_insert_intern)
+    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete)
+    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
+    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.append(load_pre)
     pass
 
 def unregister():
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_state_updater)
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_input_handler)
+    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_insert)
+    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_insert_intern)
+    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete)
+    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
+    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.remove(load_pre)
     if file_loaded_watching:
         bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
@@ -93,7 +103,7 @@ def depsgraph_update_post(*args):
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 
-SpaceType = Literal['VIEW_3D', 'TEXT_EDITOR', 'CONSOLE']
+SpaceType = Literal['VIEW_3D', 'TEXT_EDITOR', 'CONSOLE', 'SEQUENCE_EDITOR']
 
 CompositionEventType = Literal['START', 'INPUT', 'END']
 
@@ -122,6 +132,7 @@ class Manager():
     _redraw_listener_view3d_text_edit = None
     _redraw_listener_text_editor = None
     _redraw_listener_console = None
+    _redraw_listener_sequence_editor_text_edit = None
 
     @classmethod
     def get_manager(clss, wm_pointer: int):
@@ -174,7 +185,8 @@ class Manager():
         _fix_space = prefs.use_fix_ime_for_space and (
                      prefs.use_fix_ime_font_edit or
                      prefs.use_fix_ime_text_editor or
-                     prefs.use_fix_ime_console)
+                     prefs.use_fix_ime_console or
+                     prefs.use_fix_ime_sequence_editor)
 
         from .main import blender_data
         if not blender_data.is_compatible:
@@ -263,6 +275,15 @@ class Manager():
                 if clss._redraw_listener_console:
                     SpaceConsole.draw_handler_remove(clss._redraw_listener_console, 'WINDOW')
                     clss._redraw_listener_console = None
+
+            if prefs.use_fix_ime_sequence_editor:
+                if not clss._redraw_listener_sequence_editor_text_edit:
+                    clss._redraw_listener_sequence_editor_text_edit = SpaceSequenceEditor.draw_handler_add(
+                    clss.redraw_listener_sequence_editor_text_edit, tuple(), 'PREVIEW', 'POST_PIXEL')
+            else:
+                if clss._redraw_listener_sequence_editor_text_edit:
+                    SpaceSequenceEditor.draw_handler_remove(clss._redraw_listener_sequence_editor_text_edit, 'PREVIEW')
+                    clss._redraw_listener_sequence_editor_text_edit = None
         else:
             if clss._redraw_listener_view3d_text_edit:
                 SpaceView3D.draw_handler_remove(clss._redraw_listener_view3d_text_edit, 'WINDOW')
@@ -275,6 +296,10 @@ class Manager():
             if clss._redraw_listener_console:
                 SpaceConsole.draw_handler_remove(clss._redraw_listener_console, 'WINDOW')
                 clss._redraw_listener_console = None
+
+            if clss._redraw_listener_sequence_editor_text_edit:
+                SpaceSequenceEditor.draw_handler_remove(clss._redraw_listener_sequence_editor_text_edit, 'PREVIEW')
+                clss._redraw_listener_sequence_editor_text_edit = None
 
             if clss.fix_space_enabled:
                 native.use_fix_ime_for_space(False)
@@ -472,6 +497,20 @@ class Manager():
                 ):
                     invoker_new = 'CONSOLE'
 
+            if prefs.use_fix_ime_sequence_editor:
+                screen = context.screen
+                scene = context.scene
+                strip = context.active_sequence_strip
+                if (area and space and region and
+                    space.type == 'SEQUENCE_EDITOR' and
+                    region.type == 'PREVIEW' and
+                    not screen.is_animation_playing and not screen.is_scrubbing and
+                    strip and isinstance(strip, bpy.types.TextStrip) and
+                    strip.frame_final_start <= scene.frame_current_final <= strip.frame_final_end and
+                    native.Strip_is_text_editing_active(strip.as_pointer())
+                ):
+                    invoker_new = 'SEQUENCE_EDITOR'
+
         if invoker_new:
             # 检测到符合条件的区块，如果当前没有启用输入法或当前鼠标所在空间和之前不同，则启用输入法
             if invoker_new != invoker_now:
@@ -558,6 +597,25 @@ class Manager():
                         manager.ime_window_pos_update_console(context, None)
         pass
 
+    @classmethod
+    def redraw_listener_sequence_editor_text_edit(clss):
+        # 该函数仅为了捕获绘制消息，没有任何绘制操作
+        # 绘制时，如果绘制的区块为活动区块，且启用了输入法，且处于非输入状态，
+        # 则总是更新输入法候选框的位置。
+        context = cast(Context, bpy.context)
+        prefs = get_prefs(context)
+        if prefs.use_fix_ime_sequence_editor:
+            wm_pointer = context.window.as_pointer()
+            manager = clss.get_manager(wm_pointer)
+            if manager and not manager.handler:
+                region_pointer = context.region.as_pointer()
+                if native.wmWindow_active_region_get(wm_pointer) == region_pointer:
+                    if native.ime_invoker_get(wm_pointer) == 'SEQUENCE_EDITOR':
+                        if DEBUG:
+                            printx(f"{CCFP}绘制后{CCZ0} 重新定位候选窗口")
+                        manager.ime_window_pos_update_sequence_editor_text_edit(context, None)
+        pass
+
     def ime_window_pos_update(self, context: Context):
         space = context.space_data
         if space.type == 'VIEW_3D':
@@ -566,6 +624,8 @@ class Manager():
             self.ime_window_pos_update_text_editor(context)
         elif space.type == 'CONSOLE':
             self.ime_window_pos_update_console(context)
+        elif space.type == 'SEQUENCE_EDITOR':
+            self.ime_window_pos_update_sequence_editor_text_edit(context)
         pass
 
     def ime_window_pos_update_view3d_text_edit(self, context: Context, op: 'WIRE_FIX_IME_OT_input_handler' = None):
@@ -761,6 +821,24 @@ class Manager():
             int(c_x), int(c_y), int(c_w), int(c_h),
             int(e_x), int(e_y), int(e_w), int(e_h), True if DEBUG else False)
         pass
+
+    def ime_window_pos_update_sequence_editor_text_edit(self, context: Context, op: 'WIRE_FIX_IME_OT_input_handler' = None):
+        window = context.window
+        region = context.region
+        space = cast(SpaceSequenceEditor, context.space_data)
+        pref = get_prefs(context)
+
+        c_l = region.width * pref.candidate_window_percent
+        c_b = region.y
+        c_w = 0
+        c_h = 0
+
+        # 转为基于窗口左上角的坐标
+        c_l = int(region.x + c_l)
+        c_t = int(window.height - (c_b + c_h))
+
+        native.ime_move_candidate_window(window.as_pointer(),
+            c_l, c_t, c_w, c_h, c_l, c_t, c_w, c_h, True if DEBUG else False)
 
     # -----
     # 获取文本编辑器相关的尺寸信息，以便定位候选框和绘制下划线
@@ -1103,7 +1181,7 @@ class WIRE_FIX_IME_OT_state_updater(Operator):
     bl_description = "(仅供输入法助手内部使用)"
     bl_options = set()
 
-    @ classmethod
+    @classmethod
     def poll(clss, context: Context) -> bool:
         global file_loading
         if Manager.fix_field_enabled or Manager.fix_space_enabled:
@@ -1231,6 +1309,10 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
             elif space.type == 'CONSOLE':
                 if manager.input_events[0][0] == 'START':
                     return True
+
+            elif space.type == 'SEQUENCE_EDITOR':
+                if manager.input_events[0][0] == 'START':
+                    return True
         return False
 
     def __init__(self, *args, **kwargs):
@@ -1242,7 +1324,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         self.manager = None
         self.valid: bool = True
 
-        self.op_args: list[object] = ['EXEC_REGION_WIN', False]
+        self.op_args: list[object] = ['EXEC_DEFAULT', False]
 
         self.space: Union[SpaceTextEditor, SpaceConsole] = None
         self.draw_handler = None
@@ -1251,6 +1333,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         self.op_delete = None
         self.op_move = None
         self.op_select = None
+        self.op_insert_arg_name = None
 
         # 记录合成文本和待选文本在当前行中的开始和结束位置
         self.stac_i: int = -1
@@ -1283,16 +1366,25 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
             self.op_delete = bpy.ops.font.delete
             self.op_move = bpy.ops.font.move
             self.op_select = bpy.ops.font.move_select
+            self.op_insert_arg_name = 'text'
         if space_type == 'TEXT_EDITOR':
             self.op_insert = bpy.ops.text.insert
             self.op_delete = bpy.ops.text.delete
             self.op_move = bpy.ops.text.move
             self.op_select = bpy.ops.text.move_select
+            self.op_insert_arg_name = 'text'
         elif space_type == 'CONSOLE':
             self.op_insert = bpy.ops.console.insert
             self.op_delete = bpy.ops.console.delete
             self.op_move = bpy.ops.console.move
             self.op_select = None,  # 该操作由 move 提供
+            self.op_insert_arg_name = 'text'
+        elif space_type == 'SEQUENCE_EDITOR':
+            self.op_insert = bpy.ops.wire_fix_ime.strip_text_insert
+            self.op_delete = bpy.ops.wire_fix_ime.strip_text_delete
+            self.op_move = bpy.ops.wire_fix_ime.strip_text_move
+            self.op_select = None,  # 该操作由 move 提供
+            self.op_insert_arg_name = 'string'
 
         manager = self.manager
         event_type = event.type
@@ -1406,6 +1498,8 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
                 self.process_text_editor(context, ime_event)
             elif space_type == 'CONSOLE':
                 self.process_console(context, ime_event)
+            elif space_type == 'SEQUENCE_EDITOR':
+                self.process_sequence_editor_text_edit(context, ime_event)
 
             if event == 'END':
 
@@ -1417,13 +1511,17 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
                     if ev_next[1].result_str is not None:
                         if DEBUG:
                             printx(CCFA, "插入末尾字符（用于韩语）：", ev_next[1].result_str)
-                        self.op_insert('INVOKE_DEFAULT', True, text=ev_next[1].result_str)
+                        _kwargs = {}
+                        _kwargs[self.op_insert_arg_name] = ev_next[1].result_str
+                        self.op_insert('EXEC_DEFAULT', True, **_kwargs)
                 # 输入韩语文字的时候，最后按下空格、标点等按键时，会强制结束合成，同时这些按键也会产生字符。
                 if self.extra_chars:
                     for char in self.extra_chars:
                         if DEBUG:
                             printx(CCFA, "插入结束字符（用于韩语）：[%s]" % char)
-                        self.op_insert('INVOKE_DEFAULT', True, text=char)
+                        _kwargs = {}
+                        _kwargs[self.op_insert_arg_name] = char
+                        self.op_insert('EXEC_DEFAULT', True, **_kwargs)
 
                 self.close('FINISH', context)
 
@@ -1446,7 +1544,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         if event == 'START':
             if DEBUG:
                 printx(CCFR, "删除选择")
-            self.op_delete(*self.op_args, type='SELECTION')
+            self.op_delete(*args, type='SELECTION')
         else:
             # 删除之前的合成字符串
             if self.length != 0:
@@ -1672,6 +1770,70 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
                         self.op_move(*args, type='PREVIOUS_CHARACTER')
         pass
 
+    def process_sequence_editor_text_edit(self, context: Context, ime_event: tuple[CompositionEventType, IMEData, int]):
+        event, data, _ = ime_event
+        args = self.op_args
+
+        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+
+        if event == 'START':
+            if DEBUG:
+                printx(CCFR, "删除选择")
+            self.op_delete(*args, type='SELECTION')
+        else:
+            # 删除之前的合成字符串
+            if self.length != 0:
+                if DEBUG:
+                    printx(CCFA, "删除之前的合成字符串")
+
+                # 移动光标到最后的位置
+                if self.move_times != 0:
+                    for _ in range(self.move_times):
+                        self.op_move(*args, type='NEXT_CHARACTER')
+                # 往前选择字符
+                for _ in range(self.length):
+                    self.op_move(*args, type='PREVIOUS_CHARACTER', select_text=True)
+                # 删除选择
+                self.op_delete(*args, type='SELECTION')
+
+                self.length = 0
+                self.move_times = 0
+
+            if event == 'INPUT':
+                # 插入结果字符串
+                if data.result_str is not None:
+                    if DEBUG:
+                        printx(CCFA, "插入结果字符串: [%s]" % data.result_str, len(data.result_str))
+
+                    self.op_insert('EXEC_DEFAULT', True, string=data.result_str)
+
+                    self.length = 0
+                    self.move_times = 0
+
+                # 插入合成字符串
+                if data.composite_str is not None:
+                    if DEBUG:
+                        printx(CCFA, "插入合成字符串: [%s]" % data.composite_str, len(data.composite_str))
+
+                    composite_str = f'[{data.composite_str}]'
+                    composite_len = len(composite_str)
+
+                    before = len(strip.text)
+                    self.op_insert(*args, string=composite_str)
+                    after = len(strip.text)
+
+                    self.length = after - before
+
+                    if self.length == composite_len:
+                        # 设置光标位置
+                        self.move_times = data.composite_len_c - data.composite_cur_i + 1
+                        for _ in range(self.move_times):
+                            self.op_move(*args, type='PREVIOUS_CHARACTER')
+                    else:
+                        # 如果最终插入的字符数量和预期的不同，则很可能已经达到最大字符数，这时不用理会合成文本的光标位置
+                        self.move_times = 0
+        pass
+
     # -----
 
     def draw_comp_underline_text_editor(self, context: Context):
@@ -1887,3 +2049,207 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         shader.uniform_float('color', color)
         batch.draw(shader)
         pass
+
+class WIRE_FIX_IME_OT_strip_text_insert(Operator):
+    bl_idname = 'wire_fix_ime.strip_text_insert'
+    bl_label = "插入文本"
+    bl_description = "(仅供输入法助手内部使用)"
+    bl_options = {'UNDO'}
+
+    # Blender 4.4 中 bpy.ops.sequencer.text_insert 存在 BUG，
+    # 即使可以插入多个字符，但是光标只往右移动一个字符。
+    # 因此只能自己实现文本插入操作。
+
+    string: bpy.props.StringProperty()
+
+    @classmethod
+    def poll(clss, context: Context) -> bool:
+        strip = context.active_sequence_strip
+        return strip and isinstance(strip, bpy.types.TextStrip)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        string = self.string
+
+        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
+        
+        before = len(strip.text)
+        bpy.ops.wire_fix_ime.strip_text_insert_intern('EXEC_DEFAULT', string=string)
+        after = len(strip.text)
+        add = after - before
+
+        native.Strip_text_cursor_offset_set(strip.as_pointer(), cursor_index + add)
+
+        return {'FINISHED'}
+
+class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
+    bl_idname = 'wire_fix_ime.strip_text_insert_intern'
+    bl_label = "插入文本"
+    bl_description = "(仅供输入法助手内部使用)"
+    bl_options = set()
+
+    # 因为修改 strip.text 后，光标的位置并不会立即更新，即使你手动更新也会被程序原本后续步骤覆盖，
+    # 所以，将修改 strip.text 的操作放在独立的操作中，等操作结束并执行下一个操作前，
+    # 程序已经更新光标的位置，此时我们才能重新正确设置光标的位置。
+
+    string: bpy.props.StringProperty()
+
+    def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+
+        cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
+        if cursor_index >= 0:
+            text = cast(str, strip.text)
+            text_len_b = len(text.encode())
+
+            string = cast(str, self.string)
+            string_len_b = len(string.encode())
+
+            if text_len_b + string_len_b  + 1 > 512:
+                # 超过最大长度，则逐个字符添加，直到超过限制。
+
+                _text_len_b = text_len_b
+                _string = ""
+                for _c in string:
+                    _c_len_b = len(_c.encode())
+                    if text_len_b + _c_len_b + 1 <= 512:
+                        _text_len_b += _c_len_b
+                        _string += _c
+                    else:
+                        break
+                
+                string = _string
+
+            if string:
+
+                text_l = strip.text[:cursor_index]
+                text_r = strip.text[cursor_index:]
+                strip.text = text_l + string + text_r
+
+        return {'FINISHED'}
+    
+class WIRE_FIX_IME_OT_strip_text_delete(Operator):
+    bl_idname = 'wire_fix_ime.strip_text_delete'
+    bl_label = "删除文本"
+    bl_description = "(仅供输入法助手内部使用)"
+    bl_options = set()
+
+    type: bpy.props.EnumProperty(
+        items=[
+            ('SELECTION', '', "", 0),
+        ]
+    )
+
+    def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+
+        if self.type == 'SELECTION':
+
+            selection_start_offset = native.Strip_text_selection_start_offset_get(strip.as_pointer())
+            selection_end_offset = native.Strip_text_selection_end_offset_get(strip.as_pointer())
+
+            if selection_start_offset != selection_end_offset:
+
+                if selection_start_offset > selection_end_offset:
+                    selection_start_offset, selection_end_offset = selection_end_offset, selection_start_offset
+                
+                bpy.ops.wire_fix_ime.strip_text_delete_intern('EXEC_DEFAULT', type=self.type)
+                
+                native.Strip_text_selection_start_offset_set(strip.as_pointer(), 0)
+                native.Strip_text_selection_end_offset_set(strip.as_pointer(), 0)
+
+                native.Strip_text_cursor_offset_set(strip.as_pointer(), selection_start_offset)
+
+        return {'FINISHED'}
+    
+class WIRE_FIX_IME_OT_strip_text_delete_intern(Operator):
+    bl_idname = 'wire_fix_ime.strip_text_delete_intern'
+    bl_label = "删除文本"
+    bl_description = "(仅供输入法助手内部使用)"
+    bl_options = set()
+
+    type: bpy.props.EnumProperty(
+        items=[
+            ('SELECTION', '', "", 0),
+        ]
+    )
+
+    def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+
+        if self.type == 'SELECTION':
+
+            selection_start_offset = native.Strip_text_selection_start_offset_get(strip.as_pointer())
+            selection_end_offset = native.Strip_text_selection_end_offset_get(strip.as_pointer())
+
+            if selection_start_offset != selection_end_offset:
+                
+                if selection_start_offset > selection_end_offset:
+                    selection_start_offset, selection_end_offset = selection_end_offset, selection_start_offset
+
+                strip.text = strip.text[:selection_start_offset] + strip.text[selection_end_offset:]
+
+        return {'FINISHED'}
+
+class WIRE_FIX_IME_OT_strip_text_move(Operator):
+    bl_idname = 'wire_fix_ime.strip_text_move'
+    bl_label = "移动光标"
+    bl_description = "(仅供输入法助手内部使用)"
+    bl_options = set()
+
+    type: bpy.props.EnumProperty(
+        items=[
+            ('PREVIOUS_CHARACTER', '', "", 0),
+            ('NEXT_CHARACTER', '', "", 1),
+        ]
+    )
+
+    select_text: bpy.props.BoolProperty()
+
+    def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
+        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+
+        cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
+
+        if self.type == 'PREVIOUS_CHARACTER':
+            if cursor_index > 0:
+
+                if self.select_text:
+                    selection_start_offset = native.Strip_text_selection_start_offset_get(strip.as_pointer())
+                    selection_end_offset = native.Strip_text_selection_end_offset_get(strip.as_pointer())
+
+                    if selection_start_offset == selection_end_offset:
+                        selection_start_offset = cursor_index
+                        selection_end_offset = cursor_index - 1
+                    else:
+                        if cursor_index - 1 != selection_start_offset:
+                            selection_end_offset = cursor_index - 1
+                    native.Strip_text_selection_start_offset_set(strip.as_pointer(), selection_start_offset)
+                    native.Strip_text_selection_end_offset_set(strip.as_pointer(), selection_end_offset)
+                
+                cursor_index -= 1
+                native.Strip_text_cursor_offset_set(strip.as_pointer(), cursor_index)
+
+        elif self.type == 'NEXT_CHARACTER':
+            if cursor_index < len(strip.text):
+
+                if self.select_text:
+                    selection_start_offset = native.Strip_text_selection_start_offset_get(strip.as_pointer())
+                    selection_end_offset = native.Strip_text_selection_end_offset_get(strip.as_pointer())
+
+                    if selection_start_offset == selection_end_offset:
+                        selection_start_offset = cursor_index
+                        selection_end_offset = cursor_index + 1
+                    else:
+                        if cursor_index + 1 != selection_start_offset:
+                            selection_end_offset = cursor_index + 1
+                    native.Strip_text_selection_start_offset_set(strip.as_pointer(), selection_start_offset)
+                    native.Strip_text_selection_end_offset_set(strip.as_pointer(), selection_end_offset)
+
+                cursor_index += 1
+                native.Strip_text_cursor_offset_set(strip.as_pointer(), cursor_index)
+
+        return {'FINISHED'}

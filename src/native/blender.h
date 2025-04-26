@@ -31,6 +31,22 @@ extern __declspec(dllexport) int SpaceText_line_number_display_digits_get(void *
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+extern __declspec(dllexport) bool Strip_is_text_editing_active(void *TextStrip);
+
+extern __declspec(dllexport) int Strip_text_cursor_offset_get(void *TextStrip);
+
+extern __declspec(dllexport) void Strip_text_cursor_offset_set(void *TextStrip, int offset);
+
+extern __declspec(dllexport) int Strip_text_selection_start_offset_get(void *TextStrip);
+
+extern __declspec(dllexport) void Strip_text_selection_start_offset_set(void *TextStrip, int offset);
+
+extern __declspec(dllexport) int Strip_text_selection_end_offset_get(void *TextStrip);
+
+extern __declspec(dllexport) void Strip_text_selection_end_offset_set(void *TextStrip, int offset);
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
 extern __declspec(dllexport) int BLF_fixed_width(wchar_t *font_path, float font_size);
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰

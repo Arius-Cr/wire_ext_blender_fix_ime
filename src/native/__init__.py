@@ -23,21 +23,21 @@ kernel32.FreeLibrary.restype = ctypes.wintypes.BOOL
 # 参数：wm_pointer, FIEV, data
 AddonEventCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p)
 
-IMEInvoker = Literal['NONE', 'FIELD', 'VIEW_3D', 'TEXT_EDITOR', 'CONSOLE']
+IMEInvoker = Literal['NONE', 'FIELD', 'VIEW_3D', 'TEXT_EDITOR', 'CONSOLE', 'SEQUENCE_EDITOR']
 IMEInvokerMaps = {
     0: 'NONE',
     1: 'FIELD',
     2: 'VIEW_3D',
     3: 'TEXT_EDITOR',
     4: 'CONSOLE',
+    5: 'SEQUENCE_EDITOR',
     'NONE': 0,
     'FIELD': 1,
     'VIEW_3D': 2,
     'TEXT_EDITOR': 3,
     'CONSOLE': 4,
+    'SEQUENCE_EDITOR': 5,
 }
-
-IMEInvoker = Literal['NONE', 'FIELD', 'VIEW_3D', 'TEXT_EDITOR', 'CONSOLE']
 
 FIEV_NONE = 0
 FIEV_COMP_START = 1
@@ -115,6 +115,27 @@ class _blender:
         self.dll.SpaceText_line_number_display_digits_get.argtypes = [ctypes.c_void_p]
         self.dll.SpaceText_line_number_display_digits_get.restype = ctypes.c_int
 
+        self.dll.Strip_is_text_editing_active.argtypes = [ctypes.c_void_p]
+        self.dll.Strip_is_text_editing_active.restype = ctypes.c_bool
+        
+        self.dll.Strip_text_cursor_offset_get.argtypes = [ctypes.c_void_p]
+        self.dll.Strip_text_cursor_offset_get.restype = ctypes.c_int
+        
+        self.dll.Strip_text_cursor_offset_set.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self.dll.Strip_text_cursor_offset_set.restype = None
+        
+        self.dll.Strip_text_selection_start_offset_get.argtypes = [ctypes.c_void_p]
+        self.dll.Strip_text_selection_start_offset_get.restype = ctypes.c_int
+        
+        self.dll.Strip_text_selection_start_offset_set.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self.dll.Strip_text_selection_start_offset_set.restype = None
+        
+        self.dll.Strip_text_selection_end_offset_get.argtypes = [ctypes.c_void_p]
+        self.dll.Strip_text_selection_end_offset_get.restype = ctypes.c_int
+        
+        self.dll.Strip_text_selection_end_offset_set.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self.dll.Strip_text_selection_end_offset_set.restype = None
+
         self.dll.BLF_fixed_width.argtypes = [ctypes.c_wchar_p, ctypes.c_float]
         self.dll.BLF_fixed_width.restype = ctypes.c_int
 
@@ -141,6 +162,27 @@ class _blender:
 
     def SpaceText_line_number_display_digits_get(self, SpaceText_pointer: int) -> int:
         return self.dll.SpaceText_line_number_display_digits_get(SpaceText_pointer)
+    
+    def Strip_is_text_editing_active(self, TextStrip_pointer: int) -> bool:
+        return self.dll.Strip_is_text_editing_active(TextStrip_pointer)
+    
+    def Strip_text_cursor_offset_get(self, TextStrip_pointer: int) -> int:
+        return self.dll.Strip_text_cursor_offset_get(TextStrip_pointer)
+    
+    def Strip_text_cursor_offset_set(self, TextStrip_pointer: int, cursor_offset: int) -> None:
+        self.dll.Strip_text_cursor_offset_set(TextStrip_pointer, cursor_offset)
+    
+    def Strip_text_selection_start_offset_get(self, TextStrip_pointer: int) -> int:
+        return self.dll.Strip_text_selection_start_offset_get(TextStrip_pointer)
+    
+    def Strip_text_selection_start_offset_set(self, TextStrip_pointer: int, cursor_offset: int) -> None:
+        self.dll.Strip_text_selection_start_offset_set(TextStrip_pointer, cursor_offset)
+    
+    def Strip_text_selection_end_offset_get(self, TextStrip_pointer: int) -> int:
+        return self.dll.Strip_text_selection_end_offset_get(TextStrip_pointer)
+    
+    def Strip_text_selection_end_offset_set(self, TextStrip_pointer: int, cursor_offset: int) -> None:
+        self.dll.Strip_text_selection_end_offset_set(TextStrip_pointer, cursor_offset)
 
     def BLF_fixed_width(self, font_path: str, font_size: float) -> int:
         return self.dll.BLF_fixed_width(font_path, font_size)

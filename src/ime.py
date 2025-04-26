@@ -45,22 +45,24 @@ file_loaded_watching: bool = False
 def register():
     bpy.utils.register_class(WIRE_FIX_IME_OT_state_updater)
     bpy.utils.register_class(WIRE_FIX_IME_OT_input_handler)
-    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_insert)
-    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_insert_intern)
-    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete)
-    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
-    bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_move)
+    if support_text_strip:
+        bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_insert)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_insert_intern)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
+        bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.append(load_pre)
     pass
 
 def unregister():
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_state_updater)
     bpy.utils.unregister_class(WIRE_FIX_IME_OT_input_handler)
-    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_insert)
-    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_insert_intern)
-    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete)
-    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
-    bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_move)
+    if support_text_strip:
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_insert)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_insert_intern)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
+        bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.remove(load_pre)
     if file_loaded_watching:
         bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
@@ -111,6 +113,9 @@ CompositionEventType = Literal['START', 'INPUT', 'END']
 CompositionEventMaps = {1: 'START', 2: 'INPUT', 3: 'END'}
 
 show_caret = True if DEBUG_BUILD else False
+
+# 只有在 Blender 4.4 以上才有 TextStrip，之前的是 TextSequence
+support_text_strip = bpy.app.version >= (4, 4, 0)
 
 ns_to_ms: int = 1000000
 ns_to_s: int = 1000000000
@@ -186,7 +191,7 @@ class Manager():
                      prefs.use_fix_ime_font_edit or
                      prefs.use_fix_ime_text_editor or
                      prefs.use_fix_ime_console or
-                     prefs.use_fix_ime_sequence_editor)
+                     (prefs.use_fix_ime_sequence_editor and support_text_strip))
 
         from .main import blender_data
         if not blender_data.is_compatible:
@@ -276,7 +281,7 @@ class Manager():
                     SpaceConsole.draw_handler_remove(clss._redraw_listener_console, 'WINDOW')
                     clss._redraw_listener_console = None
 
-            if prefs.use_fix_ime_sequence_editor:
+            if prefs.use_fix_ime_sequence_editor and support_text_strip:
                 if not clss._redraw_listener_sequence_editor_text_edit:
                     clss._redraw_listener_sequence_editor_text_edit = SpaceSequenceEditor.draw_handler_add(
                     clss.redraw_listener_sequence_editor_text_edit, tuple(), 'PREVIEW', 'POST_PIXEL')
@@ -497,7 +502,7 @@ class Manager():
                 ):
                     invoker_new = 'CONSOLE'
 
-            if prefs.use_fix_ime_sequence_editor:
+            if prefs.use_fix_ime_sequence_editor and support_text_strip:
                 screen = context.screen
                 scene = context.scene
                 strip = context.active_sequence_strip
@@ -2075,7 +2080,7 @@ class WIRE_FIX_IME_OT_strip_text_insert(Operator):
 
         strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
         cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
-        
+
         before = len(strip.text)
         bpy.ops.wire_fix_ime.strip_text_insert_intern('EXEC_DEFAULT', string=string)
         after = len(strip.text)
@@ -2108,7 +2113,7 @@ class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
             string = cast(str, self.string)
             string_len_b = len(string.encode())
 
-            if text_len_b + string_len_b  + 1 > 512:
+            if text_len_b + string_len_b + 1 > 512:
                 # 超过最大长度，则逐个字符添加，直到超过限制。
 
                 _text_len_b = text_len_b
@@ -2120,7 +2125,7 @@ class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
                         _string += _c
                     else:
                         break
-                
+
                 string = _string
 
             if string:
@@ -2130,7 +2135,7 @@ class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
                 strip.text = text_l + string + text_r
 
         return {'FINISHED'}
-    
+
 class WIRE_FIX_IME_OT_strip_text_delete(Operator):
     bl_idname = 'wire_fix_ime.strip_text_delete'
     bl_label = "删除文本"
@@ -2155,16 +2160,16 @@ class WIRE_FIX_IME_OT_strip_text_delete(Operator):
 
                 if selection_start_offset > selection_end_offset:
                     selection_start_offset, selection_end_offset = selection_end_offset, selection_start_offset
-                
+
                 bpy.ops.wire_fix_ime.strip_text_delete_intern('EXEC_DEFAULT', type=self.type)
-                
+
                 native.Strip_text_selection_start_offset_set(strip.as_pointer(), 0)
                 native.Strip_text_selection_end_offset_set(strip.as_pointer(), 0)
 
                 native.Strip_text_cursor_offset_set(strip.as_pointer(), selection_start_offset)
 
         return {'FINISHED'}
-    
+
 class WIRE_FIX_IME_OT_strip_text_delete_intern(Operator):
     bl_idname = 'wire_fix_ime.strip_text_delete_intern'
     bl_label = "删除文本"
@@ -2186,7 +2191,7 @@ class WIRE_FIX_IME_OT_strip_text_delete_intern(Operator):
             selection_end_offset = native.Strip_text_selection_end_offset_get(strip.as_pointer())
 
             if selection_start_offset != selection_end_offset:
-                
+
                 if selection_start_offset > selection_end_offset:
                     selection_start_offset, selection_end_offset = selection_end_offset, selection_start_offset
 
@@ -2229,7 +2234,7 @@ class WIRE_FIX_IME_OT_strip_text_move(Operator):
                             selection_end_offset = cursor_index - 1
                     native.Strip_text_selection_start_offset_set(strip.as_pointer(), selection_start_offset)
                     native.Strip_text_selection_end_offset_set(strip.as_pointer(), selection_end_offset)
-                
+
                 cursor_index -= 1
                 native.Strip_text_cursor_offset_set(strip.as_pointer(), cursor_index)
 

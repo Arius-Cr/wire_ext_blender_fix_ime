@@ -91,7 +91,7 @@ class Prefs(bpy.types.AddonPreferences):
 
     use_fix_ime_sequence_editor: bpy.props.BoolProperty(
         name="序列编辑器",
-        description="启用后，用户可以在【序列编辑器】的【预览区】的【文本片段编辑状态】中使用输入法",
+        description="启用后，用户可以在【序列编辑器】的【预览区】的【文本片段编辑状态】中使用输入法（仅适用于 Blender 4.4 及以上）",
         default=True,
         update=use_fix_ime_update,
     )
@@ -194,7 +194,7 @@ class Prefs(bpy.types.AddonPreferences):
         split = column.split(factor=split_factor)
         rowl = split.row()
         rowr = split.row()
-        rowr.active = _for_field and _for_space
+        rowr.active = _for_field and _for_space and bpy.app.version >= (4, 4, 0)
         rowr.separator(factor=1.5)
         rowr.prop(self, 'use_fix_ime_sequence_editor')
 

@@ -30,3 +30,5 @@ uiSelectContextStore结构：
     elems 成员的类型从 uiSelectContextElem * 改为 blender::Vector<uiSelectContextElem>；
     新增 elems_len 成员。
 其余仅仅增加了初始值。
+
+5.0.0 - V5

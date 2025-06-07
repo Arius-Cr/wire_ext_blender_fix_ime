@@ -15,3 +15,5 @@ flag 从 char(1字节) 类型转为 eWM_EventHandlerFlag(4字节)，
 
 开发版：
 4.5.0 - V2
+
+5.0.0 - V2

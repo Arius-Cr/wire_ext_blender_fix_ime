@@ -18,3 +18,6 @@ modalhandlers 位置改变(+8)
 开发版：
 4.5.0 - V5
 modalhandlers 位置改变(-16)
+2025-06-05 modalhandlers 位置改变(-8)
+
+5.0.0 - V5

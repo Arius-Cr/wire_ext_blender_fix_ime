@@ -86,6 +86,8 @@ uiBut
   printf("offset_uiBut__type: %zu\n", offsetof(uiBut, type));
 以便打印其大小。
 
+5.0.0 - V11
+
 ============================================================
 UI_SELECT
 
@@ -126,3 +128,5 @@ eButType
 
 开发版：
 4.5.0 - V4
+
+5.0.0 - V4

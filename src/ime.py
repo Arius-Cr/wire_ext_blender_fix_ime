@@ -221,7 +221,8 @@ class Manager():
                                     ctrl=-1, shift=-1, alt=-1, oskey=-1)  # 注意 ：修饰键
                 km.keymap_items.new(op_clss.bl_idname, type='MOUSEMOVE', value='ANY')
         else:
-            if clss.fix_space_enabled or clss.fix_space_enabled:
+
+            if clss.fix_field_enabled or clss.fix_space_enabled:
                 native.use_fix_ime(False)
 
                 if DEBUG:

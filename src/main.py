@@ -140,6 +140,7 @@ def fix_off():
         use_fix_ime_font_edit=False,
         use_fix_ime_text_editor=False,
         use_fix_ime_console=False,
+        use_fix_ime_sequence_editor=False,
     ), bpy.context)
     pass
 

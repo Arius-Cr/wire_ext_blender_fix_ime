@@ -73,6 +73,11 @@ def register() -> None:
     if DEBUG_BUILD:
         dev.register()
 
+    if 'input_ime' in dir(bpy.app.build_options):
+        if DEBUG_BUILD:
+            print("输入法助手：当前的 Blender 已修复输入法问题。为避免冲突，插件已静默。")
+        return
+
     _prefs = get_prefs(bpy.context)
 
     if DEBUG_BUILD:

@@ -126,6 +126,13 @@ class Prefs(bpy.types.AddonPreferences):
     def draw(self, context: bpy.types.Context) -> None:
         layout: UILayout = self.layout.column()
 
+        if 'input_ime' in dir(bpy.app.build_options):
+            col = layout.column()
+            col.alert = True
+            col.label(text="当前的 Blender 已修复输入法问题。")
+            col.label(text="为避免冲突，插件已静默。")
+            return
+
         # 选项
 
         self.draw_options(layout.column())

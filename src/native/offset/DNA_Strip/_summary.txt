@@ -3,10 +3,18 @@
 ----- V1
 4.4.0 - 4.4.0
 
-无影响的改动：
+----- V1
+4.5.0 - 4.5.0
 4.5.0 改动了注释和成员名称，删除了成员 cache_flag 但用 _pad9 进行了补充。
+增加了 system_properties 成员，但用删除 _pad5 成员进行了补充。
+新增 SEQ_SHOW_OFFSETS 枚举，但原枚举的数值没变。
 
 开发版：
-4.5.0 - V1
-
-5.0.0 - V1
+5.0.0 - V2
+删除：
+char text[512]
+新增：
+char *text_ptr;
+int text_len_bytes;
+char _pad2[4];
+char text_legacy[512];

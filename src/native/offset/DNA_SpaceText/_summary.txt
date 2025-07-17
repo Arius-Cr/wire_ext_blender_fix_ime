@@ -3,13 +3,11 @@
 4.0.0 - 4.0.2
 
 ----- V2
-4.1.0 - 4.4.0
+4.1.0 - 4.5.0
 `SpaceText_Runtime runtime` 改为 `SpaceText_Runtime *runtime`
 
 无影响的改动：
 3.3.0 改动了注释
 
 开发版：
-4.5.0 - V2
-
 5.0.0 - V2

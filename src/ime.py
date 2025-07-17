@@ -2114,20 +2114,21 @@ class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
             string = cast(str, self.string)
             string_len_b = len(string.encode())
 
-            if text_len_b + string_len_b + 1 > 512:
-                # 超过最大长度，则逐个字符添加，直到超过限制。
+            if bpy.app.version < (5, 0, 0): # 2025-07-17 的 Blender 5.0.0 允许超过 512 个字节
+                if text_len_b + string_len_b + 1 > 512:
+                    # 超过最大长度，则逐个字符添加，直到超过限制。
 
-                _text_len_b = text_len_b
-                _string = ""
-                for _c in string:
-                    _c_len_b = len(_c.encode())
-                    if text_len_b + _c_len_b + 1 <= 512:
-                        _text_len_b += _c_len_b
-                        _string += _c
-                    else:
-                        break
+                    _text_len_b = text_len_b
+                    _string = ""
+                    for _c in string:
+                        _c_len_b = len(_c.encode())
+                        if text_len_b + _c_len_b + 1 <= 512:
+                            _text_len_b += _c_len_b
+                            _string += _c
+                        else:
+                            break
 
-                string = _string
+                    string = _string
 
             if string:
 

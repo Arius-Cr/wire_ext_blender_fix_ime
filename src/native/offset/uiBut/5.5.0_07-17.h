@@ -109,7 +109,7 @@ struct uiBut {
   /* Operator data */
   wmOperatorType *optype = nullptr;
   PointerRNA *opptr = nullptr;
-  wmOperatorCallContext opcontext = WM_OP_INVOKE_DEFAULT;
+  blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::InvokeDefault;
   /**
    * Keep an operator attached but never actually call it through the button. See
    * #UI_but_operator_set_never_call().

@@ -74,8 +74,8 @@ uiBut
   menu_no_hover_open
   drag_preview_icon_id
 
-开发版：
-4.5.0 - V11
+----- V11
+4.5.0 - 4.5.0
 删除成员 next 和 prev。
 成员 tip 的类型从 const char *tip 改为 blender::StringRef。
 新增成员（析构函数）：~uiBut
@@ -86,6 +86,7 @@ uiBut
   printf("offset_uiBut__type: %zu\n", offsetof(uiBut, type));
 以便打印其大小。
 
+开发版：
 5.0.0 - V11
 
 ============================================================
@@ -101,11 +102,11 @@ UI_SELECT
 注：在 4.0.0 中修改了注释
 
 ----- V3
-4.1.0 - 4.4.0
+4.1.0 - 4.5.0
 枚举 UI_ACTIVE 改为 UI_HOVER，值不变
 
 开发版：
-4.5.0 - V3
+5.0.0 - V3
 
 ============================================================
 eButType
@@ -123,10 +124,9 @@ eButType
 注：3.5.0 中修改了注释
 
 ----- V4
-4.0.0 - 4.4.0
+4.0.0 - 4.5.0
 枚举 UI_BTYPE_PROGRESS_BAR 改为 UI_BTYPE_PROGRESS，值不变
 
-开发版：
-4.5.0 - V4
 
+开发版：
 5.0.0 - V4

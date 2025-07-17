@@ -32,8 +32,8 @@
 3.4.0 改动了注释
 4.0.0 改动了注释
 
-开发版：
-4.5.0 - V8
+----- V8
+4.5.0 - 4.5.0
 buttons 的类型从 ListBase 改为 blender::Vector<std::unique_ptr<uiBut>>。
 新增成员（都是函数）：
 remove_but
@@ -43,4 +43,5 @@ but_index
 next_but
 prev_but
 
+开发版：
 5.0.0 - V8

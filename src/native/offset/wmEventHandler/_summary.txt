@@ -5,7 +5,7 @@
 
 ----- V2
 3.5.0 - 3.6.14
-4.0.0 - 4.4.0
+4.0.0 - 4.5.0
 flag 从 char(1字节) 类型转为 eWM_EventHandlerFlag(4字节)，
 但在内存对齐的情况下，没有产生任何影响。
 
@@ -14,6 +14,4 @@ flag 从 char(1字节) 类型转为 eWM_EventHandlerFlag(4字节)，
 4.2.0 修改了注释，wmEventHandler_UI 中 menu 成员改名为 region_popup
 
 开发版：
-4.5.0 - V2
-
 5.0.0 - V2

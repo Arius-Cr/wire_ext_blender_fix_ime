@@ -10,7 +10,7 @@ ARegion
 新增成员：category_scroll、_pad0
 
 ----- V3
-4.4.0 - 4.4.0
+4.4.0 - 4.5.0
 runtime 从 ARegion_Runtime* 改为 ARegionRuntimeHandle*
 删除成员：_pad0
 成员移动到 ARegionRuntime：drawrct、visible、do_draw、do_draw_paintcursor、type、uiblocks、handlers、panels_category、gizmo_map、regiontimer、draw_buffer、headerstr
@@ -21,7 +21,7 @@ runtime 从 ARegion_Runtime* 改为 ARegionRuntimeHandle*
 4.0.0 改动了注释
 
 开发版：
-4.5.0 - V3
+5.0.0 - V3
 
 ===
 ARegionRuntime
@@ -36,9 +36,7 @@ ARegionRuntime
 以 Release 的方式编译运行，按下 "G" 即可打印偏移量。
 
 ----- V1
-4.4.0 - 4.4.0
+4.4.0 - 4.5.0
 
 开发版：
-4.5.0 - V1
-
 5.0.0 - V1

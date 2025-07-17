@@ -3,7 +3,7 @@ schema_version = "1.0.0"
 # Example of manifest file for a Blender extension
 # Change the values according to your extension
 id = "wire_fix_ime"
-version = "3.0.15"
+version = "3.0.16"
 name = "输入法助手"
 tagline = "增强 Blender 对 Windows 平台上输入法的支持"
 maintainer = "阿弩斯(Arius)"

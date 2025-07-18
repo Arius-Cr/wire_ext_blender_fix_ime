@@ -1,4 +1,6 @@
-# 输入法助手
+# 输入法助手 (IME Helper)
+
+[English Document](docs/en/Index.md)
 
 **仓库**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime)
 
@@ -10,6 +12,6 @@
 
 该插件能够让 Blender 更好地支持 Windows 平台上的输入法。
 
-让你在 Blender 的输入框、文本物体编辑模式、文本编辑器、控制台中，获得良好的输入法使用体验。
+让你在 Blender 的输入框、文本物体编辑模式、文本编辑器、控制台、文本片段编辑模式（仅限 Blender 4.4 及以上）中，获得良好的输入法使用体验。
 
 详细介绍请参考帮助文档：[中文](docs/zh-Hans/Index.md)

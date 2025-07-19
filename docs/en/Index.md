@@ -2,6 +2,8 @@
 
 Make Blender better support IME (Input Method Editor).
 
+> This addon can **ONLY** work on **Windows x64**.
+
 # Features
 
 1. IME can be used in more places

@@ -2,16 +2,58 @@
 
 [English Document](docs/en/Index.md)
 
-**仓库**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime)
-
-**下载**：[Github](https://github.com/Arius-Cr/wire_ext_blender_fix_ime/releases)、[百度网盘](https://pan.baidu.com/s/1H9DxkAdmBJXLhl5Aj29Q6Q?pwd=q4e5)
-
-**视频**：[BiliBili](https://www.bilibili.com/video/BV1Jj42197YQ)
+该插件能够让 Blender 在 Windows 上更好地支持输入法。
 
 > 注：因能力所限，**没有**计划开发 Linux 或 MacOS 版。
 
-该插件能够让 Blender 更好地支持 Windows 平台上的输入法。
+**介绍视频**：[BiliBili](https://www.bilibili.com/video/BV1Jj42197YQ)
 
-让你在 Blender 的输入框、文本物体编辑模式、文本编辑器、控制台、文本片段编辑模式（仅限 Blender 4.4 及以上）中，获得良好的输入法使用体验。
+# 安装
 
-详细介绍请参考帮助文档：[中文](docs/zh-Hans/Index.md)
+请参考：[Blender 用户手册](https://docs.blender.org/manual/zh-hans/latest/editors/preferences/addons.html#installing-add-ons)。
+
+安装并启用插件后，保持默认的配置即可，一般无需更改任何配置。
+
+备用下载链接：[百度网盘](https://pan.baidu.com/s/1H9DxkAdmBJXLhl5Aj29Q6Q?pwd=q4e5)
+
+# 功能
+
+1. **可以在更多地方使用输入法**
+
+    在官方版中，只能在文本框中使用输入法。
+
+    启用插件后，可以在以下场景使用输入法输入文本：
+
+    - 3D 视图-文本物体-编辑模式
+
+    - 文本编辑器
+
+    - 控制台
+
+    - 序列编辑器-预览区-文本片段-编辑模式（Blender 4.4 及以上才支持该功能）
+
+2. **自动启用和停用输入法**
+
+    在官方版中，当你激活文本框但不输入任何文字，再退出文本框，输入法会保持开启。
+
+    在这种状态下，再按下快捷键（如：“G” 键），输入法会拦截该按键，导致你无法正常使用某些快捷键。
+    
+    目前大部分人会使用以下两种方式应对：
+
+    1. 将输入模式切换到英文，但只要不小心按下 “Shift” 键又会切换回中文模式，导致下个按键依然会被拦截。
+
+    2. 将输入键盘切换为英文，相当于不使用输入法。但需要输入文字时，需要手动切换回中文键盘。
+
+    启用插件后，插件会自动在你进入或退出文本框、文本物体编辑模式、文本编辑器、控制台、文本片段编辑模式时启用或停用输入法。
+
+    效果类似上述的第二种方式，但由手动改为自动。
+
+# 注意
+
+该插件**只能**用于官方正式发布的 Blender，**不能用于每日构建版和第三方 Blender**。
+
+该插件会直接通过指针加偏移量访问 Blender 内部数据（仅读取不写入），这些偏移量在不同的 Blender 版本中是不同的，我只能确保插件所用偏移量和官方正式发布的 Blender 中的偏移量匹配。如果插件所有偏移量和你正在使用的 Blender 不同，那么该插件可能会导致你的 Blender 崩溃。
+
+你可以在插件配置中查看当前插件支持的 Blender 版本，尽管会列出每日构建版，但依然不建议在每日构建版中使用该插件。
+
+配置中的“更新内存偏移量”按钮，可以让你从远端获取最新的内存偏移量数据，使得插件可以支持新的 Blender 版本。该功能对于使用每日构建版的用户来说是有用的，对于使用正式发布版的用户来说没有用，但无害。

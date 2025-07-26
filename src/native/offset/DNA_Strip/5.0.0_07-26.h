@@ -64,8 +64,8 @@ typedef struct Strip {
   /** Effect strip inputs (`nullptr` if not an effect strip). */
   struct Strip *input1, *input2;
 
-  /* This strange padding is needed due to how `seqbasep` de-serialization is
-   * done right now in #scene_blend_read_data. */
+  /* This strange padding is needed for compatibility with older versions
+   * that assumed `seqbasep` is at fixed offset. */
   void *_pad7;
   int _pad8[2];
 
@@ -179,24 +179,24 @@ enum {
   /* `SELECT = (1 << 0)` */
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
-  SEQ_OVERLAP = (1 << 3),
+  SEQ_FLAG_UNUSED_3 = (1 << 3), /* Cleared. */
   SEQ_FILTERY = (1 << 4),
   SEQ_MUTE = (1 << 5),
   SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),
   SEQ_REVERSE_FRAMES = (1 << 7),
   SEQ_IPO_FRAME_LOCKED = (1 << 8),
-  SEQ_EFFECT_NOT_LOADED = (1 << 9),
-  SEQ_FLAG_DELETE = (1 << 10),
+  SEQ_FLAG_UNUSED_9 = (1 << 9),   /* Cleared. */
+  SEQ_FLAG_UNUSED_10 = (1 << 10), /* Potentially dirty, see #84057. */
   SEQ_FLIPX = (1 << 11),
   SEQ_FLIPY = (1 << 12),
   SEQ_MAKE_FLOAT = (1 << 13),
   SEQ_LOCK = (1 << 14),
   SEQ_USE_PROXY = (1 << 15),
-  SEQ_IGNORE_CHANNEL_LOCK = (1 << 16),
+  SEQ_FLAG_UNUSED_16 = (1 << 16), /* Cleared. */
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_SHOW_RETIMING = (1 << 19),
-  SEQ_SHOW_OFFSETS = (1 << 20),
+  SEQ_FLAG_UNUSED_20 = (1 << 20),
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
@@ -215,5 +215,5 @@ enum {
   /* Access scene strips directly (like a meta-strip). */
   SEQ_SCENE_STRIPS = (1 << 30),
 
-  SEQ_INVALID_EFFECT = (1u << 31),
+  SEQ_UNUSED_31 = (1u << 31),
 };

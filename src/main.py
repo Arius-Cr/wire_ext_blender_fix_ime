@@ -56,6 +56,11 @@ def register() -> None:
     # 在 Blender 处于后台模式（--background）时插件无需工作
     if bpy.app.background:
         return
+    
+    if 'input_ime' in dir(bpy.app.build_options):
+        if DEBUG_BUILD:
+            printx("输入法助手：当前的 Blender 已修复输入法问题。为避免冲突，插件已静默。")
+        return
 
     if not native.dll_load():
         raise Exception(f"{__package__}: 无法加载 {__package__}.dll")
@@ -72,11 +77,6 @@ def register() -> None:
 
     if DEBUG_BUILD:
         dev.register()
-
-    if 'input_ime' in dir(bpy.app.build_options):
-        if DEBUG_BUILD:
-            print("输入法助手：当前的 Blender 已修复输入法问题。为避免冲突，插件已静默。")
-        return
 
     _prefs = get_prefs(bpy.context)
 

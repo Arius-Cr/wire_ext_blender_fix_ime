@@ -37,7 +37,8 @@ extern __declspec(dllexport) bool init(int bl_ver_main_, int bl_ver_minor_, int 
     bl_ver_patch = bl_ver_patch_;
     bl_ver = BL_VER(bl_ver_main_, bl_ver_minor_, bl_ver_patch_);
 
-    setup_console_encoding();
+    // 要在 Blender 的控制台输出中文，只需要确保编译时字符串使用 UTF-8 编码即可。
+    // 即编译时添加 /source-charset:utf-8 /execution-charset:utf-8 选项。
 
     process_handle = GetCurrentProcess();
     process_id = GetProcessId(process_handle);

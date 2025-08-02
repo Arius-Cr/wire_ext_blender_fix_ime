@@ -8,8 +8,6 @@
 // Windows
 #include <Windows.h>
 
-// MSVC 2017 需要开启 /experimental:preprocessor- 以去除不等参数前的逗号
-
 #define CCZ0 "\033[0m"
 #define CCZL "\033[0m\n"
 

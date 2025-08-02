@@ -45,12 +45,6 @@
     <ItemDefinitionGroup>
         <ClCompile>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/cl-task -->
-            <!--
-                 关于 /experimental:preprocessor- 和 /Zc:preprocessor-，参考：
-                 https://learn.microsoft.com/zh-cn/cpp/build/reference/experimental-preprocessor?view=msvc-170
-            -->
-            <!-- <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 /experimental:preprocessor- %(AdditionalOptions)</AdditionalOptions> -->
-            <!-- <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 /Zc:preprocessor- %(AdditionalOptions)</AdditionalOptions> -->
             <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 %(AdditionalOptions)</AdditionalOptions>
             <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DEBUG;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
             <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>

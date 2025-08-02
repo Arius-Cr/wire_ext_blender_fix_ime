@@ -40,7 +40,6 @@ from .prefs import get_prefs, Prefs
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 file_loading: bool = False
-file_loaded_watching: bool = False
 
 def register():
     bpy.utils.register_class(WIRE_FIX_IME_OT_state_updater)
@@ -52,6 +51,8 @@ def register():
         bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
         bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.append(load_pre)
+    bpy.app.handlers.load_post.append(load_post)
+    bpy.app.handlers.load_post_fail.append(load_post_fail)
     pass
 
 def unregister():
@@ -64,8 +65,8 @@ def unregister():
         bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_delete_intern)
         bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.remove(load_pre)
-    if file_loaded_watching:
-        bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
+    bpy.app.handlers.load_post.remove(load_post)
+    bpy.app.handlers.load_post_fail.remove(load_post_fail)
     pass
 
 def use_debug_update():
@@ -82,25 +83,28 @@ def use_debug_update():
 
 @persistent
 def load_pre(*args):
-    global file_loading, file_loaded_watching
+    global file_loading
     file_loading = True
-    if not file_loaded_watching:
-        file_loaded_watching = True
-        bpy.app.handlers.depsgraph_update_post.append(depsgraph_update_post)
     # 加载新文件时，本地窗口不会销毁，但是窗口会被新的 wmWindow 关联，即旧的关联会失效。
     for manager in list(managers.values()):
         manager.close(window_destory=False)
     if DEBUG:
-        printx("加载中....")
+        printx("文件加载中....")
 
 @persistent
-def depsgraph_update_post(*args):
-    global file_loading, file_loaded_watching
+def load_post(*args):
+    global file_loading
+    if file_loading and DEBUG:
+        printx("文件加载完成")
     file_loading = False
-    file_loaded_watching = False
-    bpy.app.handlers.depsgraph_update_post.remove(depsgraph_update_post)
-    if DEBUG:
-        printx("加载完成")
+
+@persistent
+def load_post_fail(*args):
+    global file_loading
+    if file_loading and DEBUG:
+        printx("文件加载失败")
+    file_loading = False
+    
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 

@@ -6,8 +6,8 @@ typedef struct Strip {
   /** Name, set by default and needs to be unique, for RNA paths. */
   char name[/*STRIP_NAME_MAXSTR*/ 64];
 
-  /** Flags bitmap (see below) and the type of strip. */
-  int flag, type;
+  int flag; /* eStripFlag; flags bit mask. */
+  int type; /* StripType; strip type. */
   /** The length of the contents of this strip - before handles are applied. */
   int len;
   /**
@@ -37,8 +37,7 @@ typedef struct Strip {
   short _pad1;
   /** For multi-camera source selection. */
   int multicam_source;
-  /** MOVIECLIP render flags. */
-  int clip_flag;
+  int clip_flag; /* eStripMovieClipFlag */
 
   StripData *data;
 
@@ -101,10 +100,9 @@ typedef struct Strip {
   int blend_mode;
   float blend_opacity;
 
-  /* Tag color showed if `SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG` is set. */
-  int8_t color_tag;
+  int8_t color_tag; /* StripColorTag */
 
-  char alpha_mode;
+  char alpha_mode; /* eStripAlphaMode */
   char _pad2[2];
   int _pad9;
 
@@ -156,8 +154,8 @@ typedef struct TextVars {
   float shadow_offset;
   float shadow_blur;
   float outline_width;
-  char flag;
-  char align;
+  char flag;  /* eEffectTextFlags */
+  char align; /* eEffectTextAlignX */
   char _pad[2];
 
   /** Offsets in characters (unicode code-points) for #TextVars::text_ptr. */
@@ -165,8 +163,9 @@ typedef struct TextVars {
   int selection_start_offset;
   int selection_end_offset;
 
-  char align_y DNA_DEPRECATED /* Only used for versioning. */;
-  char anchor_x, anchor_y;
+  char align_y DNA_DEPRECATED /* eEffectTextAlignY; only used for versioning. */;
+  char anchor_x; /* eEffectTextAlignX */
+  char anchor_y; /* eEffectTextAlignY */
   char _pad1;
   TextVarsRuntime *runtime;
 
@@ -175,7 +174,7 @@ typedef struct TextVars {
   char text_legacy[512];
 } TextVars;
 
-enum {
+typedef enum eStripFlag {
   /* `SELECT = (1 << 0)` */
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
@@ -216,4 +215,4 @@ enum {
   SEQ_SCENE_STRIPS = (1 << 30),
 
   SEQ_UNUSED_31 = (1u << 31),
-};
+} eStripFlag;

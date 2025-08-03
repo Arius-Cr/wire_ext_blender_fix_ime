@@ -54,6 +54,10 @@ typedef struct bScreen {
   /** Context callback. */
   void /*bContextDataCallback*/ *context;
 
+  /* Used to restore after SCREENFULL state. */
+  short fullscreen_flag;
+  char _pad2[6];
+
   /** Runtime. */
   struct wmTooltipState *tool_tip;
 

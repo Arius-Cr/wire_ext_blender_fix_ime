@@ -5,7 +5,7 @@ bl_info = {
     'author': "阿弩斯(Arius)",
     'description': "增强 Blender 对 Windows 平台上输入法的支持",
     'blender': (3, 0, 0),
-    'version': (3, 0, 17),
+    'version': (3, 0, 18),
     'location': "",
     'support': 'COMMUNITY',
     'category': 'User Interface',

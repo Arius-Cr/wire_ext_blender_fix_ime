@@ -40,7 +40,8 @@ class Prefs(bpy.types.AddonPreferences):
     def use_auto_update_blender_data_update(self, context: Context):
         from .main import blender_data
         if self.use_auto_update_blender_data:
-            asyncio.run(blender_data.auto_update_and_restart())
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(blender_data.auto_update_and_restart())
 
     use_auto_update_blender_data: bpy.props.BoolProperty(
         name="自动更新内存偏移数据",

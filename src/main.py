@@ -102,8 +102,12 @@ def register() -> None:
     registered = True
 
     if _prefs.use_auto_update_blender_data:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(blender_data.auto_update_and_restart())
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(blender_data.auto_update_and_restart())
+        finally:
+            if not loop.is_closed():
+                loop.close()
     pass
 
 def unregister() -> None:
@@ -390,8 +394,12 @@ class WIRE_FIX_IME_OT_update_blender_data(Operator):
     bl_description = "获取插件所需 Blender 内部数据的内存偏移量"
 
     def execute(self, context: Context) -> Union[Literal['RUNNING_MODAL'], Literal['CANCELLED'], Literal['FINISHED'], Literal['PASS_THROUGH'], Literal['INTERFACE']]:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(blender_data.update_and_restart())
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(blender_data.update_and_restart())
+        finally:
+            if not loop.is_closed():
+                loop.close()
         return {'FINISHED'}
 
 class WIRE_FIX_IME_OT_clean_blender_data(Operator):

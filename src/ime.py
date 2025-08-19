@@ -52,7 +52,8 @@ def register():
         bpy.utils.register_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.append(load_pre)
     bpy.app.handlers.load_post.append(load_post)
-    bpy.app.handlers.load_post_fail.append(load_post_fail)
+    if bpy.app.version >= (3, 6, 0):
+        bpy.app.handlers.load_post_fail.append(load_post_fail)
     pass
 
 def unregister():
@@ -66,7 +67,8 @@ def unregister():
         bpy.utils.unregister_class(WIRE_FIX_IME_OT_strip_text_move)
     bpy.app.handlers.load_pre.remove(load_pre)
     bpy.app.handlers.load_post.remove(load_post)
-    bpy.app.handlers.load_post_fail.remove(load_post_fail)
+    if bpy.app.version >= (3, 6, 0):
+        bpy.app.handlers.load_post_fail.remove(load_post_fail)
     pass
 
 def use_debug_update():
@@ -104,7 +106,7 @@ def load_post_fail(*args):
     if file_loading and DEBUG:
         printx("文件加载失败")
     file_loading = False
-    
+
 
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
@@ -2118,7 +2120,7 @@ class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
             string = cast(str, self.string)
             string_len_b = len(string.encode())
 
-            if bpy.app.version < (5, 0, 0): # 2025-07-17 的 Blender 5.0.0 允许超过 512 个字节
+            if bpy.app.version < (5, 0, 0):  # 2025-07-17 的 Blender 5.0.0 允许超过 512 个字节
                 if text_len_b + string_len_b + 1 > 512:
                     # 超过最大长度，则逐个字符添加，直到超过限制。
 

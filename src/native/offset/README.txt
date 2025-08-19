@@ -1,5 +1,121 @@
 请先参考 blender.c 中的说明。
 
+Blender 4.5及之后通过编译源码打印信息获取偏移量和结构大小，提高准确度，同时减轻维护压力。
+
+注意：必须通过 Release 配置来生成，因为 Debug 配置和 Release 配置得到的偏移量可能不同。
+
+ui_textedit_begin():（激活文本框即可打印信息）
+  printf("offset_wmWindow__modalhandlers: %zu\n", offsetof(wmWindow, modalhandlers));
+  printf("offset_wmWindow__workspace_hook: %zu\n", offsetof(wmWindow, workspace_hook));
+
+  printf("offset_WorkSpaceInstanceHook__active: %zu\n", offsetof(WorkSpaceInstanceHook, active));
+  printf("offset_WorkSpaceInstanceHook__act_layout: %zu\n",
+         offsetof(WorkSpaceInstanceHook, act_layout));
+
+  printf("offset_WorkSpaceLayout__screen: %zu\n", offsetof(WorkSpaceLayout, screen));
+
+  printf("offset_bScreen__active_region: %zu\n", offsetof(bScreen, active_region));
+
+  // printf("offset_ARegion__uiblocks: %zu\n", offsetof(ARegion, uiblocks));
+  // Blender >= 4.4
+  printf("offset_ARegion__runtime: %zu\n", offsetof(ARegion, runtime));
+  printf("offset_ARegionRuntime__uiblocks: %zu\n", offsetof(ARegionRuntimeHandle, uiblocks));
+
+  printf("-----\n");
+
+  printf("offset_wmEventHandler__type: %zu\n", offsetof(wmEventHandler, type));
+  printf("offset_wmEventHandler__handle_fn: %zu\n", offsetof(wmEventHandler_UI, handle_fn));
+  printf("offset_wmEventHandler__remove_fn: %zu\n", offsetof(wmEventHandler_UI, remove_fn));
+  printf("offset_wmEventHandler__user_data: %zu\n", offsetof(wmEventHandler_UI, user_data));
+  printf("offset_wmEventHandler__area: %zu\n",
+         offsetof(wmEventHandler_UI::context, area) + offsetof(wmEventHandler_UI, context));
+  printf("offset_wmEventHandler__region: %zu\n",
+         offsetof(wmEventHandler_UI::context, region) + offsetof(wmEventHandler_UI, context));
+  printf("offset_wmEventHandler__menu: %zu\n",
+         offsetof(wmEventHandler_UI::context, region_popup) +
+             offsetof(wmEventHandler_UI, context));
+
+  printf("WM_HANDLER_TYPE_UI: %d\n", WM_HANDLER_TYPE_UI);
+
+  printf("-----\n");
+
+  uiHandleButtonData *_button_data = MEM_new<uiHandleButtonData>(__func__);
+  size_t *_button_data_size = ((size_t *)(void *)_button_data) - 1;
+  printf(
+      "sizeof_uiHandleButtonData: %zu (_msize: %zu)\n", *_button_data_size, _msize(_button_data));
+
+  printf("-----\n");
+
+  uiPopupBlockHandle *_popup_handle = MEM_new<uiPopupBlockHandle>(__func__);
+  size_t *_popup_handle_size = ((size_t *)(void *)_popup_handle) - 1;
+  printf(
+      "sizeof_uiPopupBlockHandle: %zu (_msize: %zu)\n", *_popup_handle_size, _msize(_popup_handle));
+  printf("offset_uiPopupBlockHandle__region: %zu\n", offsetof(uiPopupBlockHandle, region));
+
+  printf("-----\n");
+
+  uiBlock *_block = but->block;
+
+  printf("offset_uiBlock__buttons: %zu\n", offsetof(uiBlock, buttons));
+  _block->buttons.print_stats("test");
+  printf("sizeof_uiBlock__buttons__unique_ptr: %zu\n", sizeof(std::unique_ptr<uiBut>));
+
+  printf("-----\n");
+
+  printf("sizeof_uiBut: %zu\n", sizeof(uiBut));
+  printf("offset_uiBut__flag: %zu\n", offsetof(uiBut, flag));
+  printf("offset_uiBut__type: %zu\n", offsetof(uiBut, type));
+
+  printf("-----\n");
+
+  printf("UI_SELECT: %d\n", UI_SELECT);
+  printf("UI_BTYPE_TEXT: %d\n", UI_BTYPE_TEXT);
+  printf("UI_BTYPE_NUM: %d\n", UI_BTYPE_NUM);
+  printf("UI_BTYPE_SEARCH_MENU: %d\n", UI_BTYPE_SEARCH_MENU);
+  // Blender >= 5.0
+  // printf("UI_BTYPE_TEXT: %d\n", ButType::Text);
+  // printf("UI_BTYPE_NUM: %d\n", ButType::Num);
+  // printf("UI_BTYPE_SEARCH_MENU: %d\n", ButType::SearchMenu);
+
+  printf("-----\n");
+
+  printf("block: %zu\n", (size_t)_block);
+  printf("block->buttons: %zu\n", (size_t)&_block->buttons);
+  printf("block->buttons.begin(): %zu\n", (size_t)_block->buttons.begin());
+  printf("block->buttons.begin()->get(): %zu\n", (size_t)_block->buttons.begin()->get());
+  printf("block->buttons.end(): %zu\n", (size_t)_block->buttons.end());
+  printf("block->buttons.end()->get(): %zu\n", (size_t)_block->buttons.end()->get());
+  printf("block->buttons.size(): %zu\n", _block->buttons.size());
+  printf("block->buttons.begin()->get()->flag: %x\n", _block->buttons.begin()->get()->flag);
+  printf("block->buttons.begin()->get()->type: %x\n", _block->buttons.begin()->get()->type);
+  printf("but: %zu\n", (size_t)but);
+  printf("but.flag: %x\n", but->flag);
+  printf("but.type: %x\n", but->type);
+
+  printf("=====\n");
+
+print_stats(): # source\blender\blenlib\BLI_vector.hh
+  printf("offset_uiBlock__buttons__begin_: %zu\n", (char *)(&this->begin_) - (char *)this);
+  printf("offset_uiBlock__buttons__end_: %zu\n", (char *)(&this->end_) - (char *)this);
+
+text_insert_invoke(): (在文本编辑器输入任一字符即可打印信息)
+  printf("offset_SpaceText__runtime: %zu\n", offsetof(SpaceText, runtime));
+  printf("offset_SpaceText_Runtime__lheight_px: %zu\n", offsetof(SpaceText_Runtime, lheight_px));
+  printf("offset_SpaceText_Runtime__cwidth_px: %zu\n", offsetof(SpaceText_Runtime, cwidth_px));
+  printf("offset_SpaceText_Runtime__line_number_display_digits: %zu\n", offsetof(SpaceText_Runtime, line_number_display_digits));
+
+sequencer_text_edit_mode_toggle_exec(): (激活文本片段编辑模式即可打印信息)
+  printf("offset_Strip__flag: %zu\n", offsetof(Strip, flag));
+  printf("offset_Strip__effectdata: %zu\n", offsetof(Strip, effectdata));
+  printf("offset_TextVars__cursor_offset: %zu\n", offsetof(TextVars, cursor_offset));
+  printf("offset_TextVars__selection_start_offset: %zu\n", offsetof(TextVars, selection_start_offset));
+  printf("offset_TextVars__selection_end_offset: %zu\n", offsetof(TextVars, selection_end_offset));
+  printf("SEQ_FLAG_TEXT_EDITING_ACTIVE: %d\n", SEQ_FLAG_TEXT_EDITING_ACTIVE);
+
+==================================================
+
+Blender 4.5 之前，使用以下方法计算成员偏移量和结构大小。
+
 目录结构：
     <类型>
         每个目标类型建立一个文件夹，里面记录该类型在各个版本中的声明。
@@ -45,80 +161,6 @@
     float   - 4 字节
     bool    - 1 字节
     enum    - 4 字节 (默认)
-
-2025-02-23 补充：部分数据必须通过编译和打印才能得到。
-
-注意：必须通过 Release 配置来生成，因为 Debug 配置和 Release 配置得到的偏移量可能不同。
-
-WM_event_add_modal_handler:
-  printf("offset_ARegion__runtime: %zu\n", offsetof(ARegion, runtime));
-  printf("offset_ARegionRuntime__uiblocks: %zu\n", offsetof(ARegionRuntimeHandle, uiblocks));
-在3D视图按下“G”即可打印信息。
-
-ui_do_but_textedit:
-  printf("offset_wmEventHandler__type: %zu\n", offsetof(wmEventHandler, type));
-  printf("offset_wmEventHandler__handle_fn: %zu\n", offsetof(wmEventHandler_UI, handle_fn));
-  printf("offset_wmEventHandler__remove_fn: %zu\n", offsetof(wmEventHandler_UI, remove_fn));
-  printf("offset_wmEventHandler__user_data: %zu\n", offsetof(wmEventHandler_UI, user_data));
-  printf("offset_wmEventHandler__area: %zu\n", offsetof(wmEventHandler_UI::context, area));
-  printf("offset_wmEventHandler__region: %zu\n", offsetof(wmEventHandler_UI::context, region));
-  printf("offset_wmEventHandler__menu: %zu\n", offsetof(wmEventHandler_UI::context, region_popup));
-
-  printf("WM_HANDLER_TYPE_UI: %d\n", WM_HANDLER_TYPE_UI);
-
-  printf("-----\n");
-
-  printf("sizeof_uiHandleButtonData: %zu\n", sizeof(uiHandleButtonData));
-
-  printf("-----\n");
-
-  printf("sizeof_uiPopupBlockHandle: %zu\n", sizeof(uiPopupBlockHandle));
-  printf("offset_uiPopupBlockHandle__region: %zu\n", offsetof(uiPopupBlockHandle, region));
-
-  printf("-----\n");
-
-  printf("sizeof_uiPopupBlockHandle: %zu\n", sizeof(uiPopupBlockHandle));
-
-  printf("-----\n");
-
-  printf("offset_uiBlock__buttons: %zu\n", offsetof(uiBlock, buttons));
-  block->buttons.print_stats("test");
-  printf("sizeof_uiBlock__buttons__unique_ptr: %zu\n", sizeof(std::unique_ptr<uiBut>));
-
-  printf("-----\n");
-
-  printf("sizeof_uiBut: %zu\n", sizeof(uiBut));
-  printf("offset_uiBut__flag: %zu\n", offsetof(uiBut, flag));
-  printf("offset_uiBut__type: %zu\n", offsetof(uiBut, type));
-
-  printf("-----\n");
-
-  printf("UI_SELECT: %d\n", UI_SELECT);
-  printf("UI_BTYPE_TEXT: %d\n", UI_BTYPE_TEXT);
-  printf("UI_BTYPE_NUM: %d\n", UI_BTYPE_NUM);
-  printf("UI_BTYPE_SEARCH_MENU: %d\n", UI_BTYPE_SEARCH_MENU);
-
-  printf("-----\n");
-
-  printf("block: %zu\n", (size_t)block);
-  printf("block->buttons: %zu\n", (size_t)&block->buttons);
-  printf("block->buttons.begin(): %zu\n", (size_t)block->buttons.begin());
-  printf("block->buttons.begin()->get(): %zu\n", (size_t)block->buttons.begin()->get());
-  printf("block->buttons.end(): %zu\n", (size_t)block->buttons.end());
-  printf("block->buttons.end()->get(): %zu\n", (size_t)block->buttons.end()->get());
-  printf("block->buttons.size(): %zu\n", block->buttons.size());
-  printf("block->buttons.begin()->get()->flag: %x\n", block->buttons.begin()->get()->flag);
-  printf("block->buttons.begin()->get()->type: %x\n", block->buttons.begin()->get()->type);
-  printf("but: %zu\n", (size_t)but);
-  printf("but.flag: %x\n", but->flag);
-  printf("but.type: %x\n", but->type);
-
-  printf("=====\n");
-
-print_stats: # source\blender\blenlib\BLI_vector.hh
-  printf("offset_uiBlock__buttons__begin_: %zu\n", (char *)(&this->begin_) - (char *)this);
-  printf("offset_uiBlock__buttons__end_: %zu\n", (char *)(&this->end_) - (char *)this);
-激活文本框即可打印信息。
 
 -----
 DNA 类型

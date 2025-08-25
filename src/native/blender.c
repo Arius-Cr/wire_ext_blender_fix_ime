@@ -277,7 +277,6 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
 
                     // 遍历 blocks
                     size_t addr_uiblocks = 0;
-                    size_t addr_uiblocks2 = 0;
                     if (bl_ver < BL_VER(4, 4, 0))
                     {
                         // Blender < 4.4.0
@@ -293,92 +292,10 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                         {
                             addr_uiblocks = GEN_ADDR(addr_runtime, offset_ARegionRuntime__uiblocks);
                             printx(D_IME, CCFR "\taddr_uiblocks(>=4.4.0): %zu (offset %zu)", addr_uiblocks, offset_ARegionRuntime__uiblocks);
-                            addr_uiblocks2 = GEN_ADDR(addr_runtime, offset_ARegionRuntime__uiblocks + 8);
-                            printx(D_IME, CCFR "\taddr_uiblocks(>=4.4.0) 496: %zu (offset %zu)", addr_uiblocks2, offset_ARegionRuntime__uiblocks);
                         }
                         else
                         {
                             return false;
-                        }
-                    }
-
-                    for (size_t addr_uiBlock = GET_VALUE(size_t, addr_uiblocks2, offset_ListBase__first);
-                         addr_uiBlock != 0;
-                         addr_uiBlock = GET_VALUE(size_t, addr_uiBlock, offset_Link__next))
-                    {
-                        printx(D_IME, CCFR "\taddr_uiBlock 496: %zu", addr_uiBlock);
-
-                        // 遍历 buttons
-
-                        if (bl_ver < BL_VER(4, 5, 0))
-                        {
-                            size_t addr_buttons = GEN_ADDR(addr_uiBlock, offset_uiBlock__buttons);
-                            printx(D_IME, CCFR "\taddr_buttons 496: %zu (offset %zu)", addr_buttons, offset_uiBlock__buttons);
-                            for (size_t addr_uiBut = GET_VALUE(size_t, addr_buttons, offset_ListBase__first);
-                                 addr_uiBut != 0;
-                                 addr_uiBut = GET_VALUE(size_t, addr_uiBut, offset_Link__next))
-                            {
-                                printx(D_IME, CCFR "\taddr_uiBut 496: %zu", addr_uiBut);
-
-                                int uiBut_flag = GET_VALUE(int, addr_uiBut, offset_uiBut__flag);
-                                int uiBut_type = GET_VALUE(int, addr_uiBut, offset_uiBut__type);
-
-                                printx(D_IME, CCFR "\tuiBut_flag 496: %x, %s", uiBut_flag,
-                                       (uiBut_flag & UI_SELECT) ? "True" : "False");
-                                printx(D_IME, CCFR "\tuiBut_type: %x, %s", uiBut_type,
-                                       (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                        uiBut_type == UI_BTYPE_SEARCH_MENU)
-                                           ? "True"
-                                           : "False");
-
-                                if ((uiBut_flag & UI_SELECT) &&
-                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                     uiBut_type == UI_BTYPE_SEARCH_MENU))
-                                {
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            size_t addr_buttons = GEN_ADDR(addr_uiBlock, offset_uiBlock__buttons);
-                            printx(D_IME, CCFR "\taddr_buttons(>=4.5.0) 496: %zu (offset %zu)", addr_buttons, offset_uiBlock__buttons);
-
-                            // 获得的是 std::unique_ptr<uiBut> 结构
-                            size_t addr_unique_ptr_begin_ = GET_VALUE(size_t, addr_buttons, offset_uiBlock__buttons__begin_);
-                            size_t addr_unique_ptr_end_ = GET_VALUE(size_t, addr_buttons, offset_uiBlock__buttons__end_);
-                            int size = (addr_unique_ptr_end_ - addr_unique_ptr_begin_) / sizeof_uiBlock__buttons__unique_ptr;
-                            printx(D_IME, CCFR "\taddr_unique_ptr_begin_ 496: %zu (offset %zu)", addr_unique_ptr_begin_, offset_uiBlock__buttons__begin_);
-                            printx(D_IME, CCFR "\taddr_unique_ptr_end_ 496: %zu (offset %zu)", addr_unique_ptr_end_, offset_uiBlock__buttons__end_);
-                            printx(D_IME, CCFR "\tsize 496: %d", size);
-
-                            size_t addr_unique_ptr = addr_unique_ptr_begin_;
-                            size_t addr_uiBut = 0;
-                            for (int i = 0; i < size; i++)
-                            {
-                                addr_unique_ptr = GEN_ADDR(addr_unique_ptr_begin_, i * sizeof_uiBlock__buttons__unique_ptr);
-                                // 这里的偏移量暂且固定为 0，基本不太可能变。
-                                size_t addr_uiBut = GET_VALUE(size_t, addr_unique_ptr, 0);
-                                printx(D_IME, CCFR "\taddr_uiBut 496: %zu", addr_uiBut);
-
-                                int uiBut_flag = GET_VALUE(int, addr_uiBut, offset_uiBut__flag);
-                                int uiBut_type = GET_VALUE(int, addr_uiBut, offset_uiBut__type);
-
-                                printx(D_IME, CCFR "\tuiBut_flag 496: %x, %s", uiBut_flag,
-                                       (uiBut_flag & UI_SELECT) ? "True" : "False");
-                                printx(D_IME, CCFR "\tuiBut_type 496: %x, %s", uiBut_type,
-                                       (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                        uiBut_type == UI_BTYPE_SEARCH_MENU)
-                                           ? "True"
-                                           : "False");
-
-                                if ((uiBut_flag & UI_SELECT) &&
-                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                     uiBut_type == UI_BTYPE_SEARCH_MENU))
-                                {
-                                    break;
-                                }
-                            }
                         }
                     }
                     

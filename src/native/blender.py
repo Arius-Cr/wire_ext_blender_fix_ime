@@ -52,8 +52,8 @@ def get_data(ex_ver: tuple[int, int, int], bl_ver: tuple[int, int, int]) -> Unio
         data['blender_vers'].extend([
             ((3, 0, 0), _3__6__X_, None, None),
             ((4, 0, 0), _4__5__X_, None, None),
-            # 开发版带有额外信息：提交日期、提交Hash（在 Blender 的关于窗口中可以看到）
-            ((5, 0, 0), _5__0__X_, '2025-08-18 22:09', '5a0c0826b709'),
+            # 开发版带有额外信息：提交日期、提交Hash（在 Git 的提交历史中可以看到）
+            ((5, 0, 0), _5__0__X_, '2025-09-13 03:56 +08:00', 'fde6625d8d8f'),
         ])
 
     return data
@@ -62,7 +62,7 @@ def get_data_3_0_5() -> dict:
 
     data = {
         # 数据更新时间
-        'mtime': datetime.strptime('2025-08-19 23:55 +08:00', dtfmt),
+        'mtime': datetime.strptime('2025-09-13 15:49 +08:00', dtfmt),
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
             # 本数据支持的 Blender 版本。由 get_data 函数填充。
@@ -397,7 +397,7 @@ def get_data_3_0_5() -> dict:
         MAP(items, 'offset_Strip__effectdata', [
             ((4, 4, 0), _4__4__X_, 352),  # V1
             ((4, 5, 0), _4__5__X_, 352),
-            ((5, 0, 0), _5__0__X_, 352),
+            ((5, 0, 0), _5__0__X_, 344),
         ])
         MAP(items, 'offset_TextVars__cursor_offset', [
             ((4, 4, 0), _4__4__X_, 632),  # V1

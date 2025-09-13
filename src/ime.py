@@ -512,7 +512,7 @@ class Manager():
             if prefs.use_fix_ime_sequence_editor and support_text_strip:
                 screen = context.screen
                 scene = context.scene
-                strip = context.active_sequence_strip
+                strip = Manager.get_active_strip(context)
                 if (area and space and region and
                     space.type == 'SEQUENCE_EDITOR' and
                     region.type == 'PREVIEW' and
@@ -1121,6 +1121,18 @@ class Manager():
         else:
             str_bytes = text.body.encode('utf-8')[:text.current_character]
             return len(str_bytes.decode('utf-8'))
+
+    # -----
+    # 获取序列相关信息
+
+    @staticmethod
+    def get_active_strip(context: Context):  # -> bpy.types.TextStrip: # 在 4.4 及以上才有 TextStrip
+        if bpy.app.version >= (5, 0, 0):
+            # 5.0 开始
+            return context.active_strip
+
+        # 4.4 - 4.5
+        return context.active_sequence_strip
 
     # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
     # 输入法文本合成
@@ -1786,7 +1798,7 @@ class WIRE_FIX_IME_OT_input_handler(Operator):
         event, data, _ = ime_event
         args = self.op_args
 
-        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        strip = cast(bpy.types.TextStrip, Manager.get_active_strip(context))
 
         if event == 'START':
             if DEBUG:
@@ -2076,7 +2088,7 @@ class WIRE_FIX_IME_OT_strip_text_insert(Operator):
 
     @classmethod
     def poll(clss, context: Context) -> bool:
-        strip = context.active_sequence_strip
+        strip = Manager.get_active_strip(context)
         return strip and isinstance(strip, bpy.types.TextStrip)
 
     def __init__(self, *args, **kwargs):
@@ -2085,7 +2097,7 @@ class WIRE_FIX_IME_OT_strip_text_insert(Operator):
     def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
         string = self.string
 
-        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        strip = cast(bpy.types.TextStrip, Manager.get_active_strip(context))
         cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
 
         before = len(strip.text)
@@ -2110,7 +2122,7 @@ class WIRE_FIX_IME_OT_strip_text_insert_intern(Operator):
     string: bpy.props.StringProperty()
 
     def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
-        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        strip = cast(bpy.types.TextStrip, Manager.get_active_strip(context))
 
         cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
         if cursor_index >= 0:
@@ -2157,7 +2169,7 @@ class WIRE_FIX_IME_OT_strip_text_delete(Operator):
     )
 
     def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
-        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        strip = cast(bpy.types.TextStrip, Manager.get_active_strip(context))
 
         if self.type == 'SELECTION':
 
@@ -2191,7 +2203,7 @@ class WIRE_FIX_IME_OT_strip_text_delete_intern(Operator):
     )
 
     def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
-        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        strip = cast(bpy.types.TextStrip, Manager.get_active_strip(context))
 
         if self.type == 'SELECTION':
 
@@ -2223,7 +2235,7 @@ class WIRE_FIX_IME_OT_strip_text_move(Operator):
     select_text: bpy.props.BoolProperty()
 
     def execute(self, context: Context) -> Literal['RUNNING_MODAL', 'CANCELLED', 'FINISHED', 'PASS_THROUGH', 'INTERFACE']:
-        strip = cast(bpy.types.TextStrip, context.active_sequence_strip)
+        strip = cast(bpy.types.TextStrip, Manager.get_active_strip(context))
 
         cursor_index = native.Strip_text_cursor_offset_get(strip.as_pointer())
 

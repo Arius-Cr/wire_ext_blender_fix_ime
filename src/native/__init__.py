@@ -13,6 +13,7 @@ from ..utils.printx import *
 # ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 dll_name = 'wire_fix_ime'
+dll_name_loaded = f"_{dll_name}" if mark.DEBUG_BUILD else dll_name
 
 kernel32 = ctypes.windll.kernel32
 kernel32.LoadLibraryW.argtypes = [ctypes.wintypes.LPCWSTR]
@@ -343,26 +344,28 @@ class Native(_main, _blender, _fix_ime):
 
     def dll_load(self) -> bool:
         dir = Path(os.path.realpath(__file__)).parent
-        # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
-        for _ext in ['.dll', '.pdb']:
-            _src_name = f'{dll_name}{_ext}'
-            _dst_name = '_' + _src_name
-            _src = dir.joinpath(_src_name)
-            _dst = dir.joinpath(_dst_name)
-            if _src.exists() and (not _dst.exists() or _dst.stat().st_mtime < _src.stat().st_mtime):
-                try:
-                    shutil.copyfile(_src, _dst)
-                except:
-                    printx(CCBR, f"复制 {_src_name} 到 {_dst_name} 失败")
 
-        self.dll = ctypes.CDLL(os.path.join(dir, f'_{dll_name}.dll'))
+        if mark.DEBUG_BUILD:
+            # 使用副本可以避免文件锁定，方便调试，一旦锁定必须先停用插件，再生成源码，再启用插件，步骤繁琐
+            for _ext in ['.dll', '.pdb']:
+                _src_name = f'{dll_name}{_ext}'
+                _dst_name = f'{dll_name_loaded}{_ext}'
+                _src = dir.joinpath(_src_name)
+                _dst = dir.joinpath(_dst_name)
+                if _src.exists() and (not _dst.exists() or _dst.stat().st_mtime < _src.stat().st_mtime):
+                    try:
+                        shutil.copyfile(_src, _dst)
+                    except:
+                        printx(CCBR, f"复制 {_src_name} 到 {_dst_name} 失败")
+
+        self.dll = ctypes.CDLL(os.path.join(dir, f'{dll_name_loaded}.dll'))
 
         if self.dll is None:
-            printx(CCBG, f"加载 _{dll_name}.dll 失败")
+            printx(CCBG, f"加载 {dll_name_loaded}.dll 失败")
             return False
         else:
             if mark.DEBUG:
-                printx(f"加载 _{dll_name}.dll 完成")
+                printx(f"加载 {dll_name_loaded}.dll 完成")
 
         self._dll_init__main()
         self._dll_init__blender()
@@ -374,11 +377,11 @@ class Native(_main, _blender, _fix_ime):
             return True
         
         if not kernel32.FreeLibrary(self.dll._handle):
-            printx(CCBG, f"卸载 _{dll_name}.dll 失败")
+            printx(CCBG, f"卸载 {dll_name_loaded}.dll 失败")
             return False
         else:
             if mark.DEBUG:
-                print(f"卸载 _{dll_name}.dll 完成")
+                print(f"卸载 {dll_name_loaded}.dll 完成")
 
         del self.dll
 

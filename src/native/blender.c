@@ -369,11 +369,24 @@ extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer)
                                            ? "True"
                                            : "False");
 
-                                if ((uiBut_flag & UI_SELECT) &&
-                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
-                                     uiBut_type == UI_BTYPE_SEARCH_MENU))
+                                if (bl_ver < BL_VER(5, 1, 0))
                                 {
-                                    return true;
+                                    if ((uiBut_flag & UI_SELECT) &&
+                                        (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                         uiBut_type == UI_BTYPE_SEARCH_MENU))
+                                    {
+                                        return true;
+                                    }
+                                }
+                                else
+                                {
+                                    // Blender 5.1.0 开始，数字框不会启用输入法了，因此没有必要管理数字框的输入法状态
+                                    if ((uiBut_flag & UI_SELECT) &&
+                                        (uiBut_type == UI_BTYPE_TEXT ||
+                                         uiBut_type == UI_BTYPE_SEARCH_MENU))
+                                    {
+                                        return true;
+                                    }
                                 }
                             }
                         }

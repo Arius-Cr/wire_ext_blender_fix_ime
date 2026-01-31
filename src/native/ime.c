@@ -259,7 +259,7 @@ static INPUT playback_key_events[6];
  */
 static IMEInvoker get_ime_invoker(WindowData *window)
 {
-    if (wmWindow_is_but_active(window->wm_pointer))
+    if (wmWindow_is_txt_active(window->wm_pointer))
     {
         window->invoker = INVOKER_FIELD;
         return INVOKER_FIELD;

@@ -146,7 +146,7 @@ Blender 4.5 之前，使用以下方法计算成员偏移量和结构大小。
        但幸运的是，当前需要的数据要么可以简单计算出来，要么可以通过插件的调试信息获取。
        
        对于 uiHandleButtonData 和 uiPopupBlockHandle 结构的长度，
-       可以在 src/native/blender.c 的 wmWindow_is_but_active()、
+       可以在 src/native/blender.c 的 wmWindow_is_txt_active()、
        wmWindow_is_pop_active() 函数输出的调试信息中获取。
 
        对于 uiHandleButtonData，先激活输入框，然后看调试信息即可。

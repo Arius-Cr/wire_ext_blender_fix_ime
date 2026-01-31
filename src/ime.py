@@ -161,6 +161,9 @@ class Manager():
         # -----
         # 输入法状态更新
 
+        # 上次状态更新时，判断得到的输入法启用者
+        self.ime_invoker: IMEInvoker = 'NONE'
+
         # 上次状态更新的时间（time_ns）
         self.updater_prev_step_time: int = 0
 
@@ -453,86 +456,79 @@ class Manager():
                 printx(CCBP, "取消更新：正在输入文字")
             return
 
-        invoker_now = native.ime_invoker_get(self.wm_pointer)
+        invoker_old = self.ime_invoker
+        invoker_new: IMEInvoker = 'NONE'
 
-        # 文本框激活时，无需执行任何处理
-        if invoker_now == 'FIELD':
+        # 普通区块或弹出区块中存在激活的文本框
+        if native.wmWindow_is_txt_active(self.wm_pointer):
+            invoker_new = 'FIELD'
             if DEBUG:
-                printx(CCBP, "取消更新：文本框已激活")
-            return
+                printx(CCBP, "文本框已激活")
 
         # 弹出菜单或弹出面板出现时，停用 IME
-        if native.wmWindow_is_pop_active(self.wm_pointer):
+        elif native.wmWindow_is_pop_active(self.wm_pointer):
             if DEBUG:
-                printx(CCBP, "取消更新：浮动窗已开启")
-            self.ime_disable()
-            return
+                printx(CCBP, "浮动窗已开启")
 
-        # 鼠标被捕获时表示正在执行某种操作，此时无需更新
-        # 该判断必须放在“弹出菜单”后，因为弹出菜单本身会捕获鼠标
-        if native.window_is_mouse_capture(self.wm_pointer):
-            if DEBUG:
-                printx(CCBP, "取消更新：鼠标被捕获")
-            return
-
-        invoker_new: IMEInvoker = None
-
-        prefs = get_prefs(context)
-
-        obj = context.active_object
-        area = context.area
-        space = context.space_data
-        region = context.region
-
-        if not invoker_new and prefs.use_fix_ime_for_space:
-
-            if prefs.use_fix_ime_font_edit:
-                if (obj and obj.type == 'FONT' and obj.mode == 'EDIT' and
-                    area and space and region and
-                    space.type == 'VIEW_3D' and
-                    region.type == 'WINDOW'
-                ):
-                    invoker_new = 'VIEW_3D'
-
-            if prefs.use_fix_ime_text_editor:
-                if (area and space and region and
-                    space.type == 'TEXT_EDITOR' and
-                    space.text is not None and
-                    region.type == 'WINDOW'
-                ):
-                    invoker_new = 'TEXT_EDITOR'
-
-            if prefs.use_fix_ime_console:
-                if (area and space and region and
-                    space.type == 'CONSOLE' and
-                    region.type == 'WINDOW'
-                ):
-                    invoker_new = 'CONSOLE'
-
-            if prefs.use_fix_ime_sequence_editor and support_text_strip:
-                screen = context.screen
-                scene = context.scene
-                strip = Manager.get_active_strip(context)
-                if (area and space and region and
-                    space.type == 'SEQUENCE_EDITOR' and
-                    region.type == 'PREVIEW' and
-                    not screen.is_animation_playing and not screen.is_scrubbing and
-                    strip and isinstance(strip, bpy.types.TextStrip) and
-                    strip.frame_final_start <= scene.frame_current_final <= strip.frame_final_end and
-                    native.Strip_is_text_editing_active(strip.as_pointer())
-                ):
-                    invoker_new = 'SEQUENCE_EDITOR'
-
-        if invoker_new:
-            # 检测到符合条件的区块，如果当前没有启用输入法或当前鼠标所在空间和之前不同，则启用输入法
-            if invoker_new != invoker_now:
-                self.ime_enable(context, invoker_new)
-
-            if DEBUG:
-                printx(f"{CCFP}更新后{CCZ0} 重新定位候选窗口：", context.space_data.type)
-            self.ime_window_pos_update(context)
         else:
+            prefs = get_prefs(context)
+
+            obj = context.active_object
+            area = context.area
+            space = context.space_data
+            region = context.region
+
+            if prefs.use_fix_ime_for_space:
+
+                if prefs.use_fix_ime_font_edit:
+                    if (obj and obj.type == 'FONT' and obj.mode == 'EDIT' and
+                        area and space and region and
+                        space.type == 'VIEW_3D' and
+                        region.type == 'WINDOW'
+                    ):
+                        invoker_new = 'VIEW_3D'
+
+                if prefs.use_fix_ime_text_editor:
+                    if (area and space and region and
+                        space.type == 'TEXT_EDITOR' and
+                        space.text is not None and
+                        region.type == 'WINDOW'
+                    ):
+                        invoker_new = 'TEXT_EDITOR'
+
+                if prefs.use_fix_ime_console:
+                    if (area and space and region and
+                        space.type == 'CONSOLE' and
+                        region.type == 'WINDOW'
+                    ):
+                        invoker_new = 'CONSOLE'
+
+                if prefs.use_fix_ime_sequence_editor and support_text_strip:
+                    screen = context.screen
+                    scene = context.scene
+                    strip = Manager.get_active_strip(context)
+                    if (area and space and region and
+                        space.type == 'SEQUENCE_EDITOR' and
+                        region.type == 'PREVIEW' and
+                        not screen.is_animation_playing and not screen.is_scrubbing and
+                        strip and isinstance(strip, bpy.types.TextStrip) and
+                        strip.frame_final_start <= scene.frame_current_final <= strip.frame_final_end and
+                        native.Strip_is_text_editing_active(strip.as_pointer())
+                    ):
+                        invoker_new = 'SEQUENCE_EDITOR'
+
+        if invoker_old == 'NONE' and invoker_new != 'NONE':
+            # Blender 本身会在文本框激活时启用输入法，无需干预
+            if invoker_new != 'FIELD':
+                self.ime_enable(context, invoker_new)
+                if DEBUG:
+                    printx(f"{CCFP}更新后{CCZ0}({invoker_new}) 重新定位候选窗口：", context.space_data.type)
+                self.ime_window_pos_update(context)
+        elif invoker_old != 'NONE' and invoker_new == 'NONE':
             self.ime_disable()
+
+        self.ime_invoker = invoker_new
+
         pass
 
     def ime_enable(self, context: Context, invoker: IMEInvoker):
@@ -663,6 +659,8 @@ class Manager():
         region = context.region
         space = cast(SpaceTextEditor, context.space_data)
         text = space.text
+        if text is None:
+            return
 
         lheight, _, _ = self.get_text_editor_draw_params(context)
         pixelsize: float = context.preferences.system.pixel_size
@@ -1236,7 +1234,7 @@ class WIRE_FIX_IME_OT_state_updater(Operator):
             is_updater_start_timer = (manager.updater_start_timer and manager.updater_start_timer.time_delta)
             is_handler_start_timer = (manager.handler_start_timer and manager.handler_start_timer.time_delta)
             if not (is_updater_start_timer or is_handler_start_timer):
-                if DEBUG and DEBUG_UPDATER_2:
+                if DEBUG and DEBUG_UPDATER_3:
                     printx("无关的 TIMER 消息")
                     printx(manager.updater_start_timer)
                     printx(manager.handler_start_timer)

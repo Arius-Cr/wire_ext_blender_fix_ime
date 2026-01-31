@@ -13,7 +13,7 @@
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
-extern __declspec(dllexport) bool wmWindow_is_but_active(void *wm_pointer);
+extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer);
 
 extern __declspec(dllexport) bool wmWindow_is_pop_active(void *wm_pointer);
 

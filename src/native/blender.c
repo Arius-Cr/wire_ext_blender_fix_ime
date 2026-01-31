@@ -204,6 +204,7 @@ static int UI_SELECT = UNKNOWN;
 // 文件：source\blender\editors\include\UI_interface_c.hh (4.0.0)
 static int UI_BTYPE_TEXT = UNKNOWN;
 static int UI_BTYPE_NUM = UNKNOWN;
+static int UI_BTYPE_NUM_SLIDER = UNKNOWN;
 static int UI_BTYPE_SEARCH_MENU = UNKNOWN;
 
 // 关联：wmEventHandler.flag
@@ -335,12 +336,14 @@ extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer)
                                    (uiBut_flag & UI_SELECT) ? "True" : "False");
                             printx(D_IME, CCFR "\tuiBut_type: %x, %s", uiBut_type,
                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                    uiBut_type == UI_BTYPE_NUM_SLIDER ||
                                     uiBut_type == UI_BTYPE_SEARCH_MENU)
                                        ? "True"
                                        : "False");
 
                             if ((uiBut_flag & UI_SELECT) &&
                                 (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                 uiBut_type == UI_BTYPE_NUM_SLIDER ||
                                  uiBut_type == UI_BTYPE_SEARCH_MENU))
                             {
                                 return true;
@@ -376,6 +379,7 @@ extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer)
                                    (uiBut_flag & UI_SELECT) ? "True" : "False");
                             printx(D_IME, CCFR "\tuiBut_type: %x, %s", uiBut_type,
                                    (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                    uiBut_type == UI_BTYPE_NUM_SLIDER ||
                                     uiBut_type == UI_BTYPE_SEARCH_MENU)
                                        ? "True"
                                        : "False");
@@ -384,6 +388,7 @@ extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer)
                             {
                                 if ((uiBut_flag & UI_SELECT) &&
                                     (uiBut_type == UI_BTYPE_TEXT || uiBut_type == UI_BTYPE_NUM ||
+                                     uiBut_type == UI_BTYPE_NUM_SLIDER ||
                                      uiBut_type == UI_BTYPE_SEARCH_MENU))
                                 {
                                     return true;
@@ -860,6 +865,7 @@ extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t v
         else _set_(UI_SELECT)                                            //
         else _set_(UI_BTYPE_TEXT)                                        //
         else _set_(UI_BTYPE_NUM)                                         //
+        else _set_(UI_BTYPE_NUM_SLIDER)                                  //
         else _set_(UI_BTYPE_SEARCH_MENU)                                 //
         else _set_(WM_HANDLER_BLOCKING)                                  //
         else _set_(WM_HANDLER_ACCEPT_DBL_CLICK)                          //

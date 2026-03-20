@@ -27,9 +27,6 @@
 
 #define UNKNOWN 0
 
-#define GEN_ADDR(base, offset) ((size_t)base + offset)
-#define GET_VALUE(type, base, offset) *(type *)GEN_ADDR(base, offset)
-
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
 // 文件：source\blender\makesdna\DNA_listBase.h
@@ -127,9 +124,43 @@ static size_t offset_Link__prev = UNKNOWN;
  *
  */
 
+/**
+ * 官方改动的一些记录：
+ *
+ * Blender 5.1
+ *
+ * wmWindow 中的部分成员移动到 WindowRuntime
+ * Refactor: Move some wmWindow fields to runtime struct
+ * 348699976c40 by Hans Goudey <hans@blender.org>, Tue Dec 9 07:24:58 2025
+ *
+ * 某些结构名称的 "ui" 前缀被移除，受影响的包括：
+ * - uiHandleButtonData -> HandleButtonData
+ * - uiPopupBlockHandle -> PopupBlockHandle
+ * - uiBlock -> Block
+ * - uiBut -> Button
+ * - ButType -> ButtonType
+ * 这些只涉及名称改动。为了兼容旧版，这里不做同步，
+ * 譬如 sizeof_uiHandleButtonData 就不重命名为 sizeof_HandleButtonData 了。
+ * 注意：上述的改动是通过多个提交完成的，不是一次提交就完成的。
+ * Cleanup: UI: Remove ui prefix from types and functions
+ * 08c8f7948fe9 by Hans Goudey <hans@blender.org>, Sat Dec 6 07:16:36 2025
+ *
+ */
+
+// 以下仅适用于 Blender 5.1 以下
 // 文件：source\blender\makesdna\DNA_windowmanager_types.h
 // wmWindow.modalhandlers: ListBase<wmEventHandler>
 static size_t offset_wmWindow__modalhandlers = UNKNOWN;
+
+// 以下仅适用于 Blender 5.1 及以上
+// 文件：source\blender\makesdna\DNA_windowmanager_types.h
+// wmWindow.runtime: WindowRuntimeHandle *
+extern size_t offset_wmWindow__runtime = UNKNOWN;
+// 文件：source\blender\blenkernel\BKE_wm_runtime.hh
+// WindowRuntime.ghostwin: void *
+extern size_t offset_WindowRuntime__ghostwin = UNKNOWN;
+// WindowRuntime.modalhandlers: ListBase<wmEventHandler>
+static size_t offset_WindowRuntime__modalhandlers = UNKNOWN;
 
 // 文件：source\blender\windowmanager\wm_event_system.h
 // wmEventHandler_UI.head.type: int
@@ -232,12 +263,34 @@ static size_t offset_WorkSpaceLayout__screen = UNKNOWN;
 // bScreen.active_region: ARegion*
 static size_t offset_bScreen__active_region = UNKNOWN;
 
+static size_t get_wmWindow_modalhandlers(void *wm_pointer)
+{
+    if (bl_ver < BL_VER(5, 1, 0))
+    {
+        return GET_VALUE(size_t, wm_pointer,
+                         offset_wmWindow__modalhandlers + offset_ListBase__first);
+    }
+    else
+    {
+        printx(D_IME, CCFA "offset_wmWindow__runtime: %zu", offset_wmWindow__runtime);
+        printx(D_IME, CCFA "offset_WindowRuntime__modalhandlers: %zu", offset_WindowRuntime__modalhandlers);
+        size_t p_runtime = GET_VALUE(size_t, wm_pointer, offset_wmWindow__runtime);
+        printx(D_IME, CCFA "p_runtime: %p", p_runtime);
+        if (p_runtime)
+        {
+            return GET_VALUE(size_t, p_runtime,
+                             offset_WindowRuntime__modalhandlers + offset_ListBase__first);
+        }
+    }
+
+    return 0;
+}
+
 extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer)
 {
     // printx(D_IME, CCFR "wmWindow_is_txt_active");
     // 获取窗口模态处理器链表中的第一个节点
-    size_t addr_handler = GET_VALUE(size_t, wm_pointer,
-                                    offset_wmWindow__modalhandlers + offset_ListBase__first);
+    size_t addr_handler = get_wmWindow_modalhandlers(wm_pointer);
     if (addr_handler)
     {
         // 获取模态处理器类型
@@ -418,8 +471,7 @@ extern __declspec(dllexport) bool wmWindow_is_pop_active(void *wm_pointer)
 {
     // printx(D_IME, CCFR "wmWindow_is_pop_active");
     // 获取窗口模态处理器链表中的第一个节点
-    size_t addr_handler = GET_VALUE(size_t, wm_pointer,
-                                    offset_wmWindow__modalhandlers + offset_ListBase__first);
+    size_t addr_handler = get_wmWindow_modalhandlers(wm_pointer);
     if (addr_handler)
     {
         // 获取模态处理器类型
@@ -838,6 +890,9 @@ extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t v
         else _set_(offset_Link__next)                                    //
         else _set_(offset_Link__prev)                                    //
         else _set_(offset_wmWindow__modalhandlers)                       //
+        else _set_(offset_wmWindow__runtime)                             //
+        else _set_(offset_WindowRuntime__ghostwin)                       //
+        else _set_(offset_WindowRuntime__modalhandlers)                  //
         else _set_(offset_wmWindow__workspace_hook)                      //
         else _set_(offset_wmEventHandler__type)                          //
         else _set_(offset_wmEventHandler__flag)                          //

@@ -184,12 +184,32 @@ static WindowData *find_window_by_wm_ptr(void *wm_ptr)
 
 static inline void *get_gw_ptr(void *wm_ptr)
 {
-    /**
-     * 参考：
-     * source\blender\makesdna\DNA_windowmanager_types.h
-     *      typedef struct wmWindow
-     */
-    return (void *)*((size_t *)wm_ptr + 2);
+    if (bl_ver < BL_VER(5, 1, 0))
+    {
+        /**
+         * 参考：
+         * source\blender\makesdna\DNA_windowmanager_types.h
+         *      typedef struct wmWindow
+         */
+        return (void *)*((size_t *)wm_ptr + 2);
+    }
+    else
+    {
+        // Blender 5.1.0 及以上
+
+        printx(D_IME, CCFA "offset_wmWindow__runtime: %zu", offset_wmWindow__runtime);
+        printx(D_IME, CCFA "offset_WindowRuntime__ghostwin: %zu", offset_WindowRuntime__ghostwin);
+
+        size_t p_runtime = GET_VALUE(size_t, wm_ptr, offset_wmWindow__runtime);
+        
+        printx(D_IME, CCFA "p_runtime: %p", p_runtime);
+        if (p_runtime)
+        {
+            size_t value = GET_VALUE(size_t, p_runtime, offset_WindowRuntime__ghostwin);
+            return (void *)value;
+        }
+    }
+    return (void *)0;
 }
 
 static HWND _handle = NULL;
@@ -650,7 +670,7 @@ static FIRT fix_ime_WM_INPUT(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
                          * 在 Blender 中同样无法在中文输入模式且大写锁定时输入字符，原因和 data_use_fix_direct_input_all 相同。
                          * 即 Blender 假定所有字符按键都会在中文输入模式中触发文本合成，故而不处理，
                          * 但实际上多数输入法在大写锁定时不触发文本合成。
-                         * 
+                         *
                          * 解决方法和 data_use_fix_direct_input_all 相同。
                          * 如果已经启用 data_use_fix_direct_input_all ，则无需考虑 data_use_fix_direct_input_caps_lock，
                          * 因为 data_use_fix_direct_input_all 已经包括 data_use_fix_direct_input_caps_lock。
@@ -1370,6 +1390,12 @@ extern __declspec(dllexport) bool hook_window(void *wm_pointer)
     }
 
     void *gw_pointer = get_gw_ptr(wm_pointer);
+
+    if (!gw_pointer)
+    {
+        printx(D_ERR, CCFR "找不对应的 GHOST 窗口[%p (wm), %p (gw)]", wm_pointer, gw_pointer);
+        return false;
+    }
 
     WindowData *window = find_window_by_wm_ptr(wm_pointer);
 

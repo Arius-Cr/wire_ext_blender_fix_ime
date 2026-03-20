@@ -13,6 +13,16 @@
 
 // ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
 
+#define GEN_ADDR(base, offset) ((size_t)base + offset)
+#define GET_VALUE(type, base, offset) *(type *)GEN_ADDR(base, offset)
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
+extern size_t offset_wmWindow__runtime;
+extern size_t offset_WindowRuntime__ghostwin;
+
+// ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
+
 extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer);
 
 extern __declspec(dllexport) bool wmWindow_is_pop_active(void *wm_pointer);

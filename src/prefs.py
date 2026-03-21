@@ -1,7 +1,3 @@
-from typing import cast, Literal, Union
-from datetime import datetime
-import asyncio
-
 import bpy
 from bpy.types import Context, UILayout
 
@@ -35,24 +31,6 @@ class Prefs(bpy.types.AddonPreferences):
         description="(仅供内部使用)",
         default=True,
         options={'HIDDEN'}
-    )
-
-    def use_auto_update_blender_data_update(self, context: Context):
-        from .main import blender_data
-        if self.use_auto_update_blender_data:
-            try:
-                loop = asyncio.new_event_loop()
-                loop.run_until_complete(blender_data.auto_update_and_restart())
-            finally:
-                if not loop.is_closed():
-                    loop.close()
-
-    use_auto_update_blender_data: bpy.props.BoolProperty(
-        name="自动更新内存偏移数据",
-        description="初始启动插件或每隔三天自动更新内存偏移数据。",
-        default=True if not DEBUG_BUILD else False,
-        options={'HIDDEN'},
-        update=use_auto_update_blender_data_update,
     )
 
     def use_fix_ime_update(self, context: Context):
@@ -231,52 +209,29 @@ class Prefs(bpy.types.AddonPreferences):
             rowr.prop(self, 'use_debug')
 
     def draw_data(self, layout: UILayout):
-        from .main import (
-            tzlocal, dtzero,
-            addon_data,
-            blender_data,
-            WIRE_FIX_IME_OT_update_blender_data,
-            WIRE_FIX_IME_OT_clean_blender_data,
-        )
-
-        row = layout.row()
-        rowrow = row.row(align=True)
-        rowrow.operator(WIRE_FIX_IME_OT_update_blender_data.bl_idname, text='更新内存偏移数据')
-        rowrow.prop(self, 'use_auto_update_blender_data', text="自动更新", toggle=True)
-        row.operator(WIRE_FIX_IME_OT_clean_blender_data.bl_idname, text='清除内存偏移数据')
-
-        _datetime = blender_data.mtime_default.astimezone(tzlocal)
-        layout.label(text="本地版本: " + _datetime.strftime('%Y-%m-%d %H:%M') +
-                     ("   [正在使用]" if blender_data.type == 'default' else ""))
-
-        if blender_data.mtime_cache != dtzero:
-            _datetime = blender_data.mtime_cache.astimezone(tzlocal)
-            layout.label(text="远端版本: " + _datetime.strftime('%Y-%m-%d %H:%M') +
-                        ("   [正在使用]" if blender_data.type == 'cache' else ""))
-        else:
-            layout.label(text="远端版本: (未获取)")
-
-        if addon_data.blender_data_update_time != dtzero:
-            _datetime = addon_data.blender_data_update_time.astimezone(tzlocal)
-            layout.label(text="最近更新: " + _datetime.strftime('%Y-%m-%d %H:%M:%S'))
-        else:
-            layout.label(text="最近更新: (未更新)")
+        from .main import blender_data
 
         if not blender_data.is_compatible:
             col = layout.column()
             col.alert = True
-            col.label(text=f"插件的当前版本不兼容 Blender {'.'.join(map(str, bpy.app.version))}", icon='ERROR')
-            col.label(text="你可以尝试点击【更新内存偏移数据】或自行更新插件", icon='INFO')
+            col.label(text=f"不兼容 Blender {'.'.join(map(str, bpy.app.version))}", icon='ERROR')
 
-        layout.label(text="当前支持的 Blender 版本:")
-        for _min, _max, _date, _hash in blender_data.blender_vers:
+        text1 = "当前插件支持的 Blender 版本:"
+        if len(blender_data.blender_vers) == 1:
+            _min, _max, _date, _hash = blender_data.blender_vers[0]
             if _max[2] == 99:
                 _max = (_max[0], _max[1], 'X')
-            if not _date:
-                layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
-            else:
-                _dev = f" (开发版 {_date} {_hash})" if _date is not None else ""
-                layout.label(text=f"{'.'.join(map(str, _max))}{_dev}")
+            layout.label(text=f"{text1} {'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
+        else:
+            layout.label(text=text1)
+            for _min, _max, _date, _hash in blender_data.blender_vers:
+                if _max[2] == 99:
+                    _max = (_max[0], _max[1], 'X')
+                if not _date:
+                    layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
+                else:
+                    _dev = f" (开发版 {_date} {_hash})" if _date is not None else ""
+                    layout.label(text=f"{'.'.join(map(str, _max))}{_dev}")
 
         pass
 
@@ -285,6 +240,5 @@ class Prefs(bpy.types.AddonPreferences):
 
         row = layout.row()
         row.operator('wm.url_open', text="GitHub", icon='URL').url = info['github']
-        row.operator('wm.url_open', text="Gitee", icon='URL').url = info['gitee']
         row.operator('wm.url_open', text="百度网盘", icon='URL').url = info['baidu']
         pass

@@ -13,10 +13,6 @@ bl_info = {
     'tracker_url': '',
 }
 
-# Blender 4.2.0 及以上以 Extension 的方式加载插件时，会在启用插件时删除 bl_info，
-# 此处备份该信息以便后续使用
-_bl_info = bl_info
-
 def register():
     from . import main
     main.register()

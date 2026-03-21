@@ -13,9 +13,9 @@ from .native import native
 from .native.blender import get_data
 
 from . import prefs
-from . import ime
-
 from .prefs import get_prefs, Prefs
+
+from . import ime
 
 if DEBUG_BUILD:
     from . import dev
@@ -136,8 +136,7 @@ class BlenderData:
         self.items = {}
         self.is_compatible = False
 
-        from . import _bl_info
-        data = get_data(_bl_info['version'], bpy.app.version)
+        data = get_data(bpy.app.version)
 
         if data is None:
             if mark.DEBUG:

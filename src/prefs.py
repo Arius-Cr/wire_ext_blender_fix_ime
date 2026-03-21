@@ -218,20 +218,16 @@ class Prefs(bpy.types.AddonPreferences):
 
         text1 = "当前插件支持的 Blender 版本:"
         if len(blender_data.blender_vers) == 1:
-            _min, _max, _date, _hash = blender_data.blender_vers[0]
+            _min, _max = blender_data.blender_vers[0]
             if _max[2] == 99:
                 _max = (_max[0], _max[1], 'X')
             layout.label(text=f"{text1} {'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
         else:
             layout.label(text=text1)
-            for _min, _max, _date, _hash in blender_data.blender_vers:
+            for _min, _max in blender_data.blender_vers:
                 if _max[2] == 99:
                     _max = (_max[0], _max[1], 'X')
-                if not _date:
-                    layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
-                else:
-                    _dev = f" (开发版 {_date} {_hash})" if _date is not None else ""
-                    layout.label(text=f"{'.'.join(map(str, _max))}{_dev}")
+                layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
 
         pass
 

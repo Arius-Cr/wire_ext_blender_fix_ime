@@ -20,14 +20,17 @@ _4__3__X_ = (4, 3, Z)
 _4__4__X_ = (4, 4, Z)
 _4__5__X_ = (4, 5, Z)
 _5__0__X_ = (5, 0, Z)
-_5__1__X_ = (5, 1, Z)
+_latest__ = _5__1__X_ = (5, 1, Z)
 
 def MAP(items: dict, item_name: str, maps: list[tuple[tuple[int, int, int], tuple[int, int, int], int]]):
+    # 允许使用未适配的 Blender 版本
+    __bl_ver = _bl_ver if _bl_ver <= _latest__ else _latest__
+
     for map in maps:
         # map[0] - 最小版本号
         # map[1] - 最大版本号
         # map[2] - 值
-        if map[0] <= _bl_ver <= map[1]:
+        if map[0] <= __bl_ver <= map[1]:
             items[item_name] = map[2]
             return
 

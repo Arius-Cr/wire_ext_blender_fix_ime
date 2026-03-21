@@ -137,9 +137,6 @@ class Prefs(bpy.types.AddonPreferences):
     def draw_options(self, layout: UILayout):
         split_factor = 0.3
 
-        from .main import blender_data
-        layout.enabled = blender_data.is_compatible
-
         _for_field = self.use_fix_ime_for_field
         _for_space = self.use_fix_ime_for_space
 
@@ -211,12 +208,7 @@ class Prefs(bpy.types.AddonPreferences):
     def draw_data(self, layout: UILayout):
         from .main import blender_data
 
-        if not blender_data.is_compatible:
-            col = layout.column()
-            col.alert = True
-            col.label(text=f"不兼容 Blender {'.'.join(map(str, bpy.app.version))}", icon='ERROR')
-
-        text1 = "当前插件支持的 Blender 版本:"
+        text1 = "适配的 Blender 版本:"
         if len(blender_data.blender_vers) == 1:
             _min, _max = blender_data.blender_vers[0]
             if _max[2] == 99:
@@ -229,6 +221,11 @@ class Prefs(bpy.types.AddonPreferences):
                     _max = (_max[0], _max[1], 'X')
                 layout.label(text=f"{'.'.join(map(str, _min))} - {'.'.join(map(str, _max))}")
 
+        if not blender_data.is_compatible:
+            col = layout.column()
+            col.alert = True
+            col.label(text=f"当前插件运行在未适配/不兼容的 Blender：{'.'.join(map(str, bpy.app.version))}", icon='ERROR')
+            col.label(text="插件功能很可能出现异常！！！请及时更新插件。", icon='ERROR')
         pass
 
     def draw_link(self, layout: UILayout):

@@ -155,8 +155,8 @@ class BlenderData:
 
     def apply(self) -> bool:
         if not self.is_compatible:
-            if mark.DEBUG:
-                printx(CCFR, "内存偏移量和当前 Blender 版本不兼容")
+            printx(CCFR, "输入法助手：当前插件运行在未适配/不兼容的 Blender：{'.'.join(map(str, bpy.app.version))}")
+            printx(CCFR, "输入法助手：插件功能很可能出现异常！！！请及时更新插件。")
             return False
 
         for _name, _value in self.items.items():

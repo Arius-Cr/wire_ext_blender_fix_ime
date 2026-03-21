@@ -202,11 +202,6 @@ class Manager():
                      prefs.use_fix_ime_console or
                      (prefs.use_fix_ime_sequence_editor and support_text_strip))
 
-        from .main import blender_data
-        if not blender_data.is_compatible:
-            _fix_field = False
-            _fix_space = False
-
         native.use_fix_direct_input_caps_lock(True)
 
         # 该功能用于接管大部分非IME文本输入，以便排除相关的文本输入问题：

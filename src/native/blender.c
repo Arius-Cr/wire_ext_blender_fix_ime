@@ -272,10 +272,7 @@ static size_t get_wmWindow_modalhandlers(void *wm_pointer)
     }
     else
     {
-        printx(D_IME, CCFA "offset_wmWindow__runtime: %zu", offset_wmWindow__runtime);
-        printx(D_IME, CCFA "offset_WindowRuntime__modalhandlers: %zu", offset_WindowRuntime__modalhandlers);
         size_t p_runtime = GET_VALUE(size_t, wm_pointer, offset_wmWindow__runtime);
-        printx(D_IME, CCFA "p_runtime: %p", p_runtime);
         if (p_runtime)
         {
             return GET_VALUE(size_t, p_runtime,

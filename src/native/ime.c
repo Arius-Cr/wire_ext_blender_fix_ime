@@ -197,12 +197,7 @@ static inline void *get_gw_ptr(void *wm_ptr)
     {
         // Blender 5.1.0 及以上
 
-        printx(D_IME, CCFA "offset_wmWindow__runtime: %zu", offset_wmWindow__runtime);
-        printx(D_IME, CCFA "offset_WindowRuntime__ghostwin: %zu", offset_WindowRuntime__ghostwin);
-
         size_t p_runtime = GET_VALUE(size_t, wm_ptr, offset_wmWindow__runtime);
-        
-        printx(D_IME, CCFA "p_runtime: %p", p_runtime);
         if (p_runtime)
         {
             size_t value = GET_VALUE(size_t, p_runtime, offset_WindowRuntime__ghostwin);

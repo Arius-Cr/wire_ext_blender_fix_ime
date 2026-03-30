@@ -17,23 +17,12 @@
     <!-- 🔻 自定内容 -->
 
     <PropertyGroup Label="Configuration">
-        <!-- VS2015 ToolsVersion="14.0" PlatformToolset v140-->
-        <!-- VS2017 ToolsVersion="15.0" PlatformToolset v141-->
-        <!-- VS2019 ToolsVersion="16.0" PlatformToolset v142-->
         <!-- VS2022 ToolsVersion="17.0" PlatformToolset v143-->
         <PlatformToolset>v143</PlatformToolset>
         <!-- Windows SDK 版本，安装哪个就设为哪个版本 -->
-        <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+        <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
         <!-- 输出文件的类型 -->
         <ConfigurationType>DynamicLibrary</ConfigurationType>
-        <!-- 输出文件的名称 -->
-        <TargetName>wire_fix_ime</TargetName>
-        <!-- 输出文件的扩展名 -->
-        <TargetExt>.dll</TargetExt>
-        <!-- 中间文件目录 -->
-        <IntDir>.\build\objs\$(Platform)\$(Configuration)\</IntDir>
-        <!-- 输出文件目录 -->
-        <OutDir>.\build\$(Platform)\$(Configuration)\</OutDir>
     </PropertyGroup>
 
     <!-- 🔺 自定内容 -->
@@ -42,26 +31,50 @@
 
     <!-- 🔻 自定内容 -->
 
+    <PropertyGroup Label="Configuration">
+        <!-- 输出文件的名称 -->
+        <TargetName>wire_fix_ime</TargetName>
+        <!-- 输出文件的扩展名 -->
+        <TargetExt>.dll</TargetExt>
+        <!-- 中间文件目录 -->
+        <IntDir>.\build\objs\$(Platform)\$(Configuration)\</IntDir>
+        <!-- 输出文件目录 -->
+        <OutDir>.\build\$(Platform)\$(Configuration)\</OutDir>
+
+        <CustomMacrosMyself></CustomMacrosMyself>
+        <CustomMacros Condition="'$(Configuration)'=='Debug'">$(CustomMacrosMyself);_DEBUG;_UNICODE;UNICODE</CustomMacros>
+        <CustomMacros Condition="'$(Configuration)'=='Release'">$(CustomMacrosMyself);NDEBUG;_UNICODE;UNICODE</CustomMacros>
+    </PropertyGroup>
+
+    <!-- 🔺 自定内容 -->
+
+    <!-- 🔻 自定内容 -->
+
     <ItemDefinitionGroup>
         <ClCompile>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/cl-task -->
             <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 %(AdditionalOptions)</AdditionalOptions>
-            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DEBUG;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-            <ObjectFileName>$(IntDir)</ObjectFileName>
-            <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);include;include\freetype2</AdditionalIncludeDirectories>
+            <AdditionalIncludeDirectories>include;include\freetype2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <PreprocessorDefinitions>$(CustomMacros);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+            <Optimization Condition="'$(Configuration)'=='Release'">MaxSpeed</Optimization>
+            <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebugDLL</RuntimeLibrary>
+            <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary>
         </ClCompile>
         <ResourceCompile>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/rc-task -->
-            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DEBUG;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-            <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
         </ResourceCompile>
         <Link>
             <!-- https://docs.microsoft.com/zh-cn/visualstudio/msbuild/link-task -->
             <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-            <LinkIncremental>True</LinkIncremental>
-            <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);lib</AdditionalLibraryDirectories>
-            <AdditionalDependencies>%(AdditionalDependencies);freetype2ST.lib;brotlicommon-static.lib;brotlidec-static.lib;libz_st.lib</AdditionalDependencies>
+            <LinkIncremental Condition="'$(Configuration)'=='Debug'">True</LinkIncremental>
+            <LinkIncremental Condition="'$(Configuration)'=='Release'">False</LinkIncremental>
+            <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+            <AdditionalDependencies>freetype2ST.lib;brotlicommon-static.lib;brotlidec-static.lib;libz_st.lib;%(AdditionalDependencies)</AdditionalDependencies>
+            <GenerateDebugInformation Condition="'$(Configuration)'=='Debug'">True</GenerateDebugInformation>
+            <GenerateDebugInformation Condition="'$(Configuration)'=='Release'">False</GenerateDebugInformation>
         </Link>
     </ItemDefinitionGroup>
 
@@ -82,6 +95,7 @@
     <Target Name="Message" BeforeTargets="Build">
         <Message Text="Project File Name = $(TargetName)" />
         <Message Text="Project Dir = $(MSBuildProjectDirectory)" />
+        <Message Text="CustomMacros：$(CustomMacros)" />
     </Target>
 
     <!-- 🔺 自定内容 -->

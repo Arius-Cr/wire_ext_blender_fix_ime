@@ -157,7 +157,6 @@ class BlenderData:
         if not self.is_compatible:
             printx(CCFR, "输入法助手：当前插件运行在未适配/不兼容的 Blender：{'.'.join(map(str, bpy.app.version))}")
             printx(CCFR, "输入法助手：插件功能很可能出现异常！！！请及时更新插件。")
-            return False
 
         for _name, _value in self.items.items():
             success = native.blender_data_set(_name, _value)

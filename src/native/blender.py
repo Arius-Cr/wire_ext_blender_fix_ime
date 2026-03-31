@@ -160,6 +160,22 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((5, 1, 0), _5__1__X_, 488),
     ])
 
+    # 从 Blender 5.1.0 开始需要这些参数：
+    # - offset_ARegionRuntime__uiblocks__first
+    # - offset_ARegionRuntime__uiblocks__first__next
+    # 这两个成员本身分别对应 offset_ListBase__first 和 offset_Link__next，
+    # 在自行编译的版本中，可以直接使用上述的两个偏移量，
+    # 但在官方发布的版本中，uiblocks 中的 ListBase.first 和 Link.next 的偏移量不一样。
+    # 原因未知。
+
+    MAP(items, 'offset_ARegionRuntime__uiblocks__first', [
+        ((5, 1, 0), _5__1__X_, 24),  # 该值是推算出来的
+    ])
+
+    MAP(items, 'offset_ARegionRuntime__uiblocks__first__next', [
+        ((5, 1, 0), _5__1__X_, 8),  # 该值是推算出来的
+    ])
+
     # 非 DNA 类型 wmEventHandler、wmEventHandler_UI
 
     MAP(items, 'offset_wmEventHandler__type', [
@@ -238,7 +254,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 3, 0), _4__4__X_, 360),
         ((4, 5, 0), _4__5__X_, 731),
         ((5, 0, 0), _5__0__X_, 731),
-        ((5, 1, 0), _5__1__X_, 747),
+        ((5, 1, 0), _5__1__X_, 787),  # 自行编译打印得到的是 747，但是官方版本是 787，原因未知
     ])
 
     MAP(items, 'offset_uiHandleButtonData__region', [

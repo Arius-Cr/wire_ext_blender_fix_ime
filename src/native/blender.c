@@ -211,6 +211,16 @@ static size_t offset_ARegion__runtime = UNKNOWN;
 // ARegionRuntime.uiblocks: ListBase<uiBlock>
 static size_t offset_ARegionRuntime__uiblocks = UNKNOWN;
 
+// 从 Blender 5.1.0 开始需要这些参数：
+// - offset_ARegionRuntime__uiblocks__first
+// - offset_ARegionRuntime__uiblocks__first__next
+// 这两个成员分别对应 offset_ListBase__first 和 offset_Link__next，
+// 在自行编译的版本中，可以直接使用上述的两个偏移量，
+// 但在官方发布的版本中，uiblocks 中的 ListBase.first 和 Link.next 的偏移量不一样。
+// 原因未知。
+static size_t offset_ARegionRuntime__uiblocks__first = UNKNOWN;
+static size_t offset_ARegionRuntime__uiblocks__first__next = UNKNOWN;
+
 // 文件：source\blender\editors\interface\interface_intern.hh
 // uiBlock.buttons: uiBut *
 static size_t offset_uiBlock__buttons = UNKNOWN;
@@ -361,9 +371,18 @@ extern __declspec(dllexport) bool wmWindow_is_txt_active(void *wm_pointer)
                     }
                 }
 
-                for (size_t addr_uiBlock = GET_VALUE(size_t, addr_uiblocks, offset_ListBase__first);
+                size_t _offset_uiblocks__first = offset_ListBase__first;
+                size_t _offset_uiblocks__first__next = offset_Link__next;
+
+                if (bl_ver >= BL_VER(5, 1, 0))
+                {
+                    _offset_uiblocks__first = offset_ARegionRuntime__uiblocks__first;
+                    _offset_uiblocks__first__next = offset_ARegionRuntime__uiblocks__first__next;
+                }
+
+                for (size_t addr_uiBlock = GET_VALUE(size_t, addr_uiblocks, _offset_uiblocks__first);
                      addr_uiBlock != 0;
-                     addr_uiBlock = GET_VALUE(size_t, addr_uiBlock, offset_Link__next))
+                     addr_uiBlock = GET_VALUE(size_t, addr_uiBlock, _offset_uiblocks__first__next))
                 {
                     printx(D_IME, CCFR "\taddr_uiBlock: %zu", addr_uiBlock);
 
@@ -907,6 +926,8 @@ extern __declspec(dllexport) bool blender_data_set(const wchar_t *name, size_t v
         else _set_(offset_ARegion__uiblocks)                             //
         else _set_(offset_ARegion__runtime)                              //
         else _set_(offset_ARegionRuntime__uiblocks)                      //
+        else _set_(offset_ARegionRuntime__uiblocks__first)               //
+        else _set_(offset_ARegionRuntime__uiblocks__first__next)         //
         else _set_(offset_uiBlock__buttons)                              //
         else _set_(offset_uiBlock__buttons__begin_)                      //
         else _set_(offset_uiBlock__buttons__end_)                        //

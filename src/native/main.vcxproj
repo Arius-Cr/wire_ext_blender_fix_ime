@@ -56,7 +56,8 @@
             <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 %(AdditionalOptions)</AdditionalOptions>
             <AdditionalIncludeDirectories>include;include\freetype2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
             <PreprocessorDefinitions>$(CustomMacros);%(PreprocessorDefinitions)</PreprocessorDefinitions>
-            <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+            <!-- 不能设为 Disable，否则 BLF_fixed_width 时无法返回正确的结果，原因未知 -->
+            <Optimization Condition="'$(Configuration)'=='Debug'">MaxSpeed</Optimization>
             <Optimization Condition="'$(Configuration)'=='Release'">MaxSpeed</Optimization>
             <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebugDLL</RuntimeLibrary>
             <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary>

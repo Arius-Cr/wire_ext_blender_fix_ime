@@ -20,7 +20,8 @@ _4__3__X_ = (4, 3, Z)
 _4__4__X_ = (4, 4, Z)
 _4__5__X_ = (4, 5, Z)
 _5__0__X_ = (5, 0, Z)
-_latest__ = _5__1__X_ = (5, 1, Z)
+_5__1__X_ = (5, 1, Z)
+_latest__ = _5__2__X_ = (5, 2, Z)
 
 def MAP(items: dict, item_name: str, maps: list[tuple[tuple[int, int, int], tuple[int, int, int], int]]):
     # 允许使用未适配的 Blender 版本
@@ -41,7 +42,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
     data = {
         # 当前数据适用 Blender 版本范围
         'blender_vers': [
-            ((3, 0, 0), _5__1__X_),
+            ((3, 0, 0), _5__2__X_),
         ],
         'items': {},
     }
@@ -72,14 +73,17 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
 
     MAP(items, 'offset_wmWindow__runtime', [
         ((5, 1, 0), _5__1__X_, 240),
+        ((5, 2, 0), _5__2__X_, 240),
     ])
 
     MAP(items, 'offset_WindowRuntime__ghostwin', [
         ((5, 1, 0), _5__1__X_, 32),
+        ((5, 2, 0), _5__2__X_, 32),
     ])
 
     MAP(items, 'offset_WindowRuntime__modalhandlers', [
         ((5, 1, 0), _5__1__X_, 64),
+        ((5, 2, 0), _5__2__X_, 64),
     ])
 
     MAP(items, 'offset_wmWindow__workspace_hook', [
@@ -91,6 +95,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 128),
         ((5, 0, 0), _5__0__X_, 128),
         ((5, 1, 0), _5__1__X_, 112),
+        ((5, 2, 0), _5__2__X_, 112),
     ])
 
     # DNA 类型 WorkSpaceInstanceHook
@@ -101,6 +106,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 0),
         ((5, 0, 0), _5__0__X_, 0),
         ((5, 1, 0), _5__1__X_, 0),
+        ((5, 2, 0), _5__2__X_, 0),
     ])
 
     MAP(items, 'offset_WorkSpaceInstanceHook__act_layout', [
@@ -109,6 +115,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 8),
         ((5, 0, 0), _5__0__X_, 8),
         ((5, 1, 0), _5__1__X_, 8),
+        ((5, 2, 0), _5__2__X_, 8),
     ])
 
     # DNA 类型 WorkSpaceLayout
@@ -119,6 +126,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 16),
         ((5, 0, 0), _5__0__X_, 16),
         ((5, 1, 0), _5__1__X_, 16),
+        ((5, 2, 0), _5__2__X_, 16),
     ])
 
     # DNA 类型 bScreen
@@ -129,6 +137,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 312),
         ((5, 0, 0), _5__0__X_, 496),
         ((5, 1, 0), _5__1__X_, 496),
+        ((5, 2, 0), _5__2__X_, 496),
     ])
 
     # DNA 类型 ARegion (3.0 - 4.3)
@@ -150,6 +159,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 296),
         ((5, 0, 0), _5__0__X_, 296),
         ((5, 1, 0), _5__1__X_, 296),
+        ((5, 2, 0), _5__2__X_, 312),
     ])
 
     # 注意：Release 配置下的偏移量和 Debug 配置下的不同
@@ -158,6 +168,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 488),
         ((5, 0, 0), _5__0__X_, 488),
         ((5, 1, 0), _5__1__X_, 488),
+        ((5, 2, 0), _5__2__X_, 488),
     ])
 
     # 从 Blender 5.1.0 开始需要这些参数：
@@ -170,10 +181,12 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
 
     MAP(items, 'offset_ARegionRuntime__uiblocks__first', [
         ((5, 1, 0), _5__1__X_, 24),  # 该值是推算出来的
+        ((5, 2, 0), _5__2__X_, 24),  # 该值是推算出来的
     ])
 
     MAP(items, 'offset_ARegionRuntime__uiblocks__first__next', [
         ((5, 1, 0), _5__1__X_, 8),  # 该值是推算出来的
+        ((5, 2, 0), _5__2__X_, 8),  # 该值是推算出来的
     ])
 
     # 非 DNA 类型 wmEventHandler、wmEventHandler_UI
@@ -185,6 +198,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 16),
         ((5, 0, 0), _5__0__X_, 16),
         ((5, 1, 0), _5__1__X_, 16),
+        ((5, 2, 0), _5__2__X_, 16),
     ])
     MAP(items, 'offset_wmEventHandler__handle_fn', [
         ((3, 0, 0), _3__4__X_, 32),
@@ -193,6 +207,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 32),
         ((5, 0, 0), _5__0__X_, 32),
         ((5, 1, 0), _5__1__X_, 32),
+        ((5, 2, 0), _5__2__X_, 32),
     ])
     MAP(items, 'offset_wmEventHandler__remove_fn', [
         ((3, 0, 0), _3__4__X_, 40),
@@ -201,6 +216,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 40),
         ((5, 0, 0), _5__0__X_, 40),
         ((5, 1, 0), _5__1__X_, 40),
+        ((5, 2, 0), _5__2__X_, 40),
     ])
     MAP(items, 'offset_wmEventHandler__user_data', [
         ((3, 0, 0), _3__4__X_, 48),
@@ -209,6 +225,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 48),
         ((5, 0, 0), _5__0__X_, 48),
         ((5, 1, 0), _5__1__X_, 48),
+        ((5, 2, 0), _5__2__X_, 48),
     ])
     MAP(items, 'offset_wmEventHandler__area', [
         ((3, 0, 0), _3__4__X_, 56),
@@ -217,6 +234,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 56),
         ((5, 0, 0), _5__0__X_, 56),
         ((5, 1, 0), _5__1__X_, 56),
+        ((5, 2, 0), _5__2__X_, 56),
     ])
     MAP(items, 'offset_wmEventHandler__region', [
         ((3, 0, 0), _3__4__X_, 64),
@@ -225,6 +243,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 64),
         ((5, 0, 0), _5__0__X_, 64),
         ((5, 1, 0), _5__1__X_, 64),
+        ((5, 2, 0), _5__2__X_, 64),
     ])
     MAP(items, 'offset_wmEventHandler__menu', [
         ((3, 0, 0), _3__4__X_, 72),
@@ -233,6 +252,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 72),
         ((5, 0, 0), _5__0__X_, 72),
         ((5, 1, 0), _5__1__X_, 72),
+        ((5, 2, 0), _5__2__X_, 72),
     ])
 
     MAP(items, 'WM_HANDLER_TYPE_UI', [
@@ -241,6 +261,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 2),
         ((5, 0, 0), _5__0__X_, 2),
         ((5, 1, 0), _5__1__X_, 2),
+        ((5, 2, 0), _5__2__X_, 2),
     ])
 
     # 非 DNA 类型 uiHandleButtonData
@@ -255,6 +276,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 731),
         ((5, 0, 0), _5__0__X_, 731),
         ((5, 1, 0), _5__1__X_, 787),  # 自行编译打印得到的是 747，但是官方版本是 787，原因未知
+        ((5, 2, 0), _5__2__X_, 827),  # 自行编译打印得到的是 787，但是官方版本是 827，原因未知
     ])
 
     MAP(items, 'offset_uiHandleButtonData__region', [
@@ -263,6 +285,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 24),
         ((5, 0, 0), _5__0__X_, 24),
         ((5, 1, 0), _5__1__X_, 24),
+        ((5, 2, 0), _5__2__X_, 24),
     ])
 
     # 非 DNA 类型 uiPopupBlockHandle
@@ -274,6 +297,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 331),
         ((5, 0, 0), _5__0__X_, 331),
         ((5, 1, 0), _5__1__X_, 329),
+        ((5, 2, 0), _5__2__X_, 361),
     ])
 
     MAP(items, 'offset_uiPopupBlockHandle__region', [
@@ -282,6 +306,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 0),
         ((5, 0, 0), _5__0__X_, 0),
         ((5, 1, 0), _5__1__X_, 0),
+        ((5, 2, 0), _5__2__X_, 0),
     ])
 
     # 非 DNA 类型 uiBlock
@@ -297,6 +322,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 16),
         ((5, 0, 0), _5__0__X_, 16),
         ((5, 1, 0), _5__1__X_, 16),
+        ((5, 2, 0), _5__2__X_, 16),
     ])
 
     # 从 Blender 4.5.0 开始需要这些参数：
@@ -308,18 +334,21 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 0),
         ((5, 0, 0), _5__0__X_, 0),
         ((5, 1, 0), _5__1__X_, 0),
+        ((5, 2, 0), _5__2__X_, 0),
     ])
 
     MAP(items, 'offset_uiBlock__buttons__end_', [
         ((4, 5, 0), _4__5__X_, 8),
         ((5, 0, 0), _5__0__X_, 8),
         ((5, 1, 0), _5__1__X_, 8),
+        ((5, 2, 0), _5__2__X_, 8),
     ])
 
     MAP(items, 'sizeof_uiBlock__buttons__unique_ptr', [
         ((4, 5, 0), _4__5__X_, 8),
         ((5, 0, 0), _5__0__X_, 8),
         ((5, 1, 0), _5__1__X_, 8),
+        ((5, 2, 0), _5__2__X_, 8),
     ])
 
     # 非 DNA 类型 uiBut
@@ -331,6 +360,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 952),
         ((5, 0, 0), _5__0__X_, 888),
         ((5, 1, 0), _5__1__X_, 896),
+        ((5, 2, 0), _5__2__X_, 792),
     ])
 
     MAP(items, 'offset_uiBut__flag', [
@@ -347,6 +377,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 16),
         ((5, 0, 0), _5__0__X_, 16),
         ((5, 1, 0), _5__1__X_, 16),
+        ((5, 2, 0), _5__2__X_, 16),
     ])
 
     MAP(items, 'offset_uiBut__type', [
@@ -363,6 +394,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 28),
         ((5, 0, 0), _5__0__X_, 25),
         ((5, 1, 0), _5__1__X_, 25),
+        ((5, 2, 0), _5__2__X_, 26),
     ])
 
     MAP(items, 'UI_SELECT', [
@@ -371,6 +403,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 1),  # (1 << 0)
         ((5, 0, 0), _5__0__X_, 1),
         ((5, 1, 0), _5__1__X_, 1),
+        ((5, 2, 0), _5__2__X_, 1),
     ])
 
     MAP(items, 'UI_BTYPE_TEXT', [
@@ -379,6 +412,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 1536),  # (3 << 9)
         ((5, 0, 0), _5__0__X_, 3),
         ((5, 1, 0), _5__1__X_, 3),
+        ((5, 2, 0), _5__2__X_, 3),
     ])
 
     MAP(items, 'UI_BTYPE_NUM', [
@@ -387,6 +421,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 3072),  # (6 << 9)
         ((5, 0, 0), _5__0__X_, 6),
         ((5, 1, 0), _5__1__X_, 6),
+        ((5, 2, 0), _5__2__X_, 7),
     ])
 
     MAP(items, 'UI_BTYPE_NUM_SLIDER', [
@@ -395,6 +430,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 3584),  # (7 << 9)
         ((5, 0, 0), _5__0__X_, 7),
         ((5, 1, 0), _5__1__X_, 7),
+        ((5, 2, 0), _5__2__X_, 8),
     ])
 
     MAP(items, 'UI_BTYPE_SEARCH_MENU', [
@@ -403,6 +439,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 20992),  # (41 << 9)
         ((5, 0, 0), _5__0__X_, 33),
         ((5, 1, 0), _5__1__X_, 33),
+        ((5, 2, 0), _5__2__X_, 34),
     ])
 
     # DNA 类型 SpaceText、SpaceText_Runtime
@@ -414,6 +451,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 592),
         ((5, 0, 0), _5__0__X_, 592),
         ((5, 1, 0), _5__1__X_, 592),
+        ((5, 2, 0), _5__2__X_, 592),
     ])
 
     MAP(items, 'offset_SpaceText_Runtime__lheight_px', [
@@ -423,6 +461,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 0),
         ((5, 0, 0), _5__0__X_, 0),
         ((5, 1, 0), _5__1__X_, 0),
+        ((5, 2, 0), _5__2__X_, 0),
     ])
 
     MAP(items, 'offset_SpaceText_Runtime__cwidth_px', [
@@ -432,6 +471,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 4),
         ((5, 0, 0), _5__0__X_, 4),
         ((5, 1, 0), _5__1__X_, 4),
+        ((5, 2, 0), _5__2__X_, 4),
     ])
 
     MAP(items, 'offset_SpaceText_Runtime__line_number_display_digits', [
@@ -441,6 +481,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 40),
         ((5, 0, 0), _5__0__X_, 40),
         ((5, 1, 0), _5__1__X_, 40),
+        ((5, 2, 0), _5__2__X_, 40),
     ])
 
     MAP(items, 'SpaceText_ver', [
@@ -450,6 +491,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 2),
         ((5, 0, 0), _5__0__X_, 2),
         ((5, 1, 0), _5__1__X_, 2),
+        ((5, 2, 0), _5__2__X_, 2),
     ])
 
     # DNA 类型 TextStrip
@@ -467,30 +509,35 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 96),
         ((5, 0, 0), _5__0__X_, 96),
         ((5, 1, 0), _5__1__X_, 80),
+        ((5, 2, 0), _5__2__X_, 80),
     ])
     MAP(items, 'offset_Strip__effectdata', [
         ((4, 4, 0), _4__4__X_, 352),
         ((4, 5, 0), _4__5__X_, 352),
         ((5, 0, 0), _5__0__X_, 344),
         ((5, 1, 0), _5__1__X_, 288),
+        ((5, 2, 0), _5__2__X_, 296),
     ])
     MAP(items, 'offset_TextVars__cursor_offset', [
         ((4, 4, 0), _4__4__X_, 632),
         ((4, 5, 0), _4__5__X_, 632),
         ((5, 0, 0), _5__0__X_, 136),
         ((5, 1, 0), _5__1__X_, 136),
+        ((5, 2, 0), _5__2__X_, 144),
     ])
     MAP(items, 'offset_TextVars__selection_start_offset', [
         ((4, 4, 0), _4__4__X_, 636),
         ((4, 5, 0), _4__5__X_, 636),
         ((5, 0, 0), _5__0__X_, 140),
         ((5, 1, 0), _5__1__X_, 140),
+        ((5, 2, 0), _5__2__X_, 148),
     ])
     MAP(items, 'offset_TextVars__selection_end_offset', [
         ((4, 4, 0), _4__4__X_, 640),
         ((4, 5, 0), _4__5__X_, 640),
         ((5, 0, 0), _5__0__X_, 144),
         ((5, 1, 0), _5__1__X_, 144),
+        ((5, 2, 0), _5__2__X_, 152),
     ])
 
     MAP(items, 'SEQ_FLAG_TEXT_EDITING_ACTIVE', [
@@ -498,6 +545,7 @@ def get_data(bl_ver: tuple[int, int, int]) -> Union[dict, None]:
         ((4, 5, 0), _4__5__X_, 64),  # (1 << 6)
         ((5, 0, 0), _5__0__X_, 64),
         ((5, 1, 0), _5__1__X_, 64),
+        ((5, 2, 0), _5__2__X_, 64),
     ])
 
     return data
